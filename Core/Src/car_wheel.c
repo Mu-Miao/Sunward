@@ -32,7 +32,7 @@ void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
     if (w->bad_sign_us >= 50000U) {
         CarApp_Stop(app, REVERSE, wheel_name[i]); return;
     }
-    if (app->route.motion == MOVE_TASK3 && target == 0.0f) {
+    if (CarMotion_IsFigureEight(app->route.motion) && target == 0.0f) {
         w->integral = 0.0f;
         w->command = 0;
         w->stall_us = 0U;

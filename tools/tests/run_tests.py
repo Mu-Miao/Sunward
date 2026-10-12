@@ -13,7 +13,7 @@ args = parser.parse_args()
 root = args.project.resolve()
 tests = Path(__file__).resolve().parent
 modules = sorted((root / 'Core/Src').glob('car_*.c'))
-assert len(modules) == 13, 'Expected all 13 car modules in Core/Src'
+assert len(modules) == 14, 'Expected all 14 car modules in Core/Src'
 assert not any('#include' in line and '.c"' in line
                for path in modules for line in path.read_text().splitlines())
 flags = [os.environ.get('CC', 'cc'), '-std=c11', '-Wall', '-Wextra', '-Werror',
@@ -21,7 +21,7 @@ flags = [os.environ.get('CC', 'cc'), '-std=c11', '-Wall', '-Wextra', '-Werror',
 if args.sanitize:
     flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
 with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
-    for suite in ['motion', 'task2', 'task3']:
+    for suite in ['motion', 'task2', 'task3', 'task4']:
         for public in [False, True]:
             name = suite + ('_car_app' if public else '_legacy_api')
             binary = str(Path(folder) / name)
@@ -38,4 +38,4 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                 print(result.stdout + result.stderr, flush=True)
                 result.check_returncode()
             print(name + ': ' + result.stdout.strip())
-print('PASS: motion/task2/task3 regressions; CarApp and compatibility APIs; separate module linkage.')
+print('PASS: motion/task2/task3/task4 regressions; CarApp and compatibility APIs; separate module linkage.')

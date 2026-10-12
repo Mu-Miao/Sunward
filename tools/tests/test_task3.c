@@ -98,7 +98,10 @@ static void reach_phase(CarTask3Phase phase)
  for(unsigned i=0;i<2500&&app()->runtime.state==RUNNING&&app()->route.task3.phase!=phase;i++)step_route();
  assert(app()->runtime.state==RUNNING && app()->route.task3.phase==phase);
 }
-int main(void)
+#ifndef CAR_TASK3_TEST_MAIN
+#define CAR_TASK3_TEST_MAIN main
+#endif
+int CAR_TASK3_TEST_MAIN(void)
 {
  task3_start();
  assert(app()->route.task3.phase==T3_START_ALIGN && app()->route.task3.leg==0);

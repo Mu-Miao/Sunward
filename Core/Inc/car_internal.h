@@ -9,6 +9,7 @@ void CarApp_Stop(CarAppContext *app, TestState why, char faulty);
 #include "car_button.h"
 #include "car_route.h"
 #include "car_task3_port.h"
+#include "car_task4.h"
 #include "car_heading.h"
 #include "car_line.h"
 #include "car_command.h"

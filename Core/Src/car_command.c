@@ -3,7 +3,7 @@
 #include <string.h>
 
 const char CarCommand_Banner[] =
-    "DPI KEY_U OFF:short=CAL,long1.5s=mode; READY+ON:press=start; busy:press=STOP; TASK3!/TASK2!/LF20!/GO100!/GO20!/GO!/RUN!/F!/B!/L!/R!/STOP!/CAL! V/TIME\r\n";
+    "DPI KEY_U OFF:short=CAL,long1.5s=mode; READY+ON:press=start; busy:press=STOP; TASK4!/TASK3!/TASK2!/LF20!/GO100!/GO20!/GO!/RUN!/F!/B!/L!/R!/STOP!/CAL! V/TIME\r\n";
 
 static int unsigned_value(const char *text, unsigned *value)
 {
@@ -26,6 +26,7 @@ static void CarCommand_Accept(CarAppContext *app, CommandInput *in, Motion *requ
             *stop_requested = 1;
         }
         if (strcmp(in->text, "CAL") == 0 && app->runtime.state != RUNNING) app->heading.cal_requested = 1;
+        if (strcmp(in->text, "TASK4") == 0) *requested = MOVE_TASK4;
         if (strcmp(in->text, "TASK3") == 0) *requested = MOVE_TASK3;
         if (strcmp(in->text, "TASK2") == 0) *requested = MOVE_TASK2;
         if (strcmp(in->text, "LF20") == 0) *requested = MOVE_LINE;

@@ -2,6 +2,7 @@
 #include "car_internal.h"
 #include <math.h>
 #include <string.h>
+#include "car_task4.h"
 
 CarTask3Config CarRoute_Task3Config(void)
 {
@@ -24,7 +25,7 @@ CarTask3Config CarRoute_Task3Config(void)
 
 int CarRoute_IsDistance(Motion m)
 {
-    return m == MOVE_DISTANCE || m == MOVE_ROUTE || m == MOVE_LINE || m == MOVE_TASK2 || m == MOVE_TASK3;
+    return m == MOVE_DISTANCE || m == MOVE_ROUTE || m == MOVE_LINE || m == MOVE_TASK2 || CarMotion_IsFigureEight(m);
 }
 
 void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now)
@@ -34,6 +35,7 @@ void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now)
     CarSignal_Set(app, 0);
     app->button.selected_motion = selected;
     memset(&app->route.task3, 0, sizeof app->route.task3);
+    memset(&app->route.task4, 0, sizeof app->route.task4);
     memset(&app->route.task3_trace, 0, sizeof app->route.task3_trace);
     app->route.leg = app->route.edge_seen = 0U;
     app->route.leg_start = 0.0f;
@@ -43,8 +45,9 @@ void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now)
     app->route.distance_mm[LEFT] = app->route.distance_mm[RIGHT] = 0.0f;
     app->route.goal = app->button.selected_motion == MOVE_LINE ? DPT_LINE_MM :
         (app->button.selected_motion == MOVE_TASK2 ? 2.0f * (DPT_TASK2_STRAIGHT_MM + DPT_TASK2_ARC_MM) : DPT_ROUTE_MM);
-    if (selected == MOVE_TASK3)
-        app->route.goal = 2.0f * (hypotf(DPT_TASK3_SPAN_MM, 2.0f * DPT_TASK3_RADIUS_MM) + DPT_TASK3_ARC_MM);
+    if (CarMotion_IsFigureEight(selected))
+        app->route.goal = (selected == MOVE_TASK4 ? DPT_TASK4_LAPS : 1U) *
+            2.0f * (hypotf(DPT_TASK3_SPAN_MM, 2.0f * DPT_TASK3_RADIUS_MM) + DPT_TASK3_ARC_MM);
     app->line.center_seen = app->line.center_ready = app->line.invalid_seen = 0U;
     app->line.diff = 0.0f;
     app->ui.button_log_ms = now - 1000U;
@@ -61,7 +64,7 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
         if (!app->line.center_ready || (uint32_t)(now - app->line.sample_ms) > 15U ||
             !app->line.valid || !app->line.black[1] || !app->line.black[2] || app->line.count != 2U) return;
     }
-    if (requested == MOVE_TASK3) {
+    if (CarMotion_IsFigureEight(requested)) {
         if ((uint32_t)(now - app->runtime.old_ms) > 15U ||
             fabsf(app->wheel.items[LEFT].velocity) > 5.0f || fabsf(app->wheel.items[RIGHT].velocity) > 5.0f) return;
         CarLine_Decode(app);
@@ -113,20 +116,23 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
         app->route.start_ms = app->route.switch_ms = now;
         app->route.switching = was_running;
         app->runtime.fault_wheel = '-';
-        if (requested == MOVE_TASK3) {
-            CarTask3Config config = CarRoute_Task3Config();
+        if (CarMotion_IsFigureEight(requested)) {
+            CarTask3Config config = requested == MOVE_TASK4 ? CarTask4_Config() : CarRoute_Task3Config();
             CarTask3Input input = CarTask3Port_Input(app, now, 1, 0, 0);
-            if (!CarTask3_Start(&app->route.task3, &config, &input)) {
+            int started = requested == MOVE_TASK4 ?
+                CarTask4_Start(&app->route.task4, &app->route.task3, &config, &input) :
+                CarTask3_Start(&app->route.task3, &config, &input);
+            if (!started) {
                 CarApp_Stop(app, CarTask3Port_StopState(app->route.task3.fault), '-');
                 return;
             }
             memset(&app->route.task3_trace, 0, sizeof app->route.task3_trace);
             app->route.leg = 0U; app->route.leg_start = 0.0f; app->route.elapsed_ms = 0U;
-            app->route.goal = 2.0f * (app->route.task3.diagonal_mm + config.arc_mm);
+            app->route.goal = (requested == MOVE_TASK4 ? DPT_TASK4_LAPS : 1U) * 2.0f * (app->route.task3.diagonal_mm + config.arc_mm);
             app->route.cruise = config.diagonal_mmps;
             app->route.base = 0.0f;
             app->route.targets[LEFT] = app->route.targets[RIGHT] = 0.0f;
-            app->route.run_duration = config.deadline_ms;
+            app->route.run_duration = requested == MOVE_TASK4 ? DPT_TASK4_TIMEOUT_MS : config.deadline_ms;
         }
         app->runtime.state = RUNNING;
     }
@@ -189,12 +195,12 @@ int CarRoute_UsesLine(CarAppContext *app)
 
 int CarRoute_UsesHeading(CarAppContext *app)
 {
- return app->route.motion != MOVE_TASK3 && app->route.motion != MOVE_LINE && !CarRoute_IsArc(app); 
+ return !CarMotion_IsFigureEight(app->route.motion) && app->route.motion != MOVE_LINE && !CarRoute_IsArc(app);
 }
 
 void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
 {
-    if (app->route.motion == MOVE_TASK3) {
+    if (CarMotion_IsFigureEight(app->route.motion)) {
         if (app->runtime.state != RUNNING || !app->route.tracking) return;
         for (unsigned i = 0; i < 2U; ++i) {
             if (fabsf(app->wheel.items[i].velocity) > 350.0f) {
@@ -221,10 +227,11 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                 app->route.task3_trace.velocity[w] = app->wheel.items[w].velocity;
             }
         }
-        CarTask3_Update(&app->route.task3, &input, &output);
+        if (app->route.motion == MOVE_TASK4) CarTask4_Update(&app->route.task4, &app->route.task3, &input, &output);
+        else CarTask3_Update(&app->route.task3, &input, &output);
         app->route.leg = app->route.task3.leg;
         app->route.leg_start = app->route.task3.leg_start_mm;
-        app->route.elapsed_ms = app->route.task3.elapsed_ms;
+        app->route.elapsed_ms = app->route.motion == MOVE_TASK4 ? app->route.task4.elapsed_ms : app->route.task3.elapsed_ms;
         app->route.base = output.control == T3_TURN_FORWARD ?
             (output.left_mmps + output.right_mmps) * 0.5f : output.base_mmps;
         if (app->route.task3.phase == T3_FAULT) {

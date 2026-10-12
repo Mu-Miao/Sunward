@@ -30,7 +30,7 @@ void CarLine_Decode(CarAppContext *app)
 
 void CarLine_Sample(CarAppContext *app, uint32_t now, int timing_ok)
 {
-    if (app->button.selected_motion != MOVE_LINE && app->route.motion != MOVE_LINE && app->button.selected_motion != MOVE_TASK2 && app->route.motion != MOVE_TASK2 && app->button.selected_motion != MOVE_TASK3 && app->route.motion != MOVE_TASK3) return;
+    if (app->button.selected_motion != MOVE_LINE && app->route.motion != MOVE_LINE && app->button.selected_motion != MOVE_TASK2 && app->route.motion != MOVE_TASK2 && !CarMotion_IsFigureEight(app->button.selected_motion) && !CarMotion_IsFigureEight(app->route.motion)) return;
     if (!timing_ok) { app->line.center_seen = app->line.center_ready = 0U; return; }
     CarLine_Decode(app);
     app->line.sample_ms = now;

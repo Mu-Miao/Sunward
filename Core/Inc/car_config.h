@@ -86,4 +86,8 @@
 #define DPT_TASK3_CAPTURE_LIMIT_MM 60.0f
 #define DPT_TASK3_TURN_TIMEOUT_MS 4000U
 #define DPT_TASK3_CAPTURE_TIMEOUT_MS 2000U
+/* Task4 reuses the tested Task3 geometry/speeds; this is a safety watchdog. */
+#define DPT_TASK4_LAP_WATCHDOG_MS 80000U
+#define DPT_TASK4_LAPS 4U
+#define DPT_TASK4_TIMEOUT_MS 160000U
 #endif

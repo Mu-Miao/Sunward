@@ -48,7 +48,7 @@ void CarButton_Handle(CarAppContext *app, uint32_t now, int enabled, uint8_t was
     /* OFF selection is separate from starting. No pending movement is kept.
        Serial STOP/RX errors or a busy press cannot select or queue a restart. */
     if (!enabled && !was_busy && !(*stop_requested) &&
-        ((*requested) == MOVE_LINE || (*requested) == MOVE_ROUTE || (*requested) == MOVE_TASK2 || (*requested) == MOVE_TASK3)) {
+        ((*requested) == MOVE_LINE || (*requested) == MOVE_ROUTE || (*requested) == MOVE_TASK2 || CarMotion_IsFigureEight(*requested))) {
         CarRoute_Select(app, (*requested), now);
         (*requested) = MOVE_NONE;
     }
@@ -62,7 +62,7 @@ void CarButton_Handle(CarAppContext *app, uint32_t now, int enabled, uint8_t was
                 (*stop_requested) = 1;
                 app->button.action = KEY_STOP;
             } else if (key_pressed == KEY_EVENT_HOLD && !enabled && !app->heading.cal_requested) {
-                CarRoute_Select(app, app->button.selected_motion == MOVE_ROUTE ? MOVE_LINE : (app->button.selected_motion == MOVE_LINE ? MOVE_TASK2 : (app->button.selected_motion == MOVE_TASK2 ? MOVE_TASK3 : MOVE_ROUTE)), now);
+                CarRoute_Select(app, app->button.selected_motion == MOVE_ROUTE ? MOVE_LINE : (app->button.selected_motion == MOVE_LINE ? MOVE_TASK2 : (app->button.selected_motion == MOVE_TASK2 ? MOVE_TASK3 : (app->button.selected_motion == MOVE_TASK3 ? MOVE_TASK4 : MOVE_ROUTE))), now);
                 (*requested) = MOVE_NONE;
                 app->button.action = KEY_MODE;
             } else if (key_pressed == KEY_EVENT_SHORT && !enabled && app->heading.available) {

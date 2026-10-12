@@ -24,9 +24,12 @@ void CarApp_Stop(CarAppContext *app, TestState why, char faulty)
     }
     if (app->route.motion == MOVE_TASK2 && (app->runtime.state == RUNNING || app->runtime.state == BRAKING))
         app->route.elapsed_ms = (uint32_t)(HAL_GetTick() - app->route.start_ms);
-    if (app->route.motion == MOVE_TASK3 && (app->runtime.state == RUNNING || app->runtime.state == BRAKING)) {
+    if (CarMotion_IsFigureEight(app->route.motion) && (app->runtime.state == RUNNING || app->runtime.state == BRAKING)) {
         app->route.elapsed_ms = (uint32_t)(HAL_GetTick() - app->route.start_ms);
-        app->route.task3.elapsed_ms = app->route.elapsed_ms;
+        if (app->route.motion == MOVE_TASK4) {
+            app->route.task4.elapsed_ms = app->route.elapsed_ms;
+            app->route.task4.active = 0U;
+        } else app->route.task3.elapsed_ms = app->route.elapsed_ms;
         if (why != DONE && app->route.task3.phase != T3_FAULT) {
             CarTask3_Cancel(&app->route.task3);
             if (why == TIMEOUT) app->route.task3.fault = T3_TIMEOUT;
@@ -98,6 +101,8 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     if (!CarWheel_ConfigValid()) return HAL_ERROR;
     CarTask3Config task3_config = CarRoute_Task3Config();
     if (!CarTask3_ConfigValid(&task3_config)) return HAL_ERROR;
+    CarTask3Config task4_config = CarTask4_Config();
+    if (!CarTask3_ConfigValid(&task4_config) || DPT_TASK4_LAPS != 4U) return HAL_ERROR;
     app->runtime.hz = HAL_RCC_GetHCLKFreq();
     if (app->runtime.hz < 1000000U) return HAL_ERROR;
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
@@ -113,6 +118,7 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     app->runtime.state = IDLE;
     app->route.motion = MOVE_NONE;
     memset(&app->route.task3, 0, sizeof app->route.task3);
+    memset(&app->route.task4, 0, sizeof app->route.task4);
     memset(&app->route.task3_trace, 0, sizeof app->route.task3_trace);
     app->route.switching = 0;
     app->route.manual_speed = DPT_MANUAL_MMPS;

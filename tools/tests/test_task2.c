@@ -273,7 +273,7 @@ int main(void){
  /* Modes cycle 1 -> half -> 2 -> 1; reboot is still task 1. */
  setup();hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_LINE);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK2);
  for(int i=0;i<200;i++)step(10,0,0);assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK2&&CarApp_TestContext()->heading.phase==Y_NONE);
- hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK3);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_ROUTE);setup();assert(CarApp_TestContext()->button.selected_motion==MOVE_ROUTE);
+ hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK3);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK4);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_ROUTE);setup();assert(CarApp_TestContext()->button.selected_motion==MOVE_ROUTE);
  /* Half-circle user's current tuned parameters and independent auto-stop survive. */
  setup();line_inputs=9;cmd("LF20!");calibrate();enable();press_key();
  assert(CarApp_TestContext()->route.motion==MOVE_LINE&&CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.goal==DPT_LINE_MM);

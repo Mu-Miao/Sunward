@@ -3,6 +3,7 @@
 #include "stm32f1xx_hal.h"
 #include "lab_uart_async.h"
 #include "car_task3.h"
+#include "car_task4.h"
 
 /* Internal application state. Owned by CarApp, used only in foreground.
  * Hardware IRQs continue to communicate through lab_uart_async queues. */
@@ -11,7 +12,11 @@ typedef enum { IDLE, RUNNING, DONE, OFF, LOW, ADC_BAD, GAP,
     TIMEOUT, SETTLE_BAD, LINE_LOST, LINE_BAD } TestState;
 enum { LEFT = 0, RIGHT = 1 };
 typedef enum { MOVE_NONE, MOVE_TEST, MOVE_FORWARD, MOVE_BACK, MOVE_LEFT,
-    MOVE_RIGHT, MOVE_HEADING, MOVE_DISTANCE, MOVE_ROUTE, MOVE_LINE, MOVE_TASK2, MOVE_TASK3 } Motion;
+    MOVE_RIGHT, MOVE_HEADING, MOVE_DISTANCE, MOVE_ROUTE, MOVE_LINE, MOVE_TASK2, MOVE_TASK3, MOVE_TASK4 } Motion;
+static inline int CarMotion_IsFigureEight(Motion motion)
+{
+    return motion == MOVE_TASK3 || motion == MOVE_TASK4;
+}
 typedef enum { Y_NONE, Y_WARM, Y_CAL, Y_READY, Y_FAIL } YawPhase;
 typedef enum { KEY_NONE, KEY_CAL, KEY_START, KEY_STOP, KEY_WAIT, KEY_BLOCK, KEY_MODE } KeyAction;
 typedef enum { KEY_EVENT_NONE, KEY_EVENT_SHORT, KEY_EVENT_HOLD } KeyEvent;
@@ -103,6 +108,7 @@ typedef struct {
     float leg_start;
     float start_heading;
     CarTask3 task3;
+    CarTask4 task4;
     struct {
         uint8_t valid_seen, lost_seen;
         uint8_t valid_raw[4], lost_raw[4];

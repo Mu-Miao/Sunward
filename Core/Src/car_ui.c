@@ -10,7 +10,8 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         static const char *const states[] = {"IDLE", "RUN", "DONE", "OFF", "LOW",
             "ADC", "GAP", "REV", "FAST", "STALL", "UART", "STOP", "YAW", "BRAKE", "TIMEOUT", "SETTLE", "LOST", "LINE"};
         const char *title = "TASK 1 A->B";
-        if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 CAP V2";
+        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 REBUILD V1";
+        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 CAP V2";
         else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
         else if (app->route.motion == MOVE_DISTANCE) title = "TEST GO20";
@@ -18,7 +19,7 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         else if (app->route.motion == MOVE_TEST) title = "TEST RUN";
         else if (app->route.motion != MOVE_NONE && app->route.motion != MOVE_ROUTE) title = "MANUAL";
         char cal[24], run[24], progress[32];
-        int lost_snapshot = app->route.motion == MOVE_TASK3 && app->route.task3.phase == T3_FAULT &&
+        int lost_snapshot = CarMotion_IsFigureEight(app->route.motion) && app->route.task3.phase == T3_FAULT &&
             app->route.task3.fault == T3_LOST && app->route.task3_trace.lost_seen;
         unsigned snapshot_page = lost_snapshot ? (unsigned)((uint32_t)(now - app->route.task3_trace.lost_ms) / 2000U) % 2U : 0U;
         (void)snprintf(cal, sizeof cal, "YC %s EN %s", phases[app->heading.phase], enabled ? "ON" : "OFF");
@@ -29,11 +30,17 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             (void)snprintf(run, sizeof run, "%s %s T%lu.%lus", states[app->runtime.state], legs[app->route.leg],
                 (unsigned long)(elapsed / 1000U), (unsigned long)((elapsed / 100U) % 10U));
         }
-        if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) {
+        if (CarMotion_IsFigureEight(app->route.motion) || (app->route.motion == MOVE_NONE && CarMotion_IsFigureEight(app->button.selected_motion))) {
             uint32_t elapsed = app->runtime.state == RUNNING ? (uint32_t)(now - app->route.start_ms) : app->route.elapsed_ms;
             const char *segment = app->route.task3.phase == T3_START_ALIGN ? "TURN A" :
                 (app->route.task3.phase == T3_START_SETTLE ? "WAIT A" : CarTask3_LegName(&app->route.task3));
-            (void)snprintf(run, sizeof run, "%s %s T%lu.%lus", states[app->runtime.state], segment,
+            if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) {
+                unsigned lap = app->route.task4.completed_laps + 1U;
+                if (lap > DPT_TASK4_LAPS) lap = DPT_TASK4_LAPS;
+                const char *short_segment = app->route.task3.phase == T3_START_ALIGN || app->route.task3.phase == T3_START_SETTLE ? "A" : segment;
+                (void)snprintf(run, sizeof run, "%s %u/4 %s T%lu.%lu", states[app->runtime.state], lap, short_segment,
+                    (unsigned long)(elapsed / 1000U), (unsigned long)((elapsed / 100U) % 10U));
+            } else (void)snprintf(run, sizeof run, "%s %s T%lu.%lus", states[app->runtime.state], segment,
                 (unsigned long)(elapsed / 1000U), (unsigned long)((elapsed / 100U) % 10U));
         }
         if (lost_snapshot) {
@@ -59,11 +66,11 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             CarLine_Read(app);
             (void)snprintf(progress, sizeof progress, "LF %u %u %u %u",
                 (unsigned)app->line.raw[0], (unsigned)app->line.raw[1], (unsigned)app->line.raw[2], (unsigned)app->line.raw[3]);
-        } else if (app->route.motion == MOVE_TASK3 &&
+        } else if (CarMotion_IsFigureEight(app->route.motion) &&
             (app->route.task3.phase == T3_START_ALIGN || app->route.task3.phase == T3_START_SETTLE))
             (void)snprintf(progress, sizeof progress, "START Y%d/%d",
                 CarMath_Round(app->heading.angle), CarMath_Round(app->route.task3.start_heading_deg));
-        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3))
+        else if (CarMotion_IsFigureEight(app->route.motion) || (app->route.motion == MOVE_NONE && CarMotion_IsFigureEight(app->button.selected_motion)))
             (void)snprintf(progress, sizeof progress, "P%u F%u S%d Y%d",
                 (unsigned)app->route.task3.phase, (unsigned)app->route.task3.fault,
                 CarMath_Round((app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f - app->route.task3.leg_start_mm),
@@ -96,14 +103,14 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             if (app->runtime.bluetooth_on) (void)LabUART_TryWritePort(LAB_UART_BT, msg, (uint16_t)n);
         }
     }
-    if ((!enabled || app->button.selected_motion == MOVE_LINE || app->route.motion == MOVE_LINE || app->button.selected_motion == MOVE_TASK2 || app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK3 || app->route.motion == MOVE_TASK3) && (uint32_t)(now - app->ui.line_log_ms) >= 1000U) {
+    if ((!enabled || app->button.selected_motion == MOVE_LINE || app->route.motion == MOVE_LINE || app->button.selected_motion == MOVE_TASK2 || app->route.motion == MOVE_TASK2 || CarMotion_IsFigureEight(app->button.selected_motion) || CarMotion_IsFigureEight(app->route.motion)) && (uint32_t)(now - app->ui.line_log_ms) >= 1000U) {
         char msg[128];
         int n;
-        if (app->button.selected_motion == MOVE_LINE || app->route.motion == MOVE_LINE || app->button.selected_motion == MOVE_TASK2 || app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK3 || app->route.motion == MOVE_TASK3)
+        if (app->button.selected_motion == MOVE_LINE || app->route.motion == MOVE_LINE || app->button.selected_motion == MOVE_TASK2 || app->route.motion == MOVE_TASK2 || CarMotion_IsFigureEight(app->button.selected_motion) || CarMotion_IsFigureEight(app->route.motion))
             n = snprintf(msg, sizeof msg, "LINE RAW=%u%u%u%u E100=%d C=%d VALID=%u CENTER=%u MODE=%s SEG=%u\r\n",
                 (unsigned)app->line.raw[0], (unsigned)app->line.raw[1], (unsigned)app->line.raw[2], (unsigned)app->line.raw[3],
                 CarMath_Round(app->line.error * 100.0f), CarMath_Round(app->line.diff), (unsigned)app->line.valid, (unsigned)app->line.center_ready,
-                app->route.motion == MOVE_TASK3 || app->button.selected_motion == MOVE_TASK3 ? "TASK3" : (app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK2 ? "TASK2" : "HALF"), (unsigned)app->route.leg);
+                app->route.motion == MOVE_TASK4 || app->button.selected_motion == MOVE_TASK4 ? "TASK4" : (CarMotion_IsFigureEight(app->route.motion) || CarMotion_IsFigureEight(app->button.selected_motion) ? "TASK3" : (app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK2 ? "TASK2" : "HALF")), (unsigned)app->route.leg);
         else n = snprintf(msg, sizeof msg, "LINE O1=%u O2=%u O3=%u O4=%u\r\n",
             (unsigned)app->line.raw[0], (unsigned)app->line.raw[1], (unsigned)app->line.raw[2], (unsigned)app->line.raw[3]);
         app->ui.line_log_ms = now;
@@ -120,7 +127,7 @@ void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
     if ((uint32_t)(now - app->ui.motion_log_ms) >= (CarRoute_IsDistance(app->route.motion) ? 400U : 200U)) {
         static const char *const names[] = {"IDLE", "RUN", "DONE", "OFF", "LOW",
             "ADC", "GAP", "REV", "FAST", "STALL", "UART", "STOP", "YAW", "BRAKE", "TIMEOUT", "SETTLE", "LOST", "LINE"};
-        static const char *const modes[] = {"-", "TEST", "FWD", "BACK", "LEFT", "RIGHT", "HEAD", "DIST", "DIST", "LINE", "TASK2", "TASK3"};
+        static const char *const modes[] = {"-", "TEST", "FWD", "BACK", "LEFT", "RIGHT", "HEAD", "DIST", "DIST", "LINE", "TASK2", "TASK3", "TASK4"};
         char msg[256];
         int n = snprintf(msg, sizeof msg,
             "DPI T=%d L=%d R=%d UL=%d UR=%d IL=%d IR=%d BAT=%lu DT=%lu ST=%s F=%c RXE=%lu TXD=%lu M=%s TL=%d TR=%d V=%u SEC=%lu\r\n",
@@ -143,7 +150,15 @@ void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
             if (added <= 0 || added >= (int)(sizeof msg - (size_t)n)) n = (int)sizeof msg;
             else n += added;
         }
-        if ((app->route.motion == MOVE_ROUTE || app->route.motion == MOVE_LINE || app->route.motion == MOVE_TASK2 || app->route.motion == MOVE_TASK3) && n > 1 && n < (int)sizeof msg) {
+        if (app->route.motion == MOVE_TASK4 && n > 1 && n < (int)sizeof msg) {
+            n -= 2;
+            int added = snprintf(msg + n, sizeof msg - (size_t)n, " LAP_DONE=%u LAPS=%u ELAPSED_MS=%lu\r\n",
+                (unsigned)app->route.task4.completed_laps, (unsigned)DPT_TASK4_LAPS,
+                (unsigned long)app->route.task4.elapsed_ms);
+            if (added <= 0 || added >= (int)(sizeof msg - (size_t)n)) n = (int)sizeof msg;
+            else n += added;
+        }
+        if ((app->route.motion == MOVE_ROUTE || app->route.motion == MOVE_LINE || app->route.motion == MOVE_TASK2 || CarMotion_IsFigureEight(app->route.motion)) && n > 1 && n < (int)sizeof msg) {
             n -= 2;
             int added = snprintf(msg + n, sizeof msg - (size_t)n, " SIG=%u\r\n", (unsigned)app->signal.active);
             if (added <= 0 || added >= (int)(sizeof msg - (size_t)n)) n = (int)sizeof msg;
@@ -178,7 +193,7 @@ void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
         char msg[96];
         int n = snprintf(msg, sizeof msg, "KEY EN=%u RAW=%u ARM=%u EVT=%lu ACT=%s %s\r\n",
             (unsigned)enabled, (unsigned)app->button.raw, (unsigned)app->button.armed,
-            (unsigned long)app->button.events, actions[app->button.action], app->button.selected_motion == MOVE_TASK3 ? "TASK=3" : (app->button.selected_motion == MOVE_TASK2 ? "TASK=2" : (app->button.selected_motion == MOVE_LINE ? "TEST=HALF" : "TASK=1")));
+            (unsigned long)app->button.events, actions[app->button.action], app->button.selected_motion == MOVE_TASK4 ? "TASK=4" : (app->button.selected_motion == MOVE_TASK3 ? "TASK=3" : (app->button.selected_motion == MOVE_TASK2 ? "TASK=2" : (app->button.selected_motion == MOVE_LINE ? "TEST=HALF" : "TASK=1"))));
         app->ui.button_log_ms = now;
         if (n > 0 && n < (int)sizeof msg) {
             (void)LabUART_TryWrite(msg, (uint16_t)n);
