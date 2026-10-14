@@ -25,7 +25,7 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
 void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t now)
 {
     app->route.targets[LEFT] = app->route.targets[RIGHT] = 0.0f;
-    /* A latched app fault cannot be overridden by a previously computed intent. */
+    /* 整车已锁存故障时，之前计算的运动输出不得重新使电机启动。 */
     if (app->runtime.state != RUNNING) {
         app->runtime.drive(0, 0);
         CarWheel_Clear(app);
@@ -47,6 +47,32 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         app->heading.error = CarMath_WrapDegrees(o->heading_deg - app->heading.angle);
         app->route.targets[LEFT] = o->left_mmps;
         app->route.targets[RIGHT] = o->right_mmps;
+        /* 任务三、四接近目标角时降低外轮速度，减少不同车架惯性导致的过冲。
+           仍按陀螺仪确认角度，并保留原时间、距离及内轮零目标保护。 */
+        if (CarMotion_IsFigureEight(app->route.motion)) {
+            float slow = app->route.motion == MOVE_TASK4 ? DPT_TASK4_TURN_SLOW_DEG : DPT_TASK3_TURN_SLOW_DEG;
+            float floor = app->route.motion == MOVE_TASK4 ? DPT_TASK4_TURN_MIN_MMPS : DPT_TASK3_TURN_MIN_MMPS;
+            float scale = fminf(1.0f, fabsf(app->heading.error) / slow);
+            for (unsigned w = 0; w < 2U; ++w)
+                if (app->route.targets[w] > 0.0f)
+                    app->route.targets[w] = fminf(app->route.targets[w],
+                        fmaxf(floor, app->route.targets[w] * scale));
+            app->route.base = (app->route.targets[LEFT] + app->route.targets[RIGHT]) * 0.5f;
+        }
+    } else if (o->control == T3_SEEK_LINE) {
+        /* 仅核心已授权的弧段全白桥接；不调用正常巡线接口，也不伪造 valid。 */
+        if (app->route.task3.phase != T3_ARC || !app->route.task3.loss_seek ||
+            !app->route.task3.arc_valid_seen || !app->route.task3_trace.valid_seen ||
+            app->line.valid || app->line.count != 0U) {
+            app->runtime.drive(0, 0); CarWheel_Clear(app); return;
+        }
+        float base = fminf(o->base_mmps, 50.0f), limit = base * 0.4f;
+        float heading = CarMath_WrapDegrees(o->heading_deg - app->heading.angle);
+        float diff = DPT_LINE_GAIN * app->route.task3_trace.valid_error * base / DPT_LINE_CRUISE_MMPS - DPT_HEADING_GAIN * heading;
+        diff = fmaxf(-limit, fminf(limit, diff));
+        app->route.targets[LEFT] = base + diff; app->route.targets[RIGHT] = base - diff;
+        app->route.base = base; app->line.diff = diff;
+        app->heading.reference = o->heading_deg; app->heading.error = heading;
     } else if (o->control == T3_FOLLOW_LINE) {
         CarLine_SetTargets(app, now, o->base_mmps);
     }

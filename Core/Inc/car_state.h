@@ -5,8 +5,8 @@
 #include "car_task3.h"
 #include "car_task4.h"
 
-/* Internal application state. Owned by CarApp, used only in foreground.
- * Hardware IRQs continue to communicate through lab_uart_async queues. */
+/* 整车内部状态由 CarApp 持有，只在主循环中访问。
+ * 硬件中断通过 lab_uart_async 队列传递数据。 */
 typedef enum { IDLE, RUNNING, DONE, OFF, LOW, ADC_BAD, GAP,
     REVERSE, FAST, STALL, UART_BAD, STOPPED, YAW_BAD, BRAKING,
     TIMEOUT, SETTLE_BAD, LINE_LOST, LINE_BAD } TestState;
@@ -115,7 +115,7 @@ typedef struct {
         uint32_t lost_ms;
         float valid_error, valid_diff, lost_yaw;
         float targets[2], velocity[2];
-    } task3_trace; /* First invalid arc sample; retained after F7/OFF/moving. */
+    } task3_trace; /* 保存半圆首次无效采样；F7 停车、关闭使能或搬动车身后仍保留快照。 */
 } CarRouteState;
 
 typedef struct {

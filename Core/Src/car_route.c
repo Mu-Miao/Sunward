@@ -19,6 +19,11 @@ CarTask3Config CarRoute_Task3Config(void)
     c.entry_window_mm = DPT_TASK3_ENTRY_WINDOW_MM; c.exit_window_mm = DPT_TASK3_EXIT_WINDOW_MM;
     c.turn_travel_limit_mm = DPT_TASK3_TURN_LIMIT_MM; c.capture_limit_mm = DPT_TASK3_CAPTURE_LIMIT_MM;
     c.align_timeout_ms = DPT_TASK3_TURN_TIMEOUT_MS; c.capture_timeout_ms = DPT_TASK3_CAPTURE_TIMEOUT_MS;
+    c.white_seek_ms = DPT_TASK3_WHITE_SEEK_MS;
+    c.white_seek_mm = DPT_TASK3_WHITE_SEEK_MM; c.white_seek_deg = DPT_TASK3_WHITE_SEEK_DEG;
+    c.seek_mmps = DPT_TASK3_SEEK_MMPS;
+    c.vertex_seek_ms = DPT_TASK3_VERTEX_SEEK_MS; c.vertex_seek_mm = DPT_TASK3_VERTEX_SEEK_MM;
+    c.recovery_ms = 30U;
     c.settle_ms = DPT_DISTANCE_SETTLE_MS; c.brake_timeout_ms = DPT_DISTANCE_BRAKE_TIMEOUT_MS;
     return c;
 }
@@ -60,7 +65,7 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
     if ((requested == MOVE_HEADING || CarRoute_IsDistance(requested)) && (app->runtime.state == RUNNING || app->heading.phase != Y_READY)) return;
     if (app->runtime.state == RUNNING && (requested == MOVE_TEST || requested == app->route.motion)) return;
     if (requested == MOVE_LINE) {
-        CarLine_Decode(app); /* Fresh GPIO gate; never start from an old OLED frame. */
+        CarLine_Decode(app); /* 读取当前探头 GPIO 核对启动条件，不使用屏幕上可能过期的读数。 */
         if (!app->line.center_ready || (uint32_t)(now - app->line.sample_ms) > 15U ||
             !app->line.valid || !app->line.black[1] || !app->line.black[2] || app->line.count != 2U) return;
     }
@@ -156,7 +161,7 @@ void CarRoute_UpdateTask2(CarAppContext *app, uint32_t now)
     if (progress >= length - window && progress <= length + window && expected_edge) {
         if (!app->route.edge_seen) { app->route.edge_seen = 1U; app->route.edge_ms = now; }
         if (arc) {
-            app->runtime.drive(0, 0); /* Exit-white debounce is stationary, never an open-loop search. */
+            app->runtime.drive(0, 0); /* 出口全白去抖期间电机保持停止，不进行开环搜线。 */
             CarWheel_Clear(app);
             app->route.targets[LEFT] = app->route.targets[RIGHT] = 0.0f;
         }
@@ -167,7 +172,7 @@ void CarRoute_UpdateTask2(CarAppContext *app, uint32_t now)
             app->route.leg_start = travelled;
             CarWheel_Clear(app);
             app->signal.ms = now;
-            CarSignal_Set(app, 1); /* B, C, D; signalling does not pause the route. */
+            CarSignal_Set(app, 1); /* 经过 B、C、D 时触发声光提示，提示本身不暂停路线执行。 */
             app->route.cruise = CarRoute_IsArc(app) ? DPT_LINE_CRUISE_MMPS : DPT_TASK2_STRAIGHT_MMPS;
             if (!CarRoute_IsArc(app)) {
                 app->heading.reference = CarMath_WrapDegrees(app->route.start_heading + 180.0f);
@@ -216,8 +221,8 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
         CarTask3Input input = CarTask3Port_Input(app, now, enabled, 0, 0);
         CarTask3Output output;
         if (app->route.task3.phase == T3_ARC && !input.line_valid && !app->route.task3_trace.lost_seen) {
-            /* Capture before HALT clears PI/targets. Never read GPIO later as
-               evidence of the earlier loss; the car may already be moved. */
+            /* 在 HALT 清除 PI 和目标速度前锁存失线数据。
+               车辆可能已被搬动，之后的 GPIO 读数不能作为当时失线的证据。 */
             app->route.task3_trace.lost_seen = 1U;
             app->route.task3_trace.lost_ms = now;
             app->route.task3_trace.lost_yaw = input.yaw_deg;
@@ -239,19 +244,20 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
         } else if (app->route.task3.phase == T3_DONE) {
             CarApp_Stop(app, DONE, '-');
             app->signal.ms = now;
-            CarSignal_Set(app, 1); /* One final A signal, after settled stop. */
+            CarSignal_Set(app, 1); /* 最终在 A 点停稳后触发一次声光提示。 */
         } else CarTask3Port_Apply(app, &output, now);
-        if (app->runtime.state == RUNNING && app->route.task3.phase == T3_ARC && input.line_valid) {
+        if (app->runtime.state == RUNNING && app->route.task3.phase == T3_ARC && input.line_valid &&
+            !app->route.task3.lost_seen) {
             app->route.task3_trace.valid_seen = 1U;
-            app->route.task3_trace.lost_seen = 0U; /* Transient recovery starts a fresh loss window. */
+            app->route.task3_trace.lost_seen = 0U; /* 短暂失线恢复后，下一次失线重新建立快照窗口。 */
             memcpy(app->route.task3_trace.valid_raw, app->line.raw, 4U);
             app->route.task3_trace.valid_error = app->line.error;
             app->route.task3_trace.valid_diff = (app->route.targets[LEFT] - app->route.targets[RIGHT]) * 0.5f;
         }
-        return; /* Old distance/Task2 logic must never overwrite Task3 intent. */
+        return; /* 此处结束更新，避免后面的定距和任务二逻辑覆盖任务三、四的输出。 */
     }
-                /* Accumulate signed wheel travel only from the fresh start snapshot.
-                   Reject timing/implausible counts before declaring distance completion. */
+                /* 从本次启动时保存的编码器计数开始累加有符号里程。
+                   判断定距完成前，先排除采样时间和编码器计数异常。 */
                 if (app->route.tracking && (app->runtime.state == RUNNING || app->runtime.state == BRAKING)) {
                     if (app->wheel.items[LEFT].velocity > 350.0f || app->wheel.items[LEFT].velocity < -350.0f)
                         CarApp_Stop(app, FAST, 'L');

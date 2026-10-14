@@ -10,8 +10,8 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         static const char *const states[] = {"IDLE", "RUN", "DONE", "OFF", "LOW",
             "ADC", "GAP", "REV", "FAST", "STALL", "UART", "STOP", "YAW", "BRAKE", "TIMEOUT", "SETTLE", "LOST", "LINE"};
         const char *title = "TASK 1 A->B";
-        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 REBUILD V1";
-        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 CAP V2";
+        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 SEEK V1";
+        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 SEEK V1";
         else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
         else if (app->route.motion == MOVE_DISTANCE) title = "TEST GO20";
@@ -33,7 +33,10 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         if (CarMotion_IsFigureEight(app->route.motion) || (app->route.motion == MOVE_NONE && CarMotion_IsFigureEight(app->button.selected_motion))) {
             uint32_t elapsed = app->runtime.state == RUNNING ? (uint32_t)(now - app->route.start_ms) : app->route.elapsed_ms;
             const char *segment = app->route.task3.phase == T3_START_ALIGN ? "TURN A" :
-                (app->route.task3.phase == T3_START_SETTLE ? "WAIT A" : CarTask3_LegName(&app->route.task3));
+                (app->route.task3.phase == T3_START_SETTLE ? "WAIT A" :
+                 (app->route.task3.phase == T3_ALIGN_SETTLE ? "WAIT" :
+                  (app->route.task3.phase == T3_VERTEX_SEEK ? (app->route.task3.leg == 0U ? "SEEK C" : "SEEK D") :
+                   (app->route.task3.loss_seek ? "SEEK" : CarTask3_LegName(&app->route.task3)))));
             if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) {
                 unsigned lap = app->route.task4.completed_laps + 1U;
                 if (lap > DPT_TASK4_LAPS) lap = DPT_TASK4_LAPS;
@@ -91,7 +94,7 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         else (void)snprintf(progress, sizeof progress, "V %dmm/s", app->runtime.state == RUNNING ? CarMath_Round(app->route.targets[LEFT]) : 0);
         const char *lines[4] = {title, cal, run, progress};
         (void)TaskOLED_SetLines(lines);
-        app->ui.render_ms = now; /* Retry at next snapshot if a frame is still busy. */
+        app->ui.render_ms = now; /* 屏幕上一帧尚未完成时，等下次刷新周期再尝试。 */
     }
     TaskOLED_Poll(now);
     if ((uint32_t)(now - app->ui.oled_log_ms) >= 1000U) {
@@ -121,7 +124,7 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
     }
 }
 
-/* Diagnostic TX congestion drops frames; it never blocks control. */
+/* 诊断发送拥塞时丢弃日志帧，不阻塞整车控制。 */
 void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
 {
     if ((uint32_t)(now - app->ui.motion_log_ms) >= (CarRoute_IsDistance(app->route.motion) ? 400U : 200U)) {
@@ -142,7 +145,7 @@ void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
             app->runtime.state == RUNNING ? CarMath_Round(app->route.targets[RIGHT]) : 0, app->route.manual_speed,
             (unsigned long)(app->route.manual_duration / 1000U));
         if (CarRoute_IsDistance(app->route.motion) && n > 1 && n < (int)sizeof msg) {
-            n -= 2; /* replace trailing CRLF with distance fields */
+            n -= 2; /* 先去掉行尾换行符，再追加里程字段。 */
             int added = snprintf(msg + n, sizeof msg - (size_t)n,
                 " S=%d SL=%d SR=%d G=%d\r\n",
                 CarMath_Round((app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f),
@@ -170,7 +173,7 @@ void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
             (void)LabUART_TryWrite(msg, (uint16_t)n);
             if (app->runtime.bluetooth_on) (void)LabUART_TryWritePort(LAB_UART_BT, msg, (uint16_t)n);
         }
-        /* A full TX queue drops this log frame; control/RX keep running. */
+        /* 发送队列满时丢弃本条日志，控制和命令接收继续运行。 */
     }
 
     if (app->heading.available && (uint32_t)(now - app->ui.heading_log_ms) >= 1000U) {

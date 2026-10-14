@@ -35,10 +35,11 @@ HAL_StatusTypeDef MPU6050_Init(MPU6050_Info *info)
         }
     }
     if (!found) return status == HAL_OK ? HAL_ERROR : status;
-    status = SoftI2C_WriteReg(address, 0x6BU, 0x80U); /* device reset */
+    status = SoftI2C_WriteReg(address, 0x6BU, 0x80U); /* 复位 MPU6050 设备。 */
     if (status != HAL_OK) return status;
     HAL_Delay(100U);
-    /* Wake, PLL X gyro; all axes on; 100 Hz, DLPF=3, +/-250dps, +/-2g. */
+    /* 唤醒设备并选 X 轴陀螺仪 PLL 为时钟；启用所有轴。
+       采样率 100 Hz，低通配置 DLPF=3，陀螺仪量程正负 250 度/秒，加速度量程正负 2g。 */
     static const uint8_t registers[][2] = {
         {0x6BU, 0x01U}, {0x6CU, 0x00U}, {0x1AU, 0x03U},
         {0x19U, 0x09U}, {0x1BU, 0x00U}, {0x1CU, 0x00U},

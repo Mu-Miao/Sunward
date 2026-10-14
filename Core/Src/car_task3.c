@@ -13,6 +13,15 @@ static int bounded_time(uint32_t t) { return t > 0U && t <= 80000U; }
 static int config_valid(const CarTask3Config *c)
 {
     if (c->start_from_ab > 1U) return 0;
+    if (c->white_seek_ms != 0U &&
+        (c->white_seek_ms < 30U || c->white_seek_ms > 300U ||
+         !positive(c->white_seek_mm) || c->white_seek_mm > 20.0f ||
+         !positive(c->white_seek_deg) || c->white_seek_deg > 12.0f ||
+         !positive(c->seek_mmps) || c->seek_mmps > 50.0f)) return 0;
+    if (c->vertex_seek_ms != 0U &&
+        (c->vertex_seek_ms > 3000U || !positive(c->vertex_seek_mm) ||
+         c->vertex_seek_mm > 80.0f || c->vertex_seek_mm > c->entry_window_mm ||
+         !positive(c->seek_mmps) || c->seek_mmps > 50.0f)) return 0;
     if (!positive(c->span_mm) || !positive(c->radius_mm) || !positive(c->arc_mm) ||
         !positive(c->diagonal_mmps) || !positive(c->arc_mmps) ||
         !positive(c->start_mmps) || !positive(c->acceleration_mmps2) ||
@@ -34,7 +43,10 @@ static int config_valid(const CarTask3Config *c)
         bounded_time(c->settle_ms) && bounded_time(c->brake_timeout_ms) &&
         c->brake_timeout_ms > c->settle_ms && bounded_time(c->align_timeout_ms) &&
         bounded_time(c->capture_timeout_ms) && c->debounce_ms >= 30U && c->debounce_ms <= 100U &&
-        c->lost_ms >= c->debounce_ms && c->lost_ms <= 100U &&
+        c->lost_ms >= c->debounce_ms &&
+        ((c->recovery_ms == 0U && c->lost_ms <= 100U) ||
+         (c->recovery_ms >= 30U && c->recovery_ms <= 100U &&
+          c->recovery_ms < c->lost_ms && c->lost_ms <= 250U)) &&
         c->sample_max_age_ms > 0U && c->sample_max_age_ms <= 20U;
 }
 static int input_valid(const CarTask3Config *c, const CarTask3Input *i)
@@ -56,7 +68,8 @@ static void phase(CarTask3 *r, CarTask3Phase p, const CarTask3Input *i, CarTask3
     r->phase = p;
     r->phase_ms = i->now_ms;
     r->phase_start_mm = i->distance_mm;
-    r->edge_seen = r->settled_seen = r->lost_seen = 0U;
+    r->edge_seen = r->settled_seen = r->lost_seen = r->recovery_seen = 0U;
+    r->arc_valid_seen = r->loss_seek = r->seek_aligned = r->resume_active = 0U;
     o->control = T3_HALT;
     o->reset_controllers = 1U;
 }
@@ -68,13 +81,13 @@ static int stable(CarTask3 *r, int matches, uint32_t now)
 }
 static float diagonal_heading(const CarTask3 *r)
 {
-    /* Start faces AC. East is start+alpha. BD is east+180+alpha. */
+    /* 以 AC 方向为起始参考；向 B 的方向为参考角加 alpha，BD 再加 180 度和 alpha。 */
     return wrap(r->start_heading_deg + (r->leg == 2U ? 180.0f + 2.0f * r->diagonal_angle_deg : 0.0f));
 }
 static float tangent_heading(const CarTask3 *r, int end)
 {
     float east = r->start_heading_deg + r->diagonal_angle_deg;
-    /* CB: east -> west (+180 left); DA: west -> east (-180 right). */
+    /* CB 从朝 B 转到朝 A，向左转约 180 度；DA 从朝 A 转到朝 B，向右转约 180 度。 */
     return wrap(east + ((r->leg == 1U ? end : !end) ? 180.0f : 0.0f));
 }
 static float align_heading(const CarTask3 *r)
@@ -124,8 +137,8 @@ int CarTask3_Start(CarTask3 *r, const CarTask3Config *c, const CarTask3Input *i)
     r->config = *c;
     r->diagonal_mm = hypotf(c->span_mm, 2.0f * c->radius_mm);
     r->diagonal_angle_deg = atan2f(2.0f * c->radius_mm, c->span_mm) * 57.2957795131f;
-    /* Preserve a fixed AC reference even if the gyro has a nonzero zero offset.
-       AB is the known physical initial direction, positive yaw is left. */
+    /* 根据已知的初始 AB 方向建立固定 AC 参考，允许陀螺仪当前角度不为零。
+       左转角度为正，右转角度为负。 */
     r->start_heading_deg = wrap(i->yaw_deg - (c->start_from_ab ? r->diagonal_angle_deg : 0.0f));
     r->start_ms = r->phase_ms = r->previous_ms = i->now_ms;
     r->leg_start_mm = r->phase_start_mm = i->distance_mm;
@@ -139,7 +152,7 @@ void CarTask3_Cancel(CarTask3 *r) { if (r) fault(r, T3_ABORT); }
 void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
 {
     if (!o) return;
-    memset(o, 0, sizeof *o); /* Every call starts at HALT; no stale wheel target. */
+    memset(o, 0, sizeof *o); /* 每次更新先设置为停止，避免沿用上次的轮速目标。 */
     if (!r || !i || r->phase == T3_IDLE || r->phase == T3_DONE || r->phase == T3_FAULT) return;
     r->elapsed_ms = (uint32_t)(i->now_ms - r->start_ms);
     if (!i->enabled || i->stop_requested || i->protection_fault) fault(r, T3_ABORT);
@@ -160,12 +173,17 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         if (fabsf(wrap(target - i->yaw_deg)) > r->config.diagonal_tolerance_deg) fault(r, T3_HEADING);
         else if (progress > r->diagonal_mm + r->config.entry_window_mm) fault(r, T3_EDGE);
         else if (progress >= r->diagonal_mm - r->config.entry_window_mm && i->line_valid) {
-            /* Stop immediately at the candidate vertex. Debounce while stationary. */
+            /* 检测到候选顶点时先停止，再静止去抖确认。 */
             o->reset_controllers = 1U;
             if (stable(r, 1, i->now_ms)) {
                 o->signal_point = r->leg == 0U ? T3_POINT_C : T3_POINT_D;
                 phase(r, T3_VERTEX_BRAKE, i, o);
             }
+        } else if (r->config.vertex_seek_ms != 0U && progress >= r->diagonal_mm &&
+                   i->black_count == 0U) {
+            /* 预计已到 C/D 附近但探头仍全白：保留原顶点距离窗，先停再向弧线切线接近。
+               此时不报告经过顶点，也不假定已经在线上。 */
+            phase(r, T3_VERTEX_SEEK, i, o);
         } else {
             stable(r, 0, i->now_ms);
             o->control = T3_HOLD_HEADING;
@@ -186,16 +204,104 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             }
         } else {
             stable(r, 0, i->now_ms);
-            if (!i->line_valid) {
+            if (!i->line_valid && !r->lost_seen) {
+                r->lost_seen = 1U; r->lost_start_ms = i->now_ms;
+                r->lost_start_mm = i->distance_mm; r->lost_yaw_deg = i->yaw_deg;
+                r->loss_seek = r->arc_valid_seen && i->black_count == 0U && r->config.white_seek_ms != 0U;
                 o->reset_controllers = 1U;
-                if (!r->lost_seen) { r->lost_seen = 1U; r->lost_start_ms = i->now_ms; }
-                else if ((uint32_t)(i->now_ms - r->lost_start_ms) >= r->config.lost_ms) fault(r, T3_LOST);
+            }
+            if (r->lost_seen && !i->line_valid && i->black_count != 0U) r->loss_seek = 0U;
+            uint32_t budget = r->loss_seek ? r->config.white_seek_ms : r->config.lost_ms;
+            float loss_travel = i->distance_mm - r->lost_start_mm;
+            if (r->lost_seen && ((uint32_t)(i->now_ms - r->lost_start_ms) >= budget ||
+                (r->loss_seek && (loss_travel < -5.0f || loss_travel >= r->config.white_seek_mm ||
+                 fabsf(wrap(i->yaw_deg - r->lost_yaw_deg)) > r->config.white_seek_deg)))) {
+                fault(r, T3_LOST);
+            } else if (!i->line_valid) {
+                r->recovery_seen = 0U;
+                if (r->loss_seek) {
+                    /* 全白且本弧段有有效历史才允许低速桥接；不把 1111 伪装成有效线。 */
+                    o->control = T3_SEEK_LINE;
+                    o->base_mmps = r->config.seek_mmps;
+                    o->heading_deg = wrap(r->lost_yaw_deg + (r->leg == 1U ? 1.0f : -1.0f) *
+                        fmaxf(loss_travel, 0.0f) / r->config.radius_mm * 57.2957795131f);
+                } else o->reset_controllers = 1U;
             } else {
-                r->lost_seen = 0U;
-                o->control = T3_FOLLOW_LINE;
-                o->base_mmps = speed(r, i, r->config.arc_mmps, r->config.arc_mm - progress, r->config.arc_acceleration_mmps2);
+                int recovered = !r->lost_seen || r->config.recovery_ms == 0U;
+                if (!recovered) {
+                    if (!r->recovery_seen) { r->recovery_seen = 1U; r->recovery_start_ms = i->now_ms; }
+                    recovered = (uint32_t)(i->now_ms - r->recovery_start_ms) >= r->config.recovery_ms;
+                }
+                if (!recovered) o->reset_controllers = 1U;
+                else {
+                    if (r->lost_seen) { r->resume_active = 1U; r->resume_ms = i->now_ms; }
+                    r->lost_seen = r->recovery_seen = r->loss_seek = 0U;
+                    r->arc_valid_seen = 1U;
+                    o->control = T3_FOLLOW_LINE;
+                    o->base_mmps = speed(r, i, r->config.arc_mmps, r->config.arc_mm - progress, r->config.arc_acceleration_mmps2);
+                    if (r->resume_active) {
+                        float ramp = r->config.start_mmps + r->config.arc_acceleration_mmps2 *
+                            (float)(uint32_t)(i->now_ms - r->resume_ms) / 1000.0f;
+                        o->base_mmps = fminf(o->base_mmps, ramp);
+                        if (ramp >= r->config.arc_mmps) r->resume_active = 0U;
+                    }
+                }
             }
         }
+    } else if (r->phase == T3_VERTEX_SEEK) {
+        float tangent = wrap(r->start_heading_deg + r->diagonal_angle_deg + (r->leg == 2U ? 180.0f : 0.0f));
+        float error = wrap(tangent - i->yaw_deg);
+        if (progress > r->diagonal_mm + r->config.entry_window_mm ||
+            phase_travel >= r->config.vertex_seek_mm ||
+            (uint32_t)(i->now_ms - r->phase_ms) >= r->config.vertex_seek_ms) fault(r, T3_EDGE);
+        else if (fabsf(wrap(i->yaw_deg - diagonal_heading(r))) > r->diagonal_angle_deg + 12.0f)
+            fault(r, T3_HEADING);
+        else if (i->line_valid) {
+            o->reset_controllers = 1U;
+            if (stable(r, 1, i->now_ms)) {
+                o->signal_point = r->leg == 0U ? T3_POINT_C : T3_POINT_D;
+                phase(r, T3_VERTEX_BRAKE, i, o);
+            }
+        } else {
+            stable(r, 0, i->now_ms);
+            if (i->black_count != 0U) {
+                /* 全黑/不连续黑线不能作为搜索方向，保持零输出直到原预算到期。 */
+                o->reset_controllers = 1U; r->settled_seen = 0U;
+            } else if (!r->seek_aligned) {
+                if (fabsf(error) <= r->config.align_tolerance_deg) {
+                    o->reset_controllers = 1U;
+                    if (fabsf(i->left_mmps) <= 5.0f && fabsf(i->right_mmps) <= 5.0f) {
+                        if (!r->settled_seen) { r->settled_seen = 1U; r->settled_ms = i->now_ms; }
+                        if ((uint32_t)(i->now_ms - r->settled_ms) >= r->config.settle_ms) {
+                            r->seek_aligned = 1U; r->seek_forward_ms = i->now_ms; r->seek_forward_mm = i->distance_mm;
+                        }
+                    } else r->settled_seen = 0U;
+                } else {
+                    r->settled_seen = 0U; o->control = T3_TURN_FORWARD; o->heading_deg = tangent;
+                    o->left_mmps = error < 0.0f ? r->config.turn_mmps : 0.0f;
+                    o->right_mmps = error > 0.0f ? r->config.turn_mmps : 0.0f;
+                }
+            } else {
+                o->control = T3_HOLD_HEADING; o->base_mmps = r->config.seek_mmps;
+                float advance = fmaxf(i->distance_mm - r->seek_forward_mm, 0.0f);
+                o->heading_deg = wrap(tangent + (r->leg == 0U ? 1.0f : -1.0f) *
+                    advance / r->config.radius_mm * 57.2957795131f);
+            }
+        }
+    } else if (r->phase == T3_ALIGN_SETTLE) {
+        if ((uint32_t)(i->now_ms - r->phase_ms) >= r->config.align_timeout_ms ||
+            phase_travel > r->config.turn_travel_limit_mm) fault(r, T3_TURN);
+        else if ((uint32_t)(i->now_ms - r->start_settle_ms) >= r->config.brake_timeout_ms) fault(r, T3_SETTLE);
+        else if (fabsf(wrap(align_heading(r) - i->yaw_deg)) > r->config.align_tolerance_deg) {
+            r->phase = T3_ALIGN; r->edge_seen = r->settled_seen = 0U;
+            o->reset_controllers = 1U;
+        } else if (fabsf(i->left_mmps) <= 5.0f && fabsf(i->right_mmps) <= 5.0f) {
+            if (!r->settled_seen) { r->settled_seen = 1U; r->settled_ms = i->now_ms; }
+            if ((uint32_t)(i->now_ms - r->settled_ms) >= r->config.settle_ms) {
+                phase(r, r->leg & 1U ? T3_CAPTURE : T3_DIAGONAL, i, o);
+                if (!(r->leg & 1U)) r->leg_start_mm = i->distance_mm;
+            }
+        } else r->settled_seen = 0U;
     } else if (r->phase == T3_VERTEX_BRAKE || r->phase == T3_FINAL_BRAKE || r->phase == T3_START_SETTLE) {
         if (r->phase == T3_START_SETTLE &&
             ((uint32_t)(i->now_ms - r->phase_ms) >= r->config.align_timeout_ms ||
@@ -204,7 +310,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             fault(r, T3_SETTLE);
         else if (r->phase == T3_START_SETTLE &&
             fabsf(wrap(r->start_heading_deg - i->yaw_deg)) > r->config.align_tolerance_deg) {
-            /* Retain the original initial-turn timeout/distance budget. */
+            /* 重新对正时继续使用本次起始转向的原时间和距离预算。 */
             r->phase = T3_START_ALIGN;
             r->settled_seen = r->edge_seen = 0U;
             o->reset_controllers = 1U;
@@ -216,8 +322,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                     phase(r, T3_DONE, i, o);
                     o->signal_point = T3_POINT_A;
                 } else if (r->phase == T3_START_SETTLE) {
-                    /* A rotation includes signed mean travel. Establish AC's
-                       new baseline only after gyro alignment and settled wheels. */
+                    /* 转向期间也会产生平均编码器里程；完成对正且两轮停稳后才建立 AC 段的新基线。 */
                     phase(r, T3_DIAGONAL, i, o);
                     r->leg_start_mm = i->distance_mm;
                 } else {
@@ -235,7 +340,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             o->reset_controllers = 1U;
             if (stable(r, 1, i->now_ms)) {
                 if (r->phase == T3_START_ALIGN) {
-                    /* Keep a separate settle timer while retaining turn limits. */
+                    /* 停稳单独计时，转向总时间和距离限制仍从原起点计算。 */
                     uint32_t turn_ms = r->phase_ms;
                     float turn_origin = r->phase_start_mm;
                     phase(r, T3_START_SETTLE, i, o);
@@ -243,17 +348,17 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                     r->phase_ms = turn_ms;
                     r->phase_start_mm = turn_origin;
                 }
-                else if (r->leg & 1U) phase(r, T3_CAPTURE, i, o);
                 else {
-                    phase(r, T3_DIAGONAL, i, o);
-                    r->leg_start_mm = i->distance_mm;
+                    uint32_t turn_ms = r->phase_ms; float origin = r->phase_start_mm;
+                    phase(r, T3_ALIGN_SETTLE, i, o);
+                    r->start_settle_ms = i->now_ms; r->phase_ms = turn_ms; r->phase_start_mm = origin;
                 }
             }
         } else {
             stable(r, 0, i->now_ms);
             o->control = T3_TURN_FORWARD;
             o->heading_deg = target;
-            /* Zero inner wheel, positive outer wheel. Never request reverse. */
+            /* 内轮目标为零、外轮目标为正，采用单轮前进转向，不请求倒车。 */
             o->left_mmps = error < 0.0f ? r->config.turn_mmps : 0.0f;
             o->right_mmps = error > 0.0f ? r->config.turn_mmps : 0.0f;
         }
@@ -263,16 +368,14 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             phase_travel > r->config.capture_limit_mm) fault(r, T3_EDGE);
         else if (fabsf(wrap(target - i->yaw_deg)) > r->config.diagonal_tolerance_deg) fault(r, T3_HEADING);
         else if (stable(r, i->line_valid, i->now_ms)) {
-            /* Contiguous 1..3 black channels are usable line feedback.
-               Requiring exactly the centred pair can time out on an arc
-               even while feedback is steering correctly toward the line. */
+            /* 连续一至三路黑线都可用于巡线反馈。
+               如果只接受正中两路黑，车辆正在正常纠偏时也可能因捕获超时停车。 */
             phase(r, T3_ARC, i, o);
-            /* Exclude vertex alignment/capture travel from arc progress. */
+            /* 从进入半圆时重新计算里程，排除顶点转向和捕获期间的移动。 */
             r->leg_start_mm = i->distance_mm;
         } else {
-            /* Keep steering during the 30ms acquisition window; do not
-               freeze wheels at the first centred sample. Invalid patterns
-               reset stability and retain the bounded tangent approach. */
+            /* 三十毫秒捕获确认期间继续纠偏，第一次读到中心图样时不立即停止。
+               无效图样重置稳定计时，并继续在时间和距离限制内沿切线接近。 */
             o->control = i->line_valid ? T3_FOLLOW_LINE : T3_HOLD_HEADING;
             o->heading_deg = target;
             o->base_mmps = r->config.capture_mmps;

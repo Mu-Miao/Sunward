@@ -2,7 +2,7 @@
 #define CAR_ROUTE_H
 #include "car_state.h"
 
-/* Internal foreground module API; state lifetime is owned by CarApp. */
+/* 主循环内部模块接口；状态的初始化与生命周期由 CarApp 统一管理。 */
 CarTask3Config CarRoute_Task3Config(void);
 int CarRoute_IsDistance(Motion motion);
 void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now);

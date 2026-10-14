@@ -110,7 +110,7 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     uint32_t before = DWT->CYCCNT;
     HAL_Delay(1U);
     if (DWT->CYCCNT == before) return HAL_ERROR;
-    TaskOLED_Begin(app->runtime.hz); /* Boot reset delay occurs before priming the 10ms loop. */
+    TaskOLED_Begin(app->runtime.hz); /* 屏幕上电复位延时在十毫秒控制循环开始前完成。 */
     app->power.adc = battery_adc; app->runtime.drive = motor_ab;
     memset(app->wheel.items, 0, sizeof app->wheel.items);
     app->wheel.items[LEFT].encoder = left_encoder;
@@ -134,7 +134,7 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     app->ui.motion_log_ms = now;
     app->button.raw = app->button.stable = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET;
     app->button.press_enabled = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET;
-    app->button.armed = 0; /* Even at boot, require 30ms stable release first. */
+    app->button.armed = 0; /* 上电后也要先稳定松手 30 毫秒，才接受新的按键操作。 */
     app->button.change_ms = app->ui.button_log_ms = now;
     app->button.events = 0U;
     app->button.off_pending = app->button.press_busy = 0U;
@@ -147,7 +147,7 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     app->route.leg = app->route.edge_seen = 0U;
     app->route.leg_start = app->route.start_heading = 0.0f;
     app->route.elapsed_ms = 0U;
-    app->button.selected_motion = MOVE_ROUTE; /* Boot remains the accepted independent 1m task. */
+    app->button.selected_motion = MOVE_ROUTE; /* 上电默认选择独立的一米直行任务。 */
     app->line.valid = app->line.count = app->line.center_seen = app->line.center_ready = app->line.invalid_seen = 0U;
     app->line.center_ms = app->line.sample_ms = app->line.invalid_ms = now;
     app->line.error = app->line.diff = 0.0f;
@@ -197,8 +197,8 @@ void CarApp_Poll(uint32_t tick10_count)
 
     CarPower_Poll(app, now);
 
-    /* Independent streams: never join USB fragments with Bluetooth bytes.
-       Defer RUN until both streams have been checked, so STOP/fault wins. */
+    /* USB 与蓝牙分别组帧，不能拼接两个端口的命令片段。
+       两个端口都检查完后才处理启动请求，STOP 和通信故障优先。 */
     Motion requested = MOVE_NONE;
     uint8_t stop_requested = 0;
     CarCommand_Poll(app, now, &requested, &stop_requested);
@@ -206,7 +206,7 @@ void CarApp_Poll(uint32_t tick10_count)
     if (app->heading.cal_requested) {
         if (!stop_requested) CarHeading_BeginCalibration(app, now, enabled);
         app->heading.cal_requested = 0;
-        requested = MOVE_NONE; /* CAL never queues movement for later. */
+        requested = MOVE_NONE; /* 校准请求不保留待执行的运动指令。 */
     }
     if (requested != MOVE_NONE && !stop_requested) CarRoute_Request(app, requested, now);
     if (key_pressed && app->button.action == KEY_START && (app->runtime.state != RUNNING || app->route.motion != app->button.selected_motion))
@@ -234,7 +234,7 @@ void CarApp_Poll(uint32_t tick10_count)
                     if (app->runtime.state == RUNNING || app->runtime.state == BRAKING) CarApp_Stop(app, GAP, '-');
                 } else CarHeading_Sample(app, now, enabled, wheels_moved);
                 CarLine_Sample(app, now, tick10_count - app->runtime.old_tick == 1U && app->runtime.dt_us >= 5000U && app->runtime.dt_us <= 15000U);
-                /* Sensor I/O is bounded; recheck physical enable before any drive commit. */
+                /* 传感器读写有时间限制；提交电机输出前再次检查物理使能开关。 */
                 if ((app->runtime.state == RUNNING || app->runtime.state == BRAKING) && HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) != GPIO_PIN_RESET)
                     CarApp_Stop(app, OFF, '-');
                 if ((app->runtime.state == RUNNING || app->runtime.state == BRAKING) &&
@@ -248,7 +248,7 @@ void CarApp_Poll(uint32_t tick10_count)
                     else if (!app->route.switching && (!CarRoute_UsesLine(app) || app->line.valid)) {
                         for (unsigned i = 0; i < 2U && app->runtime.state == RUNNING; ++i)
                             CarWheel_Control(app, i, seconds);
-                        /* Commit both commands only if both wheels passed their checks. */
+                        /* 两轮保护检查都通过后，才统一提交左右轮输出。 */
                         if (app->runtime.state == RUNNING && HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) != GPIO_PIN_RESET)
                             CarApp_Stop(app, OFF, '-');
                         if (app->runtime.state == RUNNING) app->runtime.drive(app->wheel.items[RIGHT].command, -app->wheel.items[LEFT].command);

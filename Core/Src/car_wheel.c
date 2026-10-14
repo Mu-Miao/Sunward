@@ -5,7 +5,7 @@
 static const float kp[2] = {DPT_LEFT_KP, DPT_RIGHT_KP};
 static const float ki[2] = {DPT_LEFT_KI, DPT_RIGHT_KI};
 static const float cpr[2] = {DPT_LEFT_CPR, DPT_RIGHT_CPR};
-static const int sign[2] = {1, -1}; /* TIM8 left+, TIM4 right-. */
+static const int sign[2] = {1, -1}; /* 左轮 TIM8 正计数，右轮 TIM4 负计数。 */
 static const char wheel_name[2] = {'L', 'R'};
 
 void CarWheel_Clear(CarAppContext *app)
@@ -36,7 +36,7 @@ void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
         w->integral = 0.0f;
         w->command = 0;
         w->stall_us = 0U;
-        return; /* FAST and reverse checks above still apply. */
+        return; /* 目标为零时也保留前面的超速及反向转动检查。 */
     }
     float out = CarPI_Update(target, measured, kp[i], ki[i], seconds, limit, &w->integral);
     w->command = CarMath_Round(direction * out);

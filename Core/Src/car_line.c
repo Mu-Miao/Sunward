@@ -43,8 +43,8 @@ void CarLine_Sample(CarAppContext *app, uint32_t now, int timing_ok)
 void CarLine_SetTargets(CarAppContext *app, uint32_t now, float base)
 {
     if (!app->line.valid) {
-        /* Immediate zero command; only transient recovery <100ms may resume.
-           A latched fault always needs a fresh centred start, never a search. */
+        /* 无有效线时立即输出零；不足 100 毫秒的短暂失线恢复后可以继续。
+           故障锁存后必须重新满足启动条件，不自动搜线。 */
         app->runtime.drive(0, 0);
         CarWheel_Clear(app);
         app->route.targets[LEFT] = app->route.targets[RIGHT] = app->line.diff = 0.0f;
@@ -54,11 +54,16 @@ void CarLine_SetTargets(CarAppContext *app, uint32_t now, float base)
         return;
     }
     app->line.invalid_seen = 0U;
+    /* 仅任务四：探头明显偏到边缘时降速，保留原纠偏方向和差速比例。 */
+    if (app->route.motion == MOVE_TASK4 &&
+        (app->line.error >= 2.0f || app->line.error <= -2.0f) && base > DPT_TASK4_EDGE_MMPS)
+        base = DPT_TASK4_EDGE_MMPS;
+    if (app->route.motion == MOVE_TASK4) app->route.base = base;
     app->line.diff = DPT_LINE_GAIN * app->line.error * base / DPT_LINE_CRUISE_MMPS;
     float limit = DPT_LINE_MAX_DIFF * base / DPT_LINE_CRUISE_MMPS;
     if (app->line.diff > limit) app->line.diff = limit;
     if (app->line.diff < -limit) app->line.diff = -limit;
-    /* Right-side black -> left wheel faster -> right turn. Both stay forward. */
+    /* 黑线偏右时提高左轮目标速度，使车向右纠偏；两轮目标均保持前进。 */
     app->route.targets[LEFT] = base + app->line.diff;
     app->route.targets[RIGHT] = base - app->line.diff;
 }

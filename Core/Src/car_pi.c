@@ -1,6 +1,6 @@
 #include "car_pi.h"
 
-/* Existing anti-windup PI, with the same expression order and limits. */
+/* 沿用原抗积分饱和 PI，计算顺序与输出限制保持原值。 */
 float CarPI_Update(float target, float measured, float kp, float ki,
                    float seconds, int limit, float *integral)
 {

@@ -1,7 +1,7 @@
 /* 电池ADC和低压保护。所有运动故障通过统一停车入口处理。 */
 #include "car_internal.h"
 
-/* ADC failure/low battery stops motion before command processing. */
+/* 处理运动命令前先检查 ADC 和电池电压，异常时立即停车。 */
 void CarPower_Poll(CarAppContext *app, uint32_t now)
 {
     if ((uint32_t)(now - app->power.sample_ms) >= 100U) {

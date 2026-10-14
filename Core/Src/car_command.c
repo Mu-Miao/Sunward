@@ -39,7 +39,7 @@ static void CarCommand_Accept(CarAppContext *app, CommandInput *in, Motion *requ
         if (strcmp(in->text, "L") == 0) *requested = MOVE_LEFT;
         if (strcmp(in->text, "R") == 0) *requested = MOVE_RIGHT;
         unsigned value;
-        /* Configuration is accepted only while stopped. */
+        /* 仅在非运行状态接受速度和时间配置。 */
         if (app->runtime.state != RUNNING && in->text[0] == 'V' &&
             unsigned_value(in->text + 1, &value) &&
             value >= 40U && value <= DPT_MANUAL_MAX_MMPS)
@@ -52,7 +52,7 @@ static void CarCommand_Accept(CarAppContext *app, CommandInput *in, Motion *requ
     in->discard = 0;
 }
 
-/* Check both input streams before accepting any movement request. */
+/* 先检查两个串口输入，再处理运动请求。 */
 void CarCommand_Poll(CarAppContext *app, uint32_t now, Motion *requested, uint8_t *stop_requested)
 {
     unsigned port_count = app->runtime.bluetooth_on ? LAB_UART_COUNT : 1U;

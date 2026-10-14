@@ -13,7 +13,7 @@ static void delay_us(uint32_t us)
 }
 static void scl_low(void) { HAL_GPIO_WritePin(GPIOB, SCL, GPIO_PIN_RESET); }
 static void sda_low(void) { HAL_GPIO_WritePin(GPIOB, SDA, GPIO_PIN_RESET); }
-/* In open-drain mode SET releases the line; it does not drive it high. */
+/* 开漏模式下置 SET 是释放总线，由上拉电阻拉高，不是主动输出高电平。 */
 static void sda_release(void) { HAL_GPIO_WritePin(GPIOB, SDA, GPIO_PIN_SET); }
 static HAL_StatusTypeDef scl_high(void)
 {
@@ -124,7 +124,7 @@ HAL_StatusTypeDef SoftI2C_Init(void)
     HAL_GPIO_Init(GPIOB, &pins);
     HAL_StatusTypeDef status = scl_high();
     if (status != HAL_OK) return status;
-    /* Recover a slave left mid-byte by a previous MCU reset. */
+    /* 恢复 MCU 复位前可能停在字节传输中途的从设备。 */
     for (unsigned i = 0U; i < 9U &&
          HAL_GPIO_ReadPin(GPIOB, SDA) == GPIO_PIN_RESET; ++i) {
         scl_low();

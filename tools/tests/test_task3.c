@@ -14,6 +14,9 @@ static void task3_start(void)
  assert(app()->runtime.state==RUNNING&&app()->route.motion==MOVE_TASK3);
  assert(!app()->runtime.bluetooth_on && wp[0]==0 && wp[1]==0);
  assert(app()->route.run_duration==40000U && signals==1);
+ /* Retain pre-seek profile for legacy protection regressions; test_seek runs defaults. */
+ app()->route.task3.config.white_seek_ms=app()->route.task3.config.vertex_seek_ms=0;
+ app()->route.task3.config.recovery_ms=0;
 }
 static float join_target(void)
 {
@@ -46,6 +49,7 @@ static void step_route(void)
   break;
  }
  case T3_CAPTURE: line_inputs=9;break;
+ case T3_VERTEX_SEEK: line_inputs=p>=t->diagonal_mm?9:15;break;
  default: break;
  }
  step(10,dl,dr);
@@ -79,6 +83,7 @@ static uint32_t target_follow_lap(int prior_profile)
    app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+t->diagonal_angle_deg+
      (t->leg==1U?fminf(p/t->config.arc_mm,1)*180:180-fminf(p/t->config.arc_mm,1)*180));
   } else if(t->phase==T3_CAPTURE) line_inputs=9;
+  else if(t->phase==T3_VERTEX_SEEK) line_inputs=p>=t->diagonal_mm?9:15;
   else if(t->phase==T3_ALIGN || t->phase==T3_START_ALIGN)
    app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+(app()->route.targets[1]-app()->route.targets[0])*.01f/140*57.2957795131f);
   int counts[2];
@@ -114,7 +119,7 @@ int CAR_TASK3_TEST_MAIN(void)
  assert(app()->runtime.state==DONE && app()->route.task3.phase==T3_DONE && signals==5 && a==0 && b==0);
  assert(app()->route.elapsed_ms<40000 && app()->route.leg==3U && rp[0]==wp[0] && wp[1]==0);
  for(unsigned i=0;i<50;i++)step(10,0,0);
- assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 CAP V2")==0);
+ assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 SEEK V1")==0);
  assert(strstr(oled_lines[2],"DONE DA T"));for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
  /* Task-specific faster schedule, with unchanged half-circle speed/deadline. */
  assert(CarRoute_Task3Config().diagonal_mmps==240 && CarRoute_Task3Config().arc_mmps==200);
