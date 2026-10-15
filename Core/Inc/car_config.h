@@ -27,6 +27,15 @@
 #define DPT_HEADING_GAIN 1.0f
 #define DPT_HEADING_MAX_DIFF 15.0f
 #define DPT_HEADING_MAX_ERROR 20.0f
+/* 航向融合：直线段以轮速差速角速度为观测，在线估计陀螺残余零偏（温漂），
+ * 估计值全程从角速度中扣除；转弯、低速和观测矛盾（打滑迹象）时冻结估计但不冻结扣除。
+ * 轮距为左右轮接地中心间距，必须实测标定，否则直线段会收敛出虚假零偏。 */
+#define DPT_TRACK_WIDTH_MM 150.0f
+#define DPT_HEADING_FUSION_STRAIGHT_DPS 10.0f /* 轮速差速角速度低于此值才按直线段更新零偏估计。 */
+#define DPT_HEADING_FUSION_MIN_MMPS 40.0f /* 平均轮速低于此值不信任轮速观测。 */
+#define DPT_HEADING_FUSION_DISAGREE_DPS 25.0f /* 陀螺与轮速角速度矛盾超过此值判打滑迹象，冻结估计。 */
+#define DPT_HEADING_FUSION_BIAS_GAIN 0.3f /* 零偏估计收敛增益（1/秒），时间常数约 3.3 秒。 */
+#define DPT_HEADING_FUSION_BIAS_MAX_DPS 1.0f /* 在线零偏估计限幅，覆盖预期温漂并防止异常观测带偏。 */
 /* 定距任务：按编码器估算毫米里程，有效滚动周长仍需实测核对。 */
 #define DPT_DISTANCE_MM 200.0f
 #define DPT_DISTANCE_TIMEOUT_MS 10000U

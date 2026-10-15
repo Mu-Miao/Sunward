@@ -46,6 +46,7 @@ typedef struct {
     int16_t min[3];
     int16_t max[3];
     float bias;
+    float bias_rate; /* 在线估计的陀螺残余零偏（度/秒），直线段由轮速观测收敛，其余时段冻结。 */
     float angle;
     float previous_rate;
     float reference;

@@ -17,11 +17,13 @@ assert len(modules) == 14, 'Expected all 14 car modules in Core/Src'
 assert not any('#include' in line and '.c"' in line
                for path in modules for line in path.read_text().splitlines())
 flags = [os.environ.get('CC', 'cc'), '-std=c11', '-Wall', '-Wextra', '-Werror',
+         # 以下两类诊断仅 MinGW gcc 发出（clang 不报）；测试代码风格与 snprintf 截断均为既有有意写法。
+         '-Wno-misleading-indentation', '-Wno-format-truncation',
          '-DCAR_APP_TEST', '-I' + str(tests), '-I' + str(root / 'Core/Inc')]
 if args.sanitize:
     flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
 with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
-    for suite in ['motion', 'task2', 'task3', 'task4', 'seek']:
+    for suite in ['motion', 'task2', 'task3', 'task4', 'seek', 'heading']:
         for public in [False, True]:
             name = suite + ('_car_app' if public else '_legacy_api')
             binary = str(Path(folder) / name)
@@ -38,4 +40,4 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                 print(result.stdout + result.stderr, flush=True)
                 result.check_returncode()
             print(name + ': ' + result.stdout.strip())
-print('PASS: motion/task2/task3/task4/seek regressions; CarApp and compatibility APIs; separate module linkage.')
+print('PASS: motion/task2/task3/task4/seek/heading regressions; CarApp and compatibility APIs; separate module linkage.')

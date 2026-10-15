@@ -284,7 +284,7 @@ int CAR_TASK3_TEST_MAIN(void)
  for(unsigned k=0;k<10;k++)step(10,0,0);
  assert(app()->runtime.state==LINE_LOST && app()->route.task3.fault==T3_LOST);
  off=1;line_inputs=0;app()->heading.angle=90;step(10,600,600);
- assert(app()->route.task3_trace.lost_ms==loss_ms && app()->route.task3_trace.lost_yaw==-1);
+ assert(app()->route.task3_trace.lost_ms==loss_ms && app()->route.task3_trace.lost_yaw>-1.5f && app()->route.task3_trace.lost_yaw<-0.5f); /* 航向融合会在拍内积分出亚百分度量级增量，锁定值只需与后来的覆写 90 度区分。 */
  assert(app()->route.task3_trace.lost_raw[0]==1 && app()->route.task3_trace.targets[0]==old_targets[0]);
  app()->ui.render_ms=ms-200;step(10,0,0);
  assert(strcmp(oled_lines[1],"LF1111 PRE1101")==0 && strstr(oled_lines[3],"Y-1"));

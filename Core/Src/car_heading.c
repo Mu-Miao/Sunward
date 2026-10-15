@@ -2,11 +2,31 @@
 #include "car_internal.h"
 #include "mpu6050.h"
 
+float CarHeading_FuseRate(float gyro_dps, float v_left_mmps, float v_right_mmps, float dt_s, float *bias_rate_dps)
+{
+    /* 轮速差速角速度：左转为正，与航向约定一致。 */
+    float omega_wheel = (v_right_mmps - v_left_mmps) * (180.0f / 3.1415926f) / DPT_TRACK_WIDTH_MM;
+    float omega_abs = omega_wheel < 0.0f ? -omega_wheel : omega_wheel;
+    float speed_mean = 0.5f * (v_left_mmps + v_right_mmps);
+    if (speed_mean < 0.0f) speed_mean = -speed_mean;
+    /* 扣除当前估计后的观测残差，即残余零偏的瞬时观测。 */
+    float residual = gyro_dps - *bias_rate_dps - omega_wheel;
+    float residual_abs = residual < 0.0f ? -residual : residual;
+    if (omega_abs <= DPT_HEADING_FUSION_STRAIGHT_DPS && speed_mean >= DPT_HEADING_FUSION_MIN_MMPS &&
+        residual_abs <= DPT_HEADING_FUSION_DISAGREE_DPS) {
+        *bias_rate_dps += DPT_HEADING_FUSION_BIAS_GAIN * residual * dt_s;
+        if (*bias_rate_dps > DPT_HEADING_FUSION_BIAS_MAX_DPS) *bias_rate_dps = DPT_HEADING_FUSION_BIAS_MAX_DPS;
+        if (*bias_rate_dps < -DPT_HEADING_FUSION_BIAS_MAX_DPS) *bias_rate_dps = -DPT_HEADING_FUSION_BIAS_MAX_DPS;
+    }
+    return gyro_dps - *bias_rate_dps;
+}
+
 void CarHeading_Enable(CarAppContext *app, int mpu_initialized)
 {
     app->heading.available = mpu_initialized != 0;
     app->heading.phase = app->heading.available ? Y_NONE : Y_FAIL;
     app->heading.samples = app->heading.io_us = 0U;
+    app->heading.bias_rate = 0.0f;
     app->heading.angle = app->heading.reference = app->heading.error = app->heading.diff = 0.0f;
     app->ui.heading_log_ms = HAL_GetTick();
 }
@@ -21,6 +41,7 @@ void CarHeading_BeginCalibration(CarAppContext *app, uint32_t now, int enabled)
     app->heading.warm_ms = now;
     app->heading.samples = 0U;
     app->heading.sum = 0;
+    app->heading.bias_rate = 0.0f;
     app->heading.angle = app->heading.reference = app->heading.error = app->heading.diff = 0.0f;
 }
 
@@ -53,6 +74,7 @@ void CarHeading_Sample(CarAppContext *app, uint32_t now, int enabled, int wheels
             (int32_t)app->heading.max[1] - app->heading.min[1] > 1000 ||
             (int32_t)app->heading.max[2] - app->heading.min[2] > 300) { app->heading.phase = Y_FAIL; return; }
         app->heading.bias = (float)app->heading.sum / 500.0f;
+        app->heading.bias_rate = 0.0f;
         app->heading.angle = app->heading.reference = app->heading.error = app->heading.diff = 0.0f;
         app->heading.previous_rate = ((float)raw.gz - app->heading.bias) / 131.0f;
         app->heading.cycles = cycles;
@@ -66,6 +88,8 @@ void CarHeading_Sample(CarAppContext *app, uint32_t now, int enabled, int wheels
         app->heading.phase = Y_FAIL; return;
     }
     float rate = ((float)raw.gz - app->heading.bias) / 131.0f;
+    rate = CarHeading_FuseRate(rate, app->wheel.items[LEFT].velocity, app->wheel.items[RIGHT].velocity,
+        (float)elapsed / app->runtime.hz, &app->heading.bias_rate);
     app->heading.angle = CarMath_WrapDegrees(app->heading.angle + 0.5f * (rate + app->heading.previous_rate) * ((float)elapsed / app->runtime.hz));
     app->heading.previous_rate = rate;
     app->heading.error = CarMath_WrapDegrees(app->heading.reference - app->heading.angle);
