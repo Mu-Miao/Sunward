@@ -11,7 +11,14 @@ CarTask3Config CarTask4_Config(void)
        不将任务三的 40 秒比赛时限单独施加到任务四每一圈。 */
     config.deadline_ms = DPT_TASK4_LAP_WATCHDOG_MS;
     config.lost_ms = DPT_TASK4_LOST_MS;
+    config.white_seek_ms = DPT_TASK4_WHITE_SEEK_MS;
     config.recovery_ms = DPT_TASK4_RECOVERY_MS;
+    /* 用户反馈 BD 未走够就开始转向。保留 D 上界与搜索预算，
+       取消该段提前 120mm 确认任意有效探头的入口；任务三/C 点不变。 */
+    config.bd_full_distance = 1U;
+    /* B 点是白底 BD 直线的起点，先完成航向再走，避免少转与容差叠加。 */
+    config.b_full_align = 1U;
+    config.b_align_tolerance_deg = 1.0f;
     return config;
 }
 

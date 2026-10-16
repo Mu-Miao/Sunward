@@ -1,4 +1,9 @@
 # dot files
+.DS_Store
+._*
+__MACOSX/
+.Spotlight-V100/
+.Trashes/
 /.vscode/launch.json
 /.settings
 /.eide/log
@@ -13,3 +18,10 @@
 # eide template
 *.ept
 *.eide-template
+
+# temporary editor and Python files
+*.swp
+*.swo
+*~
+__pycache__/
+*.py[cod]

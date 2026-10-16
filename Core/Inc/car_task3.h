@@ -12,13 +12,19 @@ typedef enum { T3_HALT, T3_HOLD_HEADING, T3_TURN_FORWARD,
     T3_FOLLOW_LINE, T3_SEEK_LINE } CarTask3Control;
 typedef enum { T3_NO_POINT, T3_POINT_A, T3_POINT_B,
     T3_POINT_C, T3_POINT_D } CarTask3Point;
+/* 失线预算触发位，仅作停车诊断；可同时触发多个限制。 */
+enum { T3_LOSS_TIME = 1U, T3_LOSS_DISTANCE = 2U, T3_LOSS_ANGLE = 4U };
 
 typedef struct {
     float span_mm, radius_mm, arc_mm;
     uint8_t start_from_ab; /* 1 表示初始 A 朝 B，需要自动转向；0 表示已朝 AC。 */
+    uint8_t bd_full_distance; /* 1：BD 达到完整名义斜线里程后才确认 D；C 点规则不变。 */
+    uint8_t b_full_align; /* 1：B 点按完整 BD 航向转向，使用独立的停稳角度容差。 */
+    float b_align_tolerance_deg;
     float diagonal_mmps, arc_mmps, start_mmps, acceleration_mmps2;
     float arc_acceleration_mmps2; /* 半圆加速度，与斜线段独立配置。 */
     float turn_mmps, capture_mmps;
+    float turn_relief_deg; /* 原地对正留量；不改变固定 AC 参考、斜线目标和赛道几何。 */
     float entry_window_mm, exit_window_mm, turn_travel_limit_mm;
     float capture_limit_mm, approach_mm, minimum_mmps;
     float diagonal_tolerance_deg, arc_tolerance_deg, align_tolerance_deg;
@@ -57,6 +63,9 @@ typedef struct {
     uint32_t seek_forward_ms, resume_ms;
     float lost_start_mm, lost_yaw_deg, seek_forward_mm;
     uint32_t recovery_start_ms;
+    uint8_t loss_limits;
+    uint32_t loss_duration_ms;
+    float loss_distance_mm, loss_turn_deg; /* F7 触发时锁存，区别于首次失线快照。 */
     float diagonal_mm, diagonal_angle_deg, start_heading_deg;
     float leg_start_mm, phase_start_mm;
 } CarTask3;

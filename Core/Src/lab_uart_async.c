@@ -2,7 +2,6 @@
 
 #define TX_SIZE 512U
 #define RX_SIZE 128U
-#define FRAME_MAX 160U
 typedef struct {
     USART_TypeDef *port;
     volatile uint16_t tx_head, tx_tail, rx_head, rx_tail;
@@ -47,7 +46,7 @@ HAL_StatusTypeDef LabUART_BeginPort(LabUART_Port channel, UART_HandleTypeDef *ua
 int LabUART_TryWritePort(LabUART_Port channel, const char *data, uint16_t length)
 {
     Channel *c = get_channel(channel);
-    if (c == NULL || c->port == NULL || data == NULL || length == 0U || length > FRAME_MAX) return 0;
+    if (c == NULL || c->port == NULL || data == NULL || length == 0U || length > LAB_UART_FRAME_MAX) return 0;
     uint32_t mask = __get_PRIMASK();
     __disable_irq();
     uint16_t free_bytes = (uint16_t)((c->tx_tail - c->tx_head - 1U) & (TX_SIZE - 1U));

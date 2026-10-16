@@ -27,6 +27,17 @@
 #define DPT_HEADING_GAIN 1.0f
 #define DPT_HEADING_MAX_DIFF 15.0f
 #define DPT_HEADING_MAX_ERROR 20.0f
+/* 参考 dev 005533e：任务三/四在明确直线段用编码器差速观测残余陀螺零偏。
+ * 160mm 为用户 2026-10-15 回传的新车架轮距；转向/捕获/巡线/寻线只扣已学零偏。
+ * 不直接用轮速角度覆盖陀螺航向，也不改变轮周长或斜线几何长度。 */
+#define DPT_HEADING_FUSION_ENABLE 1U
+#define DPT_TRACK_WIDTH_MM 160.0f
+#define DPT_HEADING_FUSION_STRAIGHT_DPS 10.0f
+#define DPT_HEADING_FUSION_MIN_MMPS 40.0f
+#define DPT_HEADING_FUSION_DISAGREE_DPS 5.0f
+#define DPT_HEADING_FUSION_BIAS_GAIN 0.3f
+#define DPT_HEADING_FUSION_BIAS_MAX_DPS 1.0f
+#define DPT_HEADING_FUSION_STABLE_MS 200U
 /* 定距任务：按编码器估算毫米里程，有效滚动周长仍需实测核对。 */
 #define DPT_DISTANCE_MM 200.0f
 #define DPT_DISTANCE_TIMEOUT_MS 10000U
@@ -78,6 +89,8 @@
 #define DPT_TASK3_APPROACH_MM 100.0f
 #define DPT_TASK3_MIN_MMPS 60.0f /* 捕获黑线阶段仍使用独立的 50 毫米/秒速度。 */
 #define DPT_TASK3_TURN_MMPS 80.0f
+/* 默认少转 5 度；任务四 B 点由 CarTask4_Config 单独启用完整 BD 对正，其余点保留留量。 */
+#define DPT_TASK3_TURN_RELIEF_DEG 5.0f
 #define DPT_TASK3_CAPTURE_MMPS 50.0f
 #define DPT_TASK3_TIMEOUT_MS 40000U
 #define DPT_TASK3_ENTRY_WINDOW_MM 120.0f
@@ -98,9 +111,15 @@
 /* 任务四沿用任务三的几何和速度参数；以下时限用于故障保护。 */
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。
- * 已授权的全白桥接单独使用上方 300 毫秒预算；恢复需连续有效 30 毫秒。
+ * 已授权的全白桥接单独使用下方 500 毫秒预算；恢复需连续有效 30 毫秒。
+ * 仍受共用 20 毫米/12 度限制约束，任务三保持 300 毫秒。
  * 下列数值为待实车验证的容错初值，不改变任务三和全局 PI 标定。 */
 #define DPT_TASK4_LOST_MS 200U
+#define DPT_TASK4_WHITE_SEEK_MS 500U
+/* 外侧探头丢线时两轮正向小半径扫线；给内轮前进目标，避免零驱动下被动回滚。
+ * 反转保护与原时间/位移/角度预算均保留，不能保证实物不回滚。 */
+#define DPT_TASK4_GAP_SWEEP_MMPS 80.0f
+#define DPT_TASK4_GAP_INNER_MMPS 20.0f
 #define DPT_TASK4_RECOVERY_MS 30U
 #define DPT_TASK4_RESUME_MMPS 50.0f
 #define DPT_TASK4_RESUME_ACCEL_MMPS2 100.0f

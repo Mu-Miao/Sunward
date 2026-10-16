@@ -60,6 +60,7 @@ HAL_StatusTypeDef MPU6050_ReadRaw(MPU6050_Raw*p){
 HAL_StatusTypeDef LabUART_Begin(UART_HandleTypeDef*p){(void)p;return HAL_OK;}
 HAL_StatusTypeDef LabUART_BeginPort(LabUART_Port c,UART_HandleTypeDef*p){(void)c;(void)p;return HAL_OK;}
 int LabUART_TryWritePort(LabUART_Port c,const char*s,uint16_t n){
+ if(n>LAB_UART_FRAME_MAX)return 0; /* Same single-frame rejection as production. */
  trace_event('u');trace_bytes(&c,sizeof c);trace_bytes(&n,sizeof n);trace_bytes(s,n);(void)c;if(full_tx)return 0;assert(strlen(logs)+n<sizeof logs);strncat(logs,s,n);return 1;
 }
 int LabUART_TryWrite(const char*s,uint16_t n){return LabUART_TryWritePort(LAB_UART_USB,s,n);}

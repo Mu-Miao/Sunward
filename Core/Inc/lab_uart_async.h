@@ -3,6 +3,7 @@
 #include "stm32f1xx_hal.h"
 
 typedef enum { LAB_UART_USB = 0, LAB_UART_BT, LAB_UART_COUNT } LabUART_Port;
+#define LAB_UART_FRAME_MAX 160U
 /* Each USART exclusively owns its IRQ and queues after blocking boot messages. */
 HAL_StatusTypeDef LabUART_BeginPort(LabUART_Port channel, UART_HandleTypeDef *uart);
 void LabUART_IRQHandlerPort(LabUART_Port channel);

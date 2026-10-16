@@ -14,6 +14,7 @@ CarTask3Config CarRoute_Task3Config(void)
     c.start_mmps = DPT_TASK3_START_MMPS; c.acceleration_mmps2 = DPT_TASK3_ACCEL_MMPS2;
     c.arc_acceleration_mmps2 = DPT_TASK3_ARC_ACCEL_MMPS2;
     c.approach_mm = DPT_TASK3_APPROACH_MM; c.minimum_mmps = DPT_TASK3_MIN_MMPS;
+    c.turn_relief_deg = DPT_TASK3_TURN_RELIEF_DEG;
     c.turn_mmps = DPT_TASK3_TURN_MMPS; c.capture_mmps = DPT_TASK3_CAPTURE_MMPS;
     c.deadline_ms = DPT_TASK3_TIMEOUT_MS;
     c.entry_window_mm = DPT_TASK3_ENTRY_WINDOW_MM; c.exit_window_mm = DPT_TASK3_EXIT_WINDOW_MM;
@@ -42,6 +43,9 @@ void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now)
     memset(&app->route.task3, 0, sizeof app->route.task3);
     memset(&app->route.task4, 0, sizeof app->route.task4);
     memset(&app->route.task3_trace, 0, sizeof app->route.task3_trace);
+    memset(&app->route.reverse_trace, 0, sizeof app->route.reverse_trace);
+    memset(&app->route.vertex_trace, 0, sizeof app->route.vertex_trace);
+    memset(&app->route.edge_trace, 0, sizeof app->route.edge_trace);
     app->route.leg = app->route.edge_seen = 0U;
     app->route.leg_start = 0.0f;
     app->route.elapsed_ms = 0U;
@@ -132,6 +136,9 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
                 return;
             }
             memset(&app->route.task3_trace, 0, sizeof app->route.task3_trace);
+            memset(&app->route.reverse_trace, 0, sizeof app->route.reverse_trace);
+            memset(&app->route.vertex_trace, 0, sizeof app->route.vertex_trace);
+            memset(&app->route.edge_trace, 0, sizeof app->route.edge_trace);
             app->route.leg = 0U; app->route.leg_start = 0.0f; app->route.elapsed_ms = 0U;
             app->route.goal = (requested == MOVE_TASK4 ? DPT_TASK4_LAPS : 1U) * 2.0f * (app->route.task3.diagonal_mm + config.arc_mm);
             app->route.cruise = config.diagonal_mmps;
@@ -232,8 +239,44 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                 app->route.task3_trace.velocity[w] = app->wheel.items[w].velocity;
             }
         }
+        CarTask3Phase prior_phase = app->route.task3.phase;
+        uint32_t prior_duration = (uint32_t)(now - app->route.task3.phase_ms);
+        float prior_travel = input.distance_mm - app->route.task3.phase_start_mm;
         if (app->route.motion == MOVE_TASK4) CarTask4_Update(&app->route.task4, &app->route.task3, &input, &output);
         else CarTask3_Update(&app->route.task3, &input, &output);
+        if (app->route.task3.phase == T3_FAULT && app->route.task3.fault == T3_EDGE && !app->route.edge_trace.seen) {
+            const CarTask3 *t = &app->route.task3;
+            float progress = input.distance_mm - t->leg_start_mm;
+            uint8_t limits = 0U;
+            /* 仅解释核心已经锁存的 F6；不改变任何边界或输出。 */
+            if (prior_phase == T3_VERTEX_SEEK) {
+                if (prior_duration >= t->config.vertex_seek_ms) limits |= T3_LOSS_TIME;
+                if (prior_travel >= t->config.vertex_seek_mm || progress > t->diagonal_mm + t->config.entry_window_mm)
+                    limits |= T3_LOSS_DISTANCE;
+            } else if (prior_phase == T3_CAPTURE) {
+                if (prior_duration >= t->config.capture_timeout_ms) limits |= T3_LOSS_TIME;
+                if (prior_travel > t->config.capture_limit_mm) limits |= T3_LOSS_DISTANCE;
+            } else if (prior_phase == T3_DIAGONAL || prior_phase == T3_ARC) limits |= T3_LOSS_DISTANCE;
+            app->route.edge_trace.seen = 1U;
+            app->route.edge_trace.phase = (uint8_t)prior_phase;
+            app->route.edge_trace.limits = limits;
+            memcpy(app->route.edge_trace.raw, app->line.raw, 4U);
+            app->route.edge_trace.ms = now;
+            app->route.edge_trace.duration_ms = prior_duration;
+            app->route.edge_trace.travel_mm = prior_travel;
+            app->route.edge_trace.distance_mm = progress;
+            app->route.edge_trace.yaw = input.yaw_deg;
+        }
+        if (output.signal_point == T3_POINT_C || output.signal_point == T3_POINT_D) {
+            app->route.vertex_trace.seen = 1U;
+            app->route.vertex_trace.point = (uint8_t)output.signal_point;
+            app->route.vertex_trace.lap = app->route.motion == MOVE_TASK4 ? app->route.task4.completed_laps + 1U : 1U;
+            memcpy(app->route.vertex_trace.raw, app->line.raw, 4U);
+            app->route.vertex_trace.distance_mm = input.distance_mm - app->route.task3.leg_start_mm;
+            app->route.vertex_trace.yaw = input.yaw_deg;
+            app->route.vertex_trace.gyro_yaw = app->heading.gyro_angle;
+            app->route.vertex_trace.bias_rate = app->heading.bias_rate;
+        }
         app->route.leg = app->route.task3.leg;
         app->route.leg_start = app->route.task3.leg_start_mm;
         app->route.elapsed_ms = app->route.motion == MOVE_TASK4 ? app->route.task4.elapsed_ms : app->route.task3.elapsed_ms;

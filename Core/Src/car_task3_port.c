@@ -66,10 +66,23 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
             app->line.valid || app->line.count != 0U) {
             app->runtime.drive(0, 0); CarWheel_Clear(app); return;
         }
-        float base = fminf(o->base_mmps, 50.0f), limit = base * 0.4f;
+        float base = fminf(o->base_mmps, 50.0f);
         float heading = CarMath_WrapDegrees(o->heading_deg - app->heading.angle);
-        float diff = DPT_LINE_GAIN * app->route.task3_trace.valid_error * base / DPT_LINE_CRUISE_MMPS - DPT_HEADING_GAIN * heading;
-        diff = fmaxf(-limit, fminf(limit, diff));
+        float last_error = app->route.task3_trace.valid_error;
+        float diff;
+        if (app->route.motion == MOVE_TASK4 && fabsf(last_error) > 2.5f) {
+            /* 最外侧探头刚离线时，黑线可能落在相邻探头的盲区内。
+               两轮正向、外轮快内轮慢，将探头朝相邻通道扫过；不伪造有效线，
+               原核心仍先检查 500ms/20mm/12度及更高优先级故障。 */
+            float outer = fminf(DPT_TASK4_GAP_SWEEP_MMPS, base * 2.0f);
+            float inner = fminf(DPT_TASK4_GAP_INNER_MMPS, outer * 0.5f);
+            base = (outer + inner) * 0.5f;
+            diff = (outer - inner) * 0.5f * (last_error > 0.0f ? 1.0f : -1.0f);
+        } else {
+            float limit = base * 0.4f;
+            diff = DPT_LINE_GAIN * last_error * base / DPT_LINE_CRUISE_MMPS - DPT_HEADING_GAIN * heading;
+            diff = fmaxf(-limit, fminf(limit, diff));
+        }
         app->route.targets[LEFT] = base + diff; app->route.targets[RIGHT] = base - diff;
         app->route.base = base; app->line.diff = diff;
         app->heading.reference = o->heading_deg; app->heading.error = heading;

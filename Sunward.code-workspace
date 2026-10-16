@@ -5,6 +5,7 @@
         }
     ],
     "settings": {
+        "workbench.colorTheme": "One Dark Pro Night Flat",
         "clangd.arguments": [
             "--header-insertion=never"
         ],
@@ -27,7 +28,8 @@
             "editor.insertSpaces": true,
             "editor.tabSize": 4,
             "editor.autoIndent": "advanced"
-        }
+        },
+        "workbench.colorCustomizations": {}
     },
     "extensions": {
         "recommendations": [

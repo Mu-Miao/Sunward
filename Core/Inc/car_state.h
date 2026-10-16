@@ -46,6 +46,9 @@ typedef struct {
     int16_t min[3];
     int16_t max[3];
     float bias;
+    float bias_rate, gyro_angle, previous_gyro_rate, wheel_rate;
+    uint8_t fusion_active, fusion_learning, fusion_window_seen;
+    uint32_t fusion_window_ms;
     float angle;
     float previous_rate;
     float reference;
@@ -116,6 +119,19 @@ typedef struct {
         float valid_error, valid_diff, lost_yaw;
         float targets[2], velocity[2];
     } task3_trace; /* 保存半圆首次无效采样；F7 停车、关闭使能或搬动车身后仍保留快照。 */
+    struct {
+        uint8_t seen, phase;
+        float yaw, targets[2], velocity[2];
+    } reverse_trace; /* 在 REV 清 PI、取消路线前保存，供 OLED 区分真实故障轮与采样。 */
+    struct {
+        uint8_t seen, point, lap, raw[4];
+        float distance_mm, yaw, gyro_yaw, bias_rate;
+    } vertex_trace; /* 软件确认 C/D 时的真实输入快照，不代表车身实际已覆盖顶点。 */
+    struct {
+        uint8_t seen, phase, limits, raw[4];
+        uint32_t ms, duration_ms;
+        float travel_mm, distance_mm, yaw;
+    } edge_trace; /* F6 前阶段与原时间/距离边界，停车后不被实物移动覆盖。 */
 } CarRouteState;
 
 typedef struct {

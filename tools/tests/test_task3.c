@@ -41,9 +41,12 @@ static void step_route(void)
   if(app()->route.targets[0]>0)dl=dr=610;
   break;
  case T3_ALIGN: case T3_START_ALIGN: {
-  float target=t->phase==T3_START_ALIGN?t->start_heading_deg:join_target();
-  float e=CarMath_WrapDegrees(target-app()->heading.angle);
-  float turn=fmaxf(-2.0f,fminf(2.0f,e));app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+turn);
+  /* Plant follows the requested heading only while a wheel target is moving.
+     HALT must not secretly complete the remaining angle during debounce/settle. */
+  if(app()->route.targets[0]>0 || app()->route.targets[1]>0) {
+   float e=CarMath_WrapDegrees(app()->heading.reference-app()->heading.angle);
+   float turn=fmaxf(-2.0f,fminf(2.0f,e));app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+turn);
+  }
   if(app()->route.targets[0]>0)dl=177;
   if(app()->route.targets[1]>0)dr=176;
   break;
@@ -119,7 +122,7 @@ int CAR_TASK3_TEST_MAIN(void)
  assert(app()->runtime.state==DONE && app()->route.task3.phase==T3_DONE && signals==5 && a==0 && b==0);
  assert(app()->route.elapsed_ms<40000 && app()->route.leg==3U && rp[0]==wp[0] && wp[1]==0);
  for(unsigned i=0;i<50;i++)step(10,0,0);
- assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 SEEK V1")==0);
+ assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 FUSE V1 L1")==0);
  assert(strstr(oled_lines[2],"DONE DA T"));for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
  /* Task-specific faster schedule, with unchanged half-circle speed/deadline. */
  assert(CarRoute_Task3Config().diagonal_mmps==240 && CarRoute_Task3Config().arc_mmps==200);
@@ -281,10 +284,12 @@ int CAR_TASK3_TEST_MAIN(void)
  assert(app()->route.task3_trace.targets[0]==old_targets[0] && app()->route.task3_trace.targets[1]==old_targets[1]);
  assert(app()->route.task3_trace.velocity[0]>55 && app()->route.task3_trace.velocity[1]>55);
  uint32_t loss_ms=app()->route.task3_trace.lost_ms;
+ float loss_yaw=app()->route.task3_trace.lost_yaw;
+ assert(fabsf(loss_yaw+1.0f)<.01f);
  for(unsigned k=0;k<10;k++)step(10,0,0);
  assert(app()->runtime.state==LINE_LOST && app()->route.task3.fault==T3_LOST);
  off=1;line_inputs=0;app()->heading.angle=90;step(10,600,600);
- assert(app()->route.task3_trace.lost_ms==loss_ms && app()->route.task3_trace.lost_yaw==-1);
+ assert(app()->route.task3_trace.lost_ms==loss_ms && app()->route.task3_trace.lost_yaw==loss_yaw);
  assert(app()->route.task3_trace.lost_raw[0]==1 && app()->route.task3_trace.targets[0]==old_targets[0]);
  app()->ui.render_ms=ms-200;step(10,0,0);
  assert(strcmp(oled_lines[1],"LF1111 PRE1101")==0 && strstr(oled_lines[3],"Y-1"));

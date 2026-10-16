@@ -11,6 +11,15 @@ CarAppContext *CarApp_TestContext(void) { return &instance; }
 
 void CarApp_Stop(CarAppContext *app, TestState why, char faulty)
 {
+    if (why == REVERSE && CarMotion_IsFigureEight(app->route.motion)) {
+        app->route.reverse_trace.seen = 1U;
+        app->route.reverse_trace.phase = (uint8_t)app->route.task3.phase;
+        app->route.reverse_trace.yaw = app->heading.angle;
+        for (unsigned w = 0; w < 2U; ++w) {
+            app->route.reverse_trace.targets[w] = app->route.targets[w];
+            app->route.reverse_trace.velocity[w] = app->wheel.items[w].velocity;
+        }
+    }
     uint8_t completed_route = why == DONE && app->runtime.state == BRAKING && (app->route.motion == MOVE_ROUTE || app->route.motion == MOVE_LINE || app->route.motion == MOVE_TASK2);
     app->runtime.drive(0, 0);
     CarWheel_Clear(app);
@@ -99,6 +108,10 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
         DPT_MANUAL_MAX_CMD <= 0 || DPT_MANUAL_MAX_CMD > 3000 ||
         DPT_MANUAL_DURATION_MS < 1000U || DPT_MANUAL_DURATION_MS > 30000U) return HAL_ERROR;
     if (!CarWheel_ConfigValid()) return HAL_ERROR;
+    if (!CarHeading_ConfigValid()) return HAL_ERROR;
+    if (!(DPT_TASK4_GAP_SWEEP_MMPS >= 35.0f && DPT_TASK4_GAP_SWEEP_MMPS <= 80.0f) ||
+        !(DPT_TASK4_GAP_INNER_MMPS > 0.0f && DPT_TASK4_GAP_INNER_MMPS < DPT_TASK4_GAP_SWEEP_MMPS) ||
+        !(DPT_TASK4_GAP_SWEEP_MMPS + DPT_TASK4_GAP_INNER_MMPS <= 100.0f)) return HAL_ERROR;
     CarTask3Config task3_config = CarRoute_Task3Config();
     if (!CarTask3_ConfigValid(&task3_config)) return HAL_ERROR;
     CarTask3Config task4_config = CarTask4_Config();
@@ -120,6 +133,9 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     memset(&app->route.task3, 0, sizeof app->route.task3);
     memset(&app->route.task4, 0, sizeof app->route.task4);
     memset(&app->route.task3_trace, 0, sizeof app->route.task3_trace);
+    memset(&app->route.reverse_trace, 0, sizeof app->route.reverse_trace);
+    memset(&app->route.vertex_trace, 0, sizeof app->route.vertex_trace);
+    memset(&app->route.edge_trace, 0, sizeof app->route.edge_trace);
     app->route.switching = 0;
     app->route.manual_speed = DPT_MANUAL_MMPS;
     app->route.manual_duration = DPT_MANUAL_DURATION_MS;
