@@ -4,6 +4,7 @@
 
 typedef struct {
     uint8_t active, completed_laps; /* 运行标志、已在 A 点停稳完成的圈数。 */
+    uint8_t arc_number; /* 捕获确认进入 CB/DA 时递增；四圈共8段，恢复不重复计数。 */
     uint32_t start_ms, elapsed_ms; /* 四圈总起始时刻及累计用时，单位毫秒；圈间不清零。 */
     uint8_t resume_pending, resume_active;
     uint32_t resume_ms; /* 失线恢复加速的独立起点，不重置阶段、里程及总超时。 */

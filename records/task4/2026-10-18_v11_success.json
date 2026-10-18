@@ -1,0 +1,59 @@
+{
+  "firmware": "TASK 4 V11 FAST",
+  "started_at": "2026-10-18T22:38:00.786840+08:00",
+  "first_done_at": "2026-10-18T22:40:30.393360+08:00",
+  "elapsed_ms": 149606,
+  "completed_laps": 4,
+  "arc_number": 8,
+  "fault": 0,
+  "state": "DONE",
+  "motor_commands": [
+    0,
+    0
+  ],
+  "final_velocities": [
+    0.0,
+    -0.0
+  ],
+  "wheel_distance_mm": [
+    20130.263671875,
+    20143.693359375
+  ],
+  "fusion_active_values": [
+    0
+  ],
+  "battery_raw_min": 1250,
+  "dt_us_min": 9982,
+  "dt_us_max": 10017,
+  "samples": 2980,
+  "hex_sha256": "fee4e604c5cdf58bbb624b5f019dafa4e11beda1176a67f6685b23a72fd7ceb3",
+  "lap_completion_samples": [
+    {
+      "lap": 1,
+      "elapsed_ms": 37783,
+      "host_time": "2026-10-18T22:38:38.544411+08:00"
+    },
+    {
+      "lap": 2,
+      "elapsed_ms": 75323,
+      "host_time": "2026-10-18T22:39:16.077253+08:00"
+    },
+    {
+      "lap": 3,
+      "elapsed_ms": 112853,
+      "host_time": "2026-10-18T22:39:53.607645+08:00"
+    },
+    {
+      "lap": 4,
+      "elapsed_ms": 149606,
+      "host_time": "2026-10-18T22:40:30.393360+08:00"
+    }
+  ],
+  "elf_sha256": "a701952836e8e46bc6b26ed40fab0c492d809cd8debbe1c04f5ae134523f7892",
+  "board_flash_bytes_verified": 53316,
+  "sampling_hz": 20,
+  "sampling_note": "Asynchronous live RAM reads; lap boundaries have approximately 50 ms sampling resolution.",
+  "run_jsonl_sha256": "ab3994a41ff5e8b5854977344be0a569bc5d21da4abbb8b5ee9ac7b7fdc509b5",
+  "field_confirmation": "User reported successful completion of task four; live data independently recorded DONE, 4 laps, 8 arc entries and fault 0.",
+  "verification_scope": "One field run; this does not certify repeated-run stability, track coverage, or competition-rule compliance."
+}

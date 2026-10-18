@@ -117,7 +117,7 @@ targets:
         target: stm32f1x
       STLink:
         address: "0x08000000"
-        bin: build/Debug/Sunward.hex
+        bin: ""
         elFile: None
         optionBytes: .eide/debug.st.option.bytes.ini
         otherCmds: ""
@@ -125,7 +125,14 @@ targets:
         resetMode: default
         runAfterProgram: true
         speed: 4000
-    uploader: STLink
+      pyOCD:
+        baseAddr: "0x08000000"
+        bin: ""
+        config: .eide/debug.pyocd.yaml
+        otherCmds: ""
+        speed: 4M
+        targetName: stm32f103rc
+    uploader: pyOCD
   Release:
     cppPreprocessAttrs:
       defineList:

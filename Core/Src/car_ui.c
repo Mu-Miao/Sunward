@@ -28,8 +28,8 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             state_text = wheel_state;
         }
         const char *title = "TASK 1 A->B";
-        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 FUSE V3 B";
-        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 FUSE V1 L1";
+        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V11 FAST";
+        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V3 GYRO";
         else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
         else if (app->route.motion == MOVE_DISTANCE) title = "TEST GO20";
@@ -189,7 +189,7 @@ static void route_log(CarAppContext *app, uint32_t now)
     int n;
     if (page == 1U && t->phase == T3_FAULT && t->fault == T3_LOST && app->route.task3_trace.lost_seen) {
         n = snprintf(msg, sizeof msg,
-            "LOSS MS=%lu D100=%d A100=%d LIMIT=%u RAW=%u%u%u%u PRE=%u%u%u%u Y100=%d TL=%d TR=%d VL=%d VR=%d\r\n",
+            "LOSS MS=%lu D100=%d A100=%d LIMIT=%u RAW=%u%u%u%u PRE=%u%u%u%u Y100=%d TL=%d TR=%d VL=%d VR=%d GAP=%u\r\n",
             (unsigned long)t->loss_duration_ms, CarMath_Round(t->loss_distance_mm * 100.0f),
             CarMath_Round(t->loss_turn_deg * 100.0f), (unsigned)t->loss_limits,
             (unsigned)app->route.task3_trace.lost_raw[0], (unsigned)app->route.task3_trace.lost_raw[1],
@@ -198,7 +198,7 @@ static void route_log(CarAppContext *app, uint32_t now)
             (unsigned)app->route.task3_trace.valid_raw[2], (unsigned)app->route.task3_trace.valid_raw[3],
             CarMath_Round(app->route.task3_trace.lost_yaw * 100.0f),
             CarMath_Round(app->route.task3_trace.targets[LEFT]), CarMath_Round(app->route.task3_trace.targets[RIGHT]),
-            CarMath_Round(app->route.task3_trace.velocity[LEFT]), CarMath_Round(app->route.task3_trace.velocity[RIGHT]));
+            CarMath_Round(app->route.task3_trace.velocity[LEFT]), CarMath_Round(app->route.task3_trace.velocity[RIGHT]), (unsigned)t->gap_seek);
     } else if (page == 1U && t->phase == T3_FAULT && t->fault == T3_EDGE && app->route.edge_trace.seen) {
         n = snprintf(msg, sizeof msg, "EDGE AT=%u MS=%lu D100=%d LIMIT=%u RAW=%u%u%u%u Y100=%d\r\n",
             (unsigned)app->route.edge_trace.phase, (unsigned long)app->route.edge_trace.duration_ms,
@@ -228,6 +228,20 @@ static void route_log(CarAppContext *app, uint32_t now)
     if (n > 0 && n < (int)sizeof msg) {
         (void)LabUART_TryWrite(msg, (uint16_t)n);
         if (app->runtime.bluetooth_on) (void)LabUART_TryWritePort(LAB_UART_BT, msg, (uint16_t)n);
+    }
+    if (app->route.motion == MOVE_TASK4 && app->route.task3_trace.lost_seen && app->route.task3_trace.lost_arc_number != 0U) {
+        n = snprintf(msg, sizeof msg,
+            "HIST ARC=%u SEG=%s PRE=%u%u%u%u PRE2=%u%u%u%u HAS2=%u DIR=%c GAP=%u\r\n",
+            (unsigned)app->route.task3_trace.lost_arc_number, CarTask3_LegName(t),
+            (unsigned)app->route.task3_trace.valid_raw[0], (unsigned)app->route.task3_trace.valid_raw[1],
+            (unsigned)app->route.task3_trace.valid_raw[2], (unsigned)app->route.task3_trace.valid_raw[3],
+            (unsigned)app->route.task3_trace.previous_raw[0], (unsigned)app->route.task3_trace.previous_raw[1],
+            (unsigned)app->route.task3_trace.previous_raw[2], (unsigned)app->route.task3_trace.previous_raw[3],
+            (unsigned)app->route.task3_trace.previous_seen, app->route.task3_trace.lost_direction > 0 ? 'R' : 'L', (unsigned)t->gap_seek);
+        if (n > 0 && n < (int)sizeof msg) {
+            (void)LabUART_TryWrite(msg, (uint16_t)n);
+            if (app->runtime.bluetooth_on) (void)LabUART_TryWritePort(LAB_UART_BT, msg, (uint16_t)n);
+        }
     }
 }
 
@@ -289,11 +303,12 @@ void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
             (void)LabUART_TryWrite(msg, (uint16_t)n);
             if (app->runtime.bluetooth_on) (void)LabUART_TryWritePort(LAB_UART_BT, msg, (uint16_t)n);
         }
-        if (app->heading.fusion_active) {
-            n = snprintf(msg, sizeof msg, "FUS Y100=%d G100=%d B100=%d W100=%d LEARN=%u TRACK=%d\r\n",
+        if (CarMotion_IsFigureEight(app->route.motion)) {
+            n = snprintf(msg, sizeof msg, "FUS Y100=%d G100=%d B100=%d W100=%d LEARN=%u TRACK=%d EN=%u\r\n",
                 CarMath_Round(app->heading.angle * 100.0f), CarMath_Round(app->heading.gyro_angle * 100.0f),
                 CarMath_Round(app->heading.bias_rate * 100.0f), CarMath_Round(app->heading.wheel_rate * 100.0f),
-                (unsigned)app->heading.fusion_learning, CarMath_Round(DPT_TRACK_WIDTH_MM));
+                (unsigned)app->heading.fusion_learning, CarMath_Round(DPT_TRACK_WIDTH_MM),
+                (unsigned)app->heading.fusion_active);
             if (n > 0 && n < (int)sizeof msg) {
                 (void)LabUART_TryWrite(msg, (uint16_t)n);
                 if (app->runtime.bluetooth_on) (void)LabUART_TryWritePort(LAB_UART_BT, msg, (uint16_t)n);

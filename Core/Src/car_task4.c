@@ -7,18 +7,29 @@
 CarTask3Config CarTask4_Config(void)
 {
     CarTask3Config config = CarRoute_Task3Config();
+    config.diagonal_mmps = DPT_TASK4_DIAGONAL_MMPS;
+    config.arc_mmps = DPT_TASK4_ARC_MMPS;
     /* 外层统一执行四圈总计 160 秒的超时保护。
        不将任务三的 40 秒比赛时限单独施加到任务四每一圈。 */
     config.deadline_ms = DPT_TASK4_LAP_WATCHDOG_MS;
     config.lost_ms = DPT_TASK4_LOST_MS;
     config.white_seek_ms = DPT_TASK4_WHITE_SEEK_MS;
     config.recovery_ms = DPT_TASK4_RECOVERY_MS;
-    /* 用户反馈 BD 未走够就开始转向。保留 D 上界与搜索预算，
-       取消该段提前 120mm 确认任意有效探头的入口；任务三/C 点不变。 */
-    config.bd_full_distance = 1U;
-    /* B 点是白底 BD 直线的起点，先完成航向再走，避免少转与容差叠加。 */
+    /* 2026-10-18：BD 末段已有有效探头观测，满名义距离后却全白搜索超时。
+       前置探头的碰线里程不等于车轴到 D 的几何长度；恢复原终点窗口内
+       停车并连续确认有效线，不再越过候选线等待满里程。原上界/搜索预算保留。 */
+    config.bd_full_distance = 0U;
+    /* 各点统一沿用基础 ±3 度对正容差，仍使用完整几何目标与停稳复核。 */
     config.b_full_align = 1U;
-    config.b_align_tolerance_deg = 1.0f;
+    config.b_align_tolerance_deg = config.align_tolerance_deg;
+    /* DA 入弧前不能在切线前约 8 度就交给边缘探头反馈；
+       仅任务四 D 点完整对正并复核停稳，不改变捕获图样和原转向预算。 */
+    config.d_full_align = 1U;
+    config.d_align_tolerance_deg = config.align_tolerance_deg;
+    config.da_outer_gap = 1U;
+    config.history_gap = 1U;
+    config.da_gap_mm = DPT_TASK4_DA_GAP_MM;
+    config.da_gap_deg = DPT_TASK4_DA_GAP_DEG;
     return config;
 }
 
@@ -55,7 +66,9 @@ void CarTask4_Update(CarTask4 *task, CarTask3 *lap,
         output->reset_controllers = 1U;
         return;
     }
+    CarTask3Phase previous_phase = lap->phase;
     CarTask3_Update(lap, input, output);
+    if (lap->phase == T3_ARC && previous_phase != T3_ARC) ++task->arc_number;
     if (lap->phase == T3_FAULT) { task->active = 0U; return; }
     if (lap->phase == T3_ARC) {
         if (output->control == T3_HALT) {

@@ -12,10 +12,14 @@ static int positive(float a) { return isfinite(a) && a > 0.0f; }
 static int bounded_time(uint32_t t) { return t > 0U && t <= 80000U; }
 static int config_valid(const CarTask3Config *c)
 {
-    if (c->start_from_ab > 1U || c->bd_full_distance > 1U || c->b_full_align > 1U || !isfinite(c->turn_relief_deg) ||
-        c->turn_relief_deg < 0.0f || c->turn_relief_deg > 10.0f) return 0;
+    if (c->start_from_ab > 1U || c->bd_full_distance > 1U || c->b_full_align > 1U || c->d_full_align > 1U) return 0;
     if (c->b_full_align && (!positive(c->b_align_tolerance_deg) ||
         c->b_align_tolerance_deg > c->align_tolerance_deg)) return 0;
+    if (c->d_full_align && (!positive(c->d_align_tolerance_deg) ||
+        c->d_align_tolerance_deg > c->align_tolerance_deg)) return 0;
+    if (c->da_outer_gap > 1U || c->history_gap > 1U || ((c->da_outer_gap || c->history_gap) &&
+        (!positive(c->da_gap_mm) || c->da_gap_mm < c->white_seek_mm || c->da_gap_mm > 35.0f ||
+         !positive(c->da_gap_deg) || c->da_gap_deg < c->white_seek_deg || c->da_gap_deg > 18.0f))) return 0;
     if (c->white_seek_ms != 0U &&
         (c->white_seek_ms < 30U || c->white_seek_ms > 500U ||
          !positive(c->white_seek_mm) || c->white_seek_mm > 20.0f ||
@@ -36,9 +40,7 @@ static int config_valid(const CarTask3Config *c)
         !positive(c->diagonal_tolerance_deg) || !positive(c->arc_tolerance_deg) ||
         !positive(c->align_tolerance_deg)) return 0;
     float diagonal = hypotf(c->span_mm, 2.0f * c->radius_mm);
-    float angle = atan2f(2.0f * c->radius_mm, c->span_mm) * 57.2957795131f;
     return isfinite(diagonal) && diagonal < 10000.0f &&
-        (c->turn_relief_deg == 0.0f || c->turn_relief_deg < angle) &&
         c->entry_window_mm < diagonal * 0.5f && c->exit_window_mm < c->arc_mm * 0.5f &&
         c->approach_mm < diagonal && c->diagonal_mmps <= 250.0f && c->arc_mmps <= 250.0f &&
         c->start_mmps <= c->diagonal_mmps && c->start_mmps <= c->arc_mmps &&
@@ -60,7 +62,9 @@ static int input_valid(const CarTask3Config *c, const CarTask3Input *i)
         isfinite(i->left_mmps) && isfinite(i->right_mmps) && i->heading_ready &&
         i->sample_age_ms <= c->sample_max_age_ms && i->black_count <= 4U &&
         (!i->line_valid || (i->black_count > 0U && i->black_count < 4U)) &&
-        (!i->centered || (i->line_valid && i->black_count == 2U));
+        (!i->centered || (i->line_valid && i->black_count == 2U)) &&
+        i->outermost <= 1U && (!i->outermost || (i->line_valid && i->black_count == 1U)) &&
+        i->side_probe <= 1U && (!i->side_probe || (i->line_valid && i->black_count == 1U));
 }
 static void fault(CarTask3 *r, CarTask3Fault f)
 {
@@ -75,6 +79,8 @@ static void phase(CarTask3 *r, CarTask3Phase p, const CarTask3Input *i, CarTask3
     r->phase_start_mm = i->distance_mm;
     r->edge_seen = r->settled_seen = r->lost_seen = r->recovery_seen = 0U;
     r->arc_valid_seen = r->loss_seek = r->seek_aligned = r->resume_active = 0U;
+    r->arc_outer_valid = r->gap_seek = 0U;
+    r->arc_side_valid = 0U;
     o->control = T3_HALT;
     o->reset_controllers = 1U;
 }
@@ -95,22 +101,15 @@ static float tangent_heading(const CarTask3 *r, int end)
     /* CB 从朝 B 转到朝 A，向左转约 180 度；DA 从朝 A 转到朝 B，向右转约 180 度。 */
     return wrap(east + ((r->leg == 1U ? end : !end) ? 180.0f : 0.0f));
 }
-static float start_align_heading(const CarTask3 *r)
-{
-    /* A 点右转少转，留量落在 AB 和真实 AC 方向之间；AC 参考仍保持原值。 */
-    return wrap(r->start_heading_deg + r->config.turn_relief_deg);
-}
 static float align_heading(const CarTask3 *r)
 {
-    float target = (r->leg & 1U) ? tangent_heading(r, 0) : diagonal_heading(r);
-    if (r->leg == 2U && r->config.b_full_align) return target;
-    /* C/B 左转少转，D 右转少转。进入白底斜线后仍保持真实斜线目标。 */
-    float direction = r->leg == 1U || r->leg == 2U ? -1.0f : 1.0f;
-    return wrap(target + direction * r->config.turn_relief_deg);
+    return (r->leg & 1U) ? tangent_heading(r, 0) : diagonal_heading(r);
 }
 static float align_tolerance(const CarTask3 *r)
 {
-    return r->leg == 2U && r->config.b_full_align ? r->config.b_align_tolerance_deg : r->config.align_tolerance_deg;
+    if (r->leg == 2U && r->config.b_full_align) return r->config.b_align_tolerance_deg;
+    if (r->leg == 3U && r->config.d_full_align) return r->config.d_align_tolerance_deg;
+    return r->config.align_tolerance_deg;
 }
 static float speed(const CarTask3 *r, const CarTask3Input *i, float cruise, float remaining, float acceleration)
 {
@@ -227,9 +226,12 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                 r->lost_seen = 1U; r->lost_start_ms = i->now_ms;
                 r->lost_start_mm = i->distance_mm; r->lost_yaw_deg = i->yaw_deg;
                 r->loss_seek = r->arc_valid_seen && i->black_count == 0U && r->config.white_seek_ms != 0U;
+                r->gap_seek = r->loss_seek &&
+                    ((r->leg == 3U && r->arc_outer_valid && r->config.da_outer_gap) ||
+                     (r->arc_side_valid && r->config.history_gap));
                 o->reset_controllers = 1U;
             }
-            if (r->lost_seen && !i->line_valid && i->black_count != 0U) r->loss_seek = 0U;
+            if (r->lost_seen && !i->line_valid && i->black_count != 0U) r->loss_seek = r->gap_seek = 0U;
             uint32_t budget = r->loss_seek ? r->config.white_seek_ms : r->config.lost_ms;
             float loss_travel = i->distance_mm - r->lost_start_mm;
             uint32_t loss_duration = (uint32_t)(i->now_ms - r->lost_start_ms);
@@ -238,9 +240,9 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             if (r->lost_seen) {
                 if (loss_duration >= budget) limits |= T3_LOSS_TIME;
                 if (r->loss_seek) {
-                    if (loss_travel < -5.0f || loss_travel >= r->config.white_seek_mm)
+                    if (loss_travel < -5.0f || loss_travel >= (r->gap_seek ? r->config.da_gap_mm : r->config.white_seek_mm))
                         limits |= T3_LOSS_DISTANCE;
-                    if (fabsf(loss_turn) > r->config.white_seek_deg) limits |= T3_LOSS_ANGLE;
+                    if (fabsf(loss_turn) > (r->gap_seek ? r->config.da_gap_deg : r->config.white_seek_deg)) limits |= T3_LOSS_ANGLE;
                 }
             }
             if (limits != 0U) {
@@ -267,8 +269,10 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                 if (!recovered) o->reset_controllers = 1U;
                 else {
                     if (r->lost_seen) { r->resume_active = 1U; r->resume_ms = i->now_ms; }
-                    r->lost_seen = r->recovery_seen = r->loss_seek = 0U;
+                    r->lost_seen = r->recovery_seen = r->loss_seek = r->gap_seek = 0U;
                     r->arc_valid_seen = 1U;
+                    r->arc_outer_valid = i->outermost;
+                    r->arc_side_valid = i->side_probe;
                     o->control = T3_FOLLOW_LINE;
                     o->base_mmps = speed(r, i, r->config.arc_mmps, r->config.arc_mm - progress, r->config.arc_acceleration_mmps2);
                     if (r->resume_active) {
@@ -281,8 +285,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             }
         }
     } else if (r->phase == T3_VERTEX_SEEK) {
-        float tangent = wrap(r->start_heading_deg + r->diagonal_angle_deg + (r->leg == 2U ? 180.0f : 0.0f) +
-            (r->leg == 0U ? -1.0f : 1.0f) * r->config.turn_relief_deg);
+        float tangent = wrap(r->start_heading_deg + r->diagonal_angle_deg + (r->leg == 2U ? 180.0f : 0.0f));
         float error = wrap(tangent - i->yaw_deg);
         if (progress > r->diagonal_mm + r->config.entry_window_mm ||
             phase_travel >= r->config.vertex_seek_mm ||
@@ -342,7 +345,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         else if ((uint32_t)(i->now_ms - (r->phase == T3_START_SETTLE ? r->start_settle_ms : r->phase_ms)) >= r->config.brake_timeout_ms)
             fault(r, T3_SETTLE);
         else if (r->phase == T3_START_SETTLE &&
-            fabsf(wrap(start_align_heading(r) - i->yaw_deg)) > r->config.align_tolerance_deg) {
+            fabsf(wrap(r->start_heading_deg - i->yaw_deg)) > r->config.align_tolerance_deg) {
             /* 重新对正时继续使用本次起始转向的原时间和距离预算。 */
             r->phase = T3_START_ALIGN;
             r->settled_seen = r->edge_seen = 0U;
@@ -365,7 +368,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             }
         } else r->settled_seen = 0U;
     } else if (r->phase == T3_ALIGN || r->phase == T3_START_ALIGN) {
-        float target = r->phase == T3_START_ALIGN ? start_align_heading(r) : align_heading(r);
+        float target = r->phase == T3_START_ALIGN ? r->start_heading_deg : align_heading(r);
         float error = wrap(target - i->yaw_deg);
         if ((uint32_t)(i->now_ms - r->phase_ms) >= r->config.align_timeout_ms ||
             phase_travel > r->config.turn_travel_limit_mm) fault(r, T3_TURN);
@@ -396,7 +399,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             o->right_mmps = error > 0.0f ? r->config.turn_mmps : 0.0f;
         }
     } else if (r->phase == T3_CAPTURE) {
-        /* C/D 保持留量方向低速接近，读到有效黑线后由巡线纠偏接管。 */
+        /* C/D 保持完整切线方向低速接近，读到有效黑线后由巡线纠偏接管。 */
         float target = align_heading(r);
         if ((uint32_t)(i->now_ms - r->phase_ms) >= r->config.capture_timeout_ms ||
             phase_travel > r->config.capture_limit_mm) fault(r, T3_EDGE);

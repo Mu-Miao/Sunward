@@ -50,33 +50,35 @@ static void sample_heading(unsigned n,int enabled)
 }
 static void integration_regression(void)
 {
- CarAppContext *c=fusion_context(MOVE_TASK4,T3_DIAGONAL);
- sample_heading(20,1);assert(c->heading.bias_rate==0 && !c->heading.fusion_learning);
- sample_heading(780,1);
- assert(c->heading.fusion_active && c->heading.fusion_learning);
- assert(c->heading.bias_rate>.3f && c->heading.bias_rate<.45f);
- assert(c->heading.gyro_angle>3 && c->heading.gyro_angle<3.3f);
- assert(c->heading.angle>0 && c->heading.angle<c->heading.gyro_angle*.6f);
- float learned=c->heading.bias_rate;
- CarTask3Phase frozen[]={T3_ARC,T3_CAPTURE,T3_ALIGN,T3_ALIGN_SETTLE,T3_VERTEX_SEEK,T3_START_ALIGN};
- for(unsigned i=0;i<sizeof frozen/sizeof frozen[0];i++) {
-  c->route.task3.phase=frozen[i];sample_heading(30,1);
-  assert(c->heading.bias_rate==learned && !c->heading.fusion_learning && !c->heading.fusion_window_seen);
+ assert(DPT_HEADING_FUSION_ENABLE==0);
+ CarAppContext *c;
+ for(unsigned task=3;task<=4;task++) {
+  c=fusion_context(task==3?MOVE_TASK3:MOVE_TASK4,T3_DIAGONAL);
+  sample_heading(800,1);
+  assert(!c->heading.fusion_active && !c->heading.fusion_learning && !c->heading.fusion_window_seen);
+  assert(c->heading.bias_rate==0 && c->heading.gyro_angle>3 && c->heading.gyro_angle<3.3f);
+  assert(fabsf(c->heading.angle-c->heading.gyro_angle)<.00001f);
+  CarTask3Phase phases[]={T3_START_ALIGN,T3_START_SETTLE,T3_ALIGN,T3_ALIGN_SETTLE,
+   T3_CAPTURE,T3_ARC,T3_VERTEX_SEEK,T3_FINAL_BRAKE};
+  for(unsigned i=0;i<sizeof phases/sizeof phases[0];i++) {
+   c->route.task3.phase=phases[i];sample_heading(30,1);
+   assert(c->heading.bias_rate==0 && !c->heading.fusion_active && !c->heading.fusion_learning);
+   assert(fabsf(c->heading.angle-c->heading.gyro_angle)<.00001f);
+  }
+  /* Reproduce the observed negative learned bias: it must not rotate the
+     reported heading while the static-CAL gyro rate is zero, even if stale. */
+  c->heading.bias_rate=-.34f;
+  c->heading.angle=c->heading.gyro_angle=-44.93f;
+  c->heading.previous_rate=c->heading.previous_gyro_rate=0;gz=-424;
+  c->wheel.items[0].velocity=c->wheel.items[1].velocity=0;
+  c->runtime.state=STOPPED;sample_heading(300,1);
+  assert(c->heading.angle==-44.93f && c->heading.gyro_angle==-44.93f);
+  assert(!c->heading.fusion_active && !c->heading.fusion_learning);
  }
- c->route.task3.phase=T3_DIAGONAL;sample_heading(30,0);
- assert(c->heading.bias_rate==learned && !c->heading.fusion_learning);
- c->runtime.state=STOPPED;sample_heading(30,1);assert(c->heading.bias_rate==learned);
- /* A low-curvature curve must not be mistaken for a straight solely from encoders. */
- c=fusion_context(MOVE_TASK4,T3_ARC);sample_heading(100,1);
- assert(c->heading.bias_rate==0 && !c->heading.fusion_learning);
- /* Bad/slipping observations reset the contiguous confidence window. */
- c=fusion_context(MOVE_TASK3,T3_DIAGONAL);sample_heading(15,1);
- gz=-424+1310;sample_heading(1,1);assert(!c->heading.fusion_window_seen);
- gz=-424+52;sample_heading(20,1);assert(c->heading.bias_rate==0);
- sample_heading(1,1);assert(c->heading.bias_rate>0);
- /* Gate timers and cycle integration survive both counter wraps. */
+ /* Pure-gyro integration survives both counter wraps. */
  c=fusion_context(MOVE_TASK4,T3_DIAGONAL);ms=UINT32_MAX-100U;DWT->CYCCNT=UINT32_MAX-200000U;
- c->heading.cycles=DWT->CYCCNT;sample_heading(30,1);assert(c->heading.bias_rate>0);
+ c->heading.cycles=DWT->CYCCNT;sample_heading(30,1);
+ assert(c->heading.bias_rate==0 && fabsf(c->heading.angle-c->heading.gyro_angle)<.00001f);
  /* Task1/2 and independent tests keep the original pure-gyro path. */
  Motion unchanged[]={MOVE_ROUTE,MOVE_DISTANCE,MOVE_HEADING,MOVE_TASK2};
  for(unsigned i=0;i<sizeof unchanged/sizeof unchanged[0];i++) {
@@ -85,8 +87,14 @@ static void integration_regression(void)
   assert(fabsf(c->heading.angle-c->heading.gyro_angle)<.00001f);
  }
  c=fusion_context(MOVE_TASK4,T3_DIAGONAL);sample_heading(100,1);
+ c->heading.bias_rate=-.34f;
  c->runtime.state=IDLE;CarHeading_BeginCalibration(c,ms,0);
  assert(c->heading.phase==Y_WARM && c->heading.bias_rate==0 && c->heading.gyro_angle==0 && !c->heading.fusion_window_seen);
+ /* Keep explicit OFF diagnostics available even though fusion is disabled. */
+ c=fusion_context(MOVE_TASK4,T3_DIAGONAL);gz=-424;sample_heading(300,1);
+ c->heading.available=1;c->ui.heading_log_ms=ms-1000;logs[0]=0;
+ CarUI_Log(c,ms,1);
+ assert(strstr(logs,"FUS Y100=0 G100=0 B100=0 W100=0 LEARN=0 TRACK=160 EN=0"));
 }
 
 static void vertex_diagnostics_regression(void)
@@ -194,7 +202,9 @@ static void bd_distance_regression(void)
 {
  for(unsigned task=3;task<=4;task++)for(unsigned leg=0;leg<=2;leg+=2) {
   CarTask3Config cfg=task==4?CarTask4_Config():CarRoute_Task3Config();
-  assert(cfg.bd_full_distance==(task==4));cfg.start_from_ab=0;
+  assert(cfg.bd_full_distance==0);
+  /* Retain coverage of the optional historical full-distance gate. */
+  cfg.bd_full_distance=task==4;cfg.start_from_ab=0;
   CarTask3 t={0};CarTask3Output out;
   CarTask3Input in={.now_ms=1000,.heading_ready=1,.enabled=1};
   assert(CarTask3_Start(&t,&cfg,&in));t.leg=leg;t.pending_start_signal=0;
@@ -245,13 +255,69 @@ static void bd_distance_regression(void)
   assert(t.phase==T3_FAULT && t.fault==T3_EDGE && out.control==T3_HALT && out.signal_point==T3_NO_POINT);
  }
  CarTask3Config cfg=CarTask4_Config();cfg.bd_full_distance=2;assert(!CarTask3_ConfigValid(&cfg));
- puts("PASS: Task4 BD ignores early 1/2/3-probe hits until nominal 1280.6mm, fresh 30ms D debounce, unchanged C/Task3, bounded missing-line search and unchanged upper distance limit.");
+ puts("PASS: optional historical full-distance gate, bounded missing-line search and unchanged upper distance limit.");
+}
+
+static void bd_probe_window_regression(void)
+{
+ /* The reported 1196..1253mm observations precede nominal 1280.6mm.
+    A candidate within the original window must stop travel immediately,
+    then remain valid for 30ms; outside-window hits and glitches cannot signal D. */
+ for(unsigned count=1;count<=3;count++) {
+  CarTask3Config cfg=CarTask4_Config();cfg.start_from_ab=0;
+  assert(!cfg.bd_full_distance && cfg.b_full_align && cfg.b_align_tolerance_deg==3);
+  CarTask3 t={0};CarTask3Output out;
+  CarTask3Input in={.now_ms=1000,.heading_ready=1,.enabled=1};
+  assert(CarTask3_Start(&t,&cfg,&in));t.leg=2;t.pending_start_signal=0;
+  in.yaw_deg=CarMath_WrapDegrees(t.start_heading_deg+180+2*t.diagonal_angle_deg);
+  in.distance_mm=t.diagonal_mm-cfg.entry_window_mm-.25f;
+  in.line_valid=1;in.black_count=count;
+  for(unsigned n=0;n<5;n++) {
+   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+   assert(t.phase==T3_DIAGONAL && !t.edge_seen && out.control==T3_HOLD_HEADING && out.signal_point==T3_NO_POINT);
+  }
+  in.distance_mm=1196;
+  in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+  assert(t.edge_seen && out.control==T3_HALT && out.reset_controllers && out.signal_point==T3_NO_POINT);
+  in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+  in.line_valid=0;in.black_count=0;
+  in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+  assert(t.phase==T3_DIAGONAL && !t.edge_seen && out.signal_point==T3_NO_POINT);
+  in.distance_mm=1253;in.line_valid=1;in.black_count=count;
+  for(unsigned n=0;n<3;n++) {
+   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+   assert(t.phase==T3_DIAGONAL && out.control==T3_HALT && out.reset_controllers && out.signal_point==T3_NO_POINT);
+  }
+  in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+  assert(t.phase==T3_VERTEX_BRAKE && out.signal_point==T3_POINT_D);
+  assert(in.distance_mm<t.diagonal_mm);
+  in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(out.signal_point==T3_NO_POINT);
+ }
+ /* Actual foreground scheduler, GPIO decoding, stop output and D snapshot. */
+ setup();line_inputs=15;hold();hold();hold();hold();calibrate();enable();press_key();
+ for(unsigned n=0;n<4500 && !(app()->route.task3.leg==2 && app()->route.task3.phase==T3_DIAGONAL);n++) {
+  assert(app()->runtime.state==RUNNING);step_route();
+ }
+ assert(app()->route.task3.leg==2 && app()->route.task3.phase==T3_DIAGONAL);
+ CarTask3 *t=&app()->route.task3;
+ app()->route.distance_mm[0]=app()->route.distance_mm[1]=t->leg_start_mm+1230;
+ app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+180+2*t->diagonal_angle_deg);
+ line_inputs=15;step(10,0,0);assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+ int before=signals;line_inputs=9;
+ for(unsigned n=0;n<3;n++) {
+  step(10,0,0);assert(a==0 && b==0 && signals==before && t->phase==T3_DIAGONAL);
+ }
+ step(10,0,0);
+ assert(t->phase==T3_VERTEX_BRAKE && signals==before+1 && a==0 && b==0);
+ assert(app()->route.vertex_trace.seen && app()->route.vertex_trace.point==T3_POINT_D);
+ assert(fabsf(app()->route.vertex_trace.distance_mm-1230)<.1f);
+ puts("PASS: default Task4 BD stops for 1/2/3-probe candidates inside endpoint window before nominal length, fresh 30ms debounce after glitches, no out-of-window D, actual GPIO scheduler zero output and D snapshot; B full alignment retained.");
 }
 
 int main(void)
 {
- kernel_regression();integration_regression();vertex_diagnostics_regression();edge_diagnostics_regression();diagnostic_logging_regression();bd_distance_regression();
- puts("PASS: measured 160mm wheel/gyro bias fusion, finite-input guards, straight/stability gates, drift convergence, curve/capture/search freezes, wrap, calibration reset, unchanged Task1/2, early D-recognition and all F6 source/limit snapshots. Software only.");
+ kernel_regression();integration_regression();vertex_diagnostics_regression();edge_diagnostics_regression();diagnostic_logging_regression();bd_distance_regression();bd_probe_window_regression();
+ puts("PASS: inactive retained fusion kernel, static-CAL pure-gyro control in Task3/4 phases, no learning or stale negative-bias correction, no injected-bias drift at rest, wrap, calibration reset, explicit EN=0 diagnostics, unchanged Task1/2 and vertex/fault snapshots. Software only.");
  puts("PASS: production 160-byte UART frame cap, Task4 DPI/NAV delivery, parked F7 LOSS/ENTRY and F6 EDGE snapshots, moved-vehicle retention and full-TX non-blocking fault preservation.");
  return 0;
 }

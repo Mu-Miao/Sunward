@@ -16,6 +16,8 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
     i.line_valid = app->line.valid;
     i.black_count = app->line.count;
     i.centered = app->line.valid && app->line.count == 2U && app->line.black[1] && app->line.black[2];
+    i.outermost = app->line.valid && app->line.count == 1U && (app->line.black[0] || app->line.black[3]);
+    i.side_probe = app->line.valid && app->line.count == 1U;
     i.enabled = enabled != 0;
     i.stop_requested = stop_requested != 0;
     i.protection_fault = protection_fault != 0;
@@ -69,8 +71,18 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         float base = fminf(o->base_mmps, 50.0f);
         float heading = CarMath_WrapDegrees(o->heading_deg - app->heading.angle);
         float last_error = app->route.task3_trace.valid_error;
+        float direction = last_error > 0.0f ? 1.0f : -1.0f;
+        if (app->route.motion == MOVE_TASK4 && app->route.task3.config.history_gap && app->route.task3_trace.lost_direction != 0)
+            direction = (float)app->route.task3_trace.lost_direction;
         float diff;
-        if (app->route.motion == MOVE_TASK4 && fabsf(last_error) > 2.5f) {
+        if (app->route.motion == MOVE_TASK4 && app->route.task3.gap_seek &&
+            (app->route.task3.config.history_gap || (app->route.task3.leg == 3U && fabsf(last_error) > 2.5f))) {
+            /* 可信 CB/DA 内外单探头历史：覆盖33mm间距与19mm线宽的交接空档。
+               内轮保持正目标，方向沿用首次失线快照，不跟随未确认毛刺翻转。 */
+            float outer = DPT_TASK4_DA_GAP_OUTER_MMPS, inner = DPT_TASK4_DA_GAP_INNER_MMPS;
+            base = (outer + inner) * 0.5f;
+            diff = (outer - inner) * 0.5f * direction;
+        } else if (app->route.motion == MOVE_TASK4 && fabsf(last_error) > 2.5f) {
             /* 最外侧探头刚离线时，黑线可能落在相邻探头的盲区内。
                两轮正向、外轮快内轮慢，将探头朝相邻通道扫过；不伪造有效线，
                原核心仍先检查 500ms/20mm/12度及更高优先级故障。 */
@@ -78,6 +90,9 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
             float inner = fminf(DPT_TASK4_GAP_INNER_MMPS, outer * 0.5f);
             base = (outer + inner) * 0.5f;
             diff = (outer - inner) * 0.5f * (last_error > 0.0f ? 1.0f : -1.0f);
+        } else if (app->route.motion == MOVE_TASK4 && app->route.task3.config.history_gap) {
+            /* 中心/多探头后全白仍按普通边界；用冻结方向和当前弧段补足零误差情况。 */
+            diff = base * 0.4f * direction;
         } else {
             float limit = base * 0.4f;
             diff = DPT_LINE_GAIN * last_error * base / DPT_LINE_CRUISE_MMPS - DPT_HEADING_GAIN * heading;

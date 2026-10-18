@@ -19,12 +19,13 @@ typedef struct {
     float span_mm, radius_mm, arc_mm;
     uint8_t start_from_ab; /* 1 表示初始 A 朝 B，需要自动转向；0 表示已朝 AC。 */
     uint8_t bd_full_distance; /* 1：BD 达到完整名义斜线里程后才确认 D；C 点规则不变。 */
-    uint8_t b_full_align; /* 1：B 点按完整 BD 航向转向，使用独立的停稳角度容差。 */
+    uint8_t b_full_align; /* 1：B 点完整对正使用独立的停稳角度容差。 */
     float b_align_tolerance_deg;
+    uint8_t d_full_align; /* 1：D 点完整对正使用独立的停稳角度容差。 */
+    float d_align_tolerance_deg;
     float diagonal_mmps, arc_mmps, start_mmps, acceleration_mmps2;
     float arc_acceleration_mmps2; /* 半圆加速度，与斜线段独立配置。 */
     float turn_mmps, capture_mmps;
-    float turn_relief_deg; /* 原地对正留量；不改变固定 AC 参考、斜线目标和赛道几何。 */
     float entry_window_mm, exit_window_mm, turn_travel_limit_mm;
     float capture_limit_mm, approach_mm, minimum_mmps;
     float diagonal_tolerance_deg, arc_tolerance_deg, align_tolerance_deg;
@@ -32,6 +33,9 @@ typedef struct {
     uint32_t capture_timeout_ms, debounce_ms, lost_ms, sample_max_age_ms;
     uint32_t white_seek_ms, vertex_seek_ms; /* 0 关闭对应恢复动作。 */
     float white_seek_mm, white_seek_deg, seek_mmps, vertex_seek_mm;
+    uint8_t da_outer_gap; /* 仅 DA：可信外侧单探头丢线后使用独立几何桥接边界。 */
+    uint8_t history_gap; /* CB/DA：可信内/外侧单探头交接，方向由上层历史快照确定。 */
+    float da_gap_mm, da_gap_deg;
     uint32_t recovery_ms; /* 0 保留旧的逐帧恢复；非零时需连续有效，原失线预算不重置。 */
 } CarTask3Config;
 
@@ -40,6 +44,8 @@ typedef struct {
     float distance_mm; /* 左右编码器的有符号平均里程，包含转向对正期间的移动。 */
     float yaw_deg, left_mmps, right_mmps;
     uint8_t heading_ready, line_valid, black_count, centered;
+    uint8_t outermost; /* 当前有效图样为最左或最右单探头。 */
+    uint8_t side_probe; /* 有效单探头，包含内侧两路。 */
     uint8_t enabled, stop_requested, protection_fault;
 } CarTask3Input;
 
@@ -60,6 +66,8 @@ typedef struct {
     uint32_t start_ms, phase_ms, edge_ms, settled_ms, lost_start_ms;
     uint32_t previous_ms, elapsed_ms, start_settle_ms;
     uint8_t recovery_seen, arc_valid_seen, loss_seek, seek_aligned, resume_active;
+    uint8_t arc_outer_valid, gap_seek;
+    uint8_t arc_side_valid;
     uint32_t seek_forward_ms, resume_ms;
     float lost_start_mm, lost_yaw_deg, seek_forward_mm;
     uint32_t recovery_start_ms;

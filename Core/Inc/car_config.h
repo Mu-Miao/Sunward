@@ -27,10 +27,10 @@
 #define DPT_HEADING_GAIN 1.0f
 #define DPT_HEADING_MAX_DIFF 15.0f
 #define DPT_HEADING_MAX_ERROR 20.0f
-/* 参考 dev 005533e：任务三/四在明确直线段用编码器差速观测残余陀螺零偏。
- * 160mm 为用户 2026-10-15 回传的新车架轮距；转向/捕获/巡线/寻线只扣已学零偏。
- * 不直接用轮速角度覆盖陀螺航向，也不改变轮周长或斜线几何长度。 */
-#define DPT_HEADING_FUSION_ENABLE 1U
+/* V10：暂停在线轮速/陀螺零偏学习与扣除，任务三/四使用静态CAL后的陀螺积分。
+ * 21:32实测第二圈A的融合累计修正约8.9度，先隔离该变量；不加A固定补偿。
+ * 保留160mm轮距、轮速角速度诊断和融合内核，当前开关0时不参与控制。 */
+#define DPT_HEADING_FUSION_ENABLE 0U
 #define DPT_TRACK_WIDTH_MM 160.0f
 #define DPT_HEADING_FUSION_STRAIGHT_DPS 10.0f
 #define DPT_HEADING_FUSION_MIN_MMPS 40.0f
@@ -89,8 +89,7 @@
 #define DPT_TASK3_APPROACH_MM 100.0f
 #define DPT_TASK3_MIN_MMPS 60.0f /* 捕获黑线阶段仍使用独立的 50 毫米/秒速度。 */
 #define DPT_TASK3_TURN_MMPS 80.0f
-/* 默认少转 5 度；任务四 B 点由 CarTask4_Config 单独启用完整 BD 对正，其余点保留留量。 */
-#define DPT_TASK3_TURN_RELIEF_DEG 5.0f
+/* A/B/C/D 均使用完整几何目标，不再叠加少转角度。 */
 #define DPT_TASK3_CAPTURE_MMPS 50.0f
 #define DPT_TASK3_TIMEOUT_MS 40000U
 #define DPT_TASK3_ENTRY_WINDOW_MM 120.0f
@@ -108,11 +107,13 @@
 #define DPT_TASK3_VERTEX_SEEK_MM 80.0f
 #define DPT_TASK3_TURN_SLOW_DEG 15.0f
 #define DPT_TASK3_TURN_MIN_MMPS 35.0f
-/* 任务四沿用任务三的几何和速度参数；以下时限用于故障保护。 */
+/* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
+#define DPT_TASK4_DIAGONAL_MMPS 250.0f /* V11：仅任务四，240→250；终点降速与捕线限制保留。 */
+#define DPT_TASK4_ARC_MMPS 220.0f /* V11：正常巡线200→220；边缘仍限120，寻线不提速。 */
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。
- * 已授权的全白桥接单独使用下方 500 毫秒预算；恢复需连续有效 30 毫秒。
- * 仍受共用 20 毫米/12 度限制约束，任务三保持 300 毫秒。
+ * 已授权的全白桥接使用下方 500 毫秒预算；恢复需连续有效 30 毫秒。
+ * 普通桥接受 20 毫米/12 度约束；DA 外侧交接使用下方独立边界。任务三保持 300 毫秒。
  * 下列数值为待实车验证的容错初值，不改变任务三和全局 PI 标定。 */
 #define DPT_TASK4_LOST_MS 200U
 #define DPT_TASK4_WHITE_SEEK_MS 500U
@@ -120,6 +121,13 @@
  * 反转保护与原时间/位移/角度预算均保留，不能保证实物不回滚。 */
 #define DPT_TASK4_GAP_SWEEP_MMPS 80.0f
 #define DPT_TASK4_GAP_INNER_MMPS 20.0f
+/* LF04 中心间距 33/14.5/33mm，线宽19mm，探头前伸约45mm。
+ * V6 DA外侧、V7 CB/DA可信内外单探头交接使用更紧的两轮前进扫线；
+ * 仍限500ms，独立35mm/18度。保留DA前缀以对应既有参数记录。 */
+#define DPT_TASK4_DA_GAP_OUTER_MMPS 140.0f
+#define DPT_TASK4_DA_GAP_INNER_MMPS 20.0f
+#define DPT_TASK4_DA_GAP_MM 35.0f
+#define DPT_TASK4_DA_GAP_DEG 18.0f
 #define DPT_TASK4_RECOVERY_MS 30U
 #define DPT_TASK4_RESUME_MMPS 50.0f
 #define DPT_TASK4_RESUME_ACCEL_MMPS2 100.0f

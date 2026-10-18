@@ -14,7 +14,6 @@ CarTask3Config CarRoute_Task3Config(void)
     c.start_mmps = DPT_TASK3_START_MMPS; c.acceleration_mmps2 = DPT_TASK3_ACCEL_MMPS2;
     c.arc_acceleration_mmps2 = DPT_TASK3_ARC_ACCEL_MMPS2;
     c.approach_mm = DPT_TASK3_APPROACH_MM; c.minimum_mmps = DPT_TASK3_MIN_MMPS;
-    c.turn_relief_deg = DPT_TASK3_TURN_RELIEF_DEG;
     c.turn_mmps = DPT_TASK3_TURN_MMPS; c.capture_mmps = DPT_TASK3_CAPTURE_MMPS;
     c.deadline_ms = DPT_TASK3_TIMEOUT_MS;
     c.entry_window_mm = DPT_TASK3_ENTRY_WINDOW_MM; c.exit_window_mm = DPT_TASK3_EXIT_WINDOW_MM;
@@ -232,6 +231,11 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                车辆可能已被搬动，之后的 GPIO 读数不能作为当时失线的证据。 */
             app->route.task3_trace.lost_seen = 1U;
             app->route.task3_trace.lost_ms = now;
+            app->route.task3_trace.lost_arc_number = app->route.motion == MOVE_TASK4 ? app->route.task4.arc_number : (app->route.task3.leg == 1U ? 1U : 2U);
+            float direction_error = app->route.task3_trace.valid_error;
+            if (fabsf(direction_error) < 0.5f && app->route.task3_trace.previous_seen)
+                direction_error -= app->route.task3_trace.previous_error;
+            app->route.task3_trace.lost_direction = fabsf(direction_error) >= 0.5f ? (direction_error > 0.0f ? 1 : -1) : (app->route.task3.leg == 1U ? -1 : 1);
             app->route.task3_trace.lost_yaw = input.yaw_deg;
             memcpy(app->route.task3_trace.lost_raw, app->line.raw, 4U);
             for (unsigned w = 0; w < 2U; ++w) {
@@ -289,8 +293,15 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
             app->signal.ms = now;
             CarSignal_Set(app, 1); /* 最终在 A 点停稳后触发一次声光提示。 */
         } else CarTask3Port_Apply(app, &output, now);
+        if (prior_phase != T3_ARC && app->route.task3.phase == T3_ARC)
+            memset(&app->route.task3_trace, 0, sizeof app->route.task3_trace);
         if (app->runtime.state == RUNNING && app->route.task3.phase == T3_ARC && input.line_valid &&
             !app->route.task3.lost_seen) {
+            if (app->route.task3_trace.valid_seen) {
+                memcpy(app->route.task3_trace.previous_raw, app->route.task3_trace.valid_raw, 4U);
+                app->route.task3_trace.previous_error = app->route.task3_trace.valid_error;
+                app->route.task3_trace.previous_seen = 1U;
+            }
             app->route.task3_trace.valid_seen = 1U;
             app->route.task3_trace.lost_seen = 0U; /* 短暂失线恢复后，下一次失线重新建立快照窗口。 */
             memcpy(app->route.task3_trace.valid_raw, app->line.raw, 4U);

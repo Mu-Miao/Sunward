@@ -113,10 +113,13 @@ typedef struct {
     CarTask3 task3;
     CarTask4 task4;
     struct {
-        uint8_t valid_seen, lost_seen;
+        uint8_t valid_seen, lost_seen, previous_seen;
         uint8_t valid_raw[4], lost_raw[4];
+        uint8_t previous_raw[4], lost_arc_number;
+        int8_t lost_direction; /* +1向右，-1向左，首次失线时按可信图样/弧段冻结。 */
         uint32_t lost_ms;
         float valid_error, valid_diff, lost_yaw;
+        float previous_error;
         float targets[2], velocity[2];
     } task3_trace; /* 保存半圆首次无效采样；F7 停车、关闭使能或搬动车身后仍保留快照。 */
     struct {

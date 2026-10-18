@@ -8,7 +8,7 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 FUSE V3 B")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 V11 FAST")==0);
 }
 static void task4_start(void)
 {
@@ -17,7 +17,7 @@ static void task4_start(void)
  assert(app()->heading.phase==Y_READY);enable();press_key();
  assert(app()->runtime.state==RUNNING && app()->route.motion==MOVE_TASK4);
  assert(app()->route.task3.config.deadline_ms==80000U && app()->route.run_duration==160000U);
- assert(app()->route.task4.completed_laps==0 && app()->route.task3.phase==T3_START_ALIGN && signals==1);
+ assert(app()->route.task4.completed_laps==0 && app()->route.task4.arc_number==0 && app()->route.task3.phase==T3_START_ALIGN && signals==1);
  assert(!app()->runtime.bluetooth_on && wp[0]==0 && wp[1]==0);
  /* Retain T27 profile here; default moving recovery is covered by test_seek. */
  app()->route.task3.config.white_seek_ms=app()->route.task3.config.vertex_seek_ms=0;
@@ -71,14 +71,20 @@ static void robust_arc(void)
  app()->route.task3.phase_ms=ms-2000U;
  app()->route.task4.resume_pending=app()->route.task4.resume_active=0;
  line_inputs=9;step(10,177,176);
- assert(app()->route.base==200.0f);
+ assert(app()->route.base==DPT_TASK4_ARC_MMPS);
 }
 static void robust_regression(void)
 {
  CarTask3Config c=CarTask4_Config();
  assert(c.lost_ms==200U && c.recovery_ms==30U);
- assert(c.arc_acceleration_mmps2==100 && c.turn_relief_deg==5);
+ assert(c.arc_acceleration_mmps2==100);
+ assert(c.diagonal_mmps==250 && c.arc_mmps==220 && CarTask3_ConfigValid(&c));
  assert(CarRoute_Task3Config().lost_ms==100U && CarRoute_Task3Config().recovery_ms==30U);
+ /* The faster inner-probe correction stays positive and below the 350mm/s guard;
+    outer-probe slowdown is independently retained below. */
+ robust_arc();line_inputs=11;step(10,177,176);
+ assert(fabsf(app()->route.base-220)<.01f);
+ assert(fabsf(app()->route.targets[0]-149.6f)<.01f && fabsf(app()->route.targets[1]-290.4f)<.01f);
  c.recovery_ms=29;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.recovery_ms=c.lost_ms;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.lost_ms=251;assert(!CarTask3_ConfigValid(&c));
@@ -126,7 +132,7 @@ static void robust_regression(void)
   assert(fabsf(app()->route.base-120)<.01f);
   assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
   assert(side?app()->route.targets[0]<app()->route.targets[1]:app()->route.targets[0]>app()->route.targets[1]);
-  line_inputs=9;step(10,177,176);assert(app()->route.base==200);
+  line_inputs=9;step(10,177,176);assert(app()->route.base==DPT_TASK4_ARC_MMPS);
  }
  /* Heading-dependent turn speed; zero inner target and no reversed wheel. */
  task4_start();CarTask3Output o={.control=T3_TURN_FORWARD,.heading_deg=0,.left_mmps=80};
@@ -179,7 +185,7 @@ int main(void)
   for(unsigned j=0;j<4;j++)assert(strlen(oled_lines[j])<=21);
   last=t->phase;step_route();
  }
- assert(app()->runtime.state==DONE && app()->route.task3.phase==T3_DONE && app()->route.task4.completed_laps==4);
+ assert(app()->runtime.state==DONE && app()->route.task3.phase==T3_DONE && app()->route.task4.completed_laps==4 && app()->route.task4.arc_number==8);
  assert(initial_turn_entries==4 && a_joins==3 && signals==17 && a==0 && b==0);
  assert(app()->route.elapsed_ms<160000U && app()->route.distance_mm[0]>20000 && app()->route.distance_mm[1]>20000);
  app()->ui.render_ms=ms-200;step(10,0,0);assert(strstr(oled_lines[2],"DONE 4/4 DA"));
