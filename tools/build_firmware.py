@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the STM32F103 firmware, including the pinned FreeRTOS kernel."""
+"""Build and verify the RTOS and/or bare-metal STM32F103 firmware."""
 from pathlib import Path
 import argparse
 import shutil
@@ -7,9 +7,11 @@ import subprocess
 import tempfile
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--output', type=Path, default=Path('build/Sunward.elf'))
+parser.add_argument('--mode', choices=['all', 'rtos', 'baremetal'], default='all')
+parser.add_argument('--output-dir', type=Path, default=Path('build'))
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
+modes = ['rtos', 'baremetal'] if args.mode == 'all' else [args.mode]
 
 compiler = shutil.which('arm-none-eabi-gcc')
 if compiler is None:
@@ -20,51 +22,90 @@ if compiler is None:
     compiler = str(candidates[-1])
 
 kernel = root / 'Middlewares/Third_Party/FreeRTOS-Kernel'
-if not (kernel / 'tasks.c').is_file():
+if 'rtos' in modes and not (kernel / 'tasks.c').is_file():
     raise SystemExit('FreeRTOS submodule missing; run: git submodule update --init')
 
-includes = [
+base_includes = [
     root / 'Core/Inc',
     root / 'Drivers/STM32F1xx_HAL_Driver/Inc',
     root / 'Drivers/STM32F1xx_HAL_Driver/Inc/Legacy',
     root / 'Drivers/CMSIS/Device/ST/STM32F1xx/Include',
     root / 'Drivers/CMSIS/Include',
-    kernel / 'include',
-    kernel / 'portable/GCC/ARM_CM3',
 ]
-sources = sorted((root / 'Core/Src').glob('*.c'))
-sources += sorted(p for p in (root / 'Drivers/STM32F1xx_HAL_Driver/Src').glob('*.c')
-                  if not p.name.endswith('_template.c'))
-sources += [
+core_sources = sorted((root / 'Core/Src').glob('*.c'))
+hal_sources = sorted(
+    p for p in (root / 'Drivers/STM32F1xx_HAL_Driver/Src').glob('*.c')
+    if not p.name.endswith('_template.c'))
+kernel_sources = [
     kernel / 'list.c', kernel / 'queue.c', kernel / 'tasks.c',
     kernel / 'portable/GCC/ARM_CM3/port.c',
     kernel / 'portable/MemMang/heap_4.c',
-    root / 'Core/Startup/startup_stm32f103rctx.s',
 ]
+startup = root / 'Core/Startup/startup_stm32f103rctx.s'
+output_dir = args.output_dir if args.output_dir.is_absolute() else root / args.output_dir
+output_dir.mkdir(parents=True, exist_ok=True)
 
-common = [
-    '-mcpu=cortex-m3', '-mthumb', '-mfloat-abi=soft', '-std=gnu11',
-    '-Wall', '-Wextra', '-Werror', '-Wno-unused-function',
-    '-Wno-unused-variable', '-ffunction-sections', '-fdata-sections',
-    '-DUSE_HAL_DRIVER', '-DSTM32F103xE',
-] + ['-I' + str(path) for path in includes]
 
-output = args.output if args.output.is_absolute() else root / args.output
-output.parent.mkdir(parents=True, exist_ok=True)
-with tempfile.TemporaryDirectory(prefix='sunward-arm-') as folder:
-    objects = []
-    for index, source in enumerate(sources):
-        obj = Path(folder) / f'{index:03d}_{source.stem}.o'
-        subprocess.run([compiler, *common, '-c', str(source), '-o', str(obj)],
-                       check=True)
-        objects.append(str(obj))
-    subprocess.run([
-        compiler, '-mcpu=cortex-m3', '-mthumb', '-mfloat-abi=soft',
-        '-Wl,--gc-sections', '-T' + str(root / 'STM32F103RCTX_FLASH.ld'),
-        *objects, '-specs=nano.specs', '-specs=nosys.specs', '-lm',
-        '-o', str(output),
-    ], check=True)
+def build(mode: str) -> Path:
+    use_rtos = mode == 'rtos'
+    includes = list(base_includes)
+    sources = core_sources + hal_sources + [startup]
+    if use_rtos:
+        includes += [kernel / 'include', kernel / 'portable/GCC/ARM_CM3']
+        sources += kernel_sources
+    common = [
+        '-mcpu=cortex-m3', '-mthumb', '-mfloat-abi=soft', '-std=gnu11',
+        '-Wall', '-Wextra', '-Werror', '-Wno-unused-function',
+        '-Wno-unused-variable', '-ffunction-sections', '-fdata-sections',
+        '-DUSE_HAL_DRIVER', '-DSTM32F103xE',
+        '-DCAR_USE_FREERTOS=' + ('1' if use_rtos else '0'),
+    ] + ['-I' + str(path) for path in includes]
+    output = output_dir / ('Sunward-rtos.elf' if use_rtos else 'Sunward-baremetal.elf')
+    with tempfile.TemporaryDirectory(prefix='sunward-arm-' + mode + '-') as folder:
+        objects = []
+        for index, source in enumerate(sources):
+            obj = Path(folder) / f'{index:03d}_{source.stem}.o'
+            subprocess.run([compiler, *common, '-c', str(source), '-o', str(obj)],
+                           check=True)
+            objects.append(str(obj))
+        subprocess.run([
+            compiler, '-mcpu=cortex-m3', '-mthumb', '-mfloat-abi=soft',
+            '-Wl,--gc-sections', '-T' + str(root / 'STM32F103RCTX_FLASH.ld'),
+            *objects, '-specs=nano.specs', '-specs=nosys.specs', '-lm',
+            '-o', str(output),
+        ], check=True)
+    return output
+
 
 size = Path(compiler).with_name('arm-none-eabi-size')
-subprocess.run([str(size), str(output)], check=True)
-print('PASS: firmware linked at ' + str(output))
+nm = Path(compiler).with_name('arm-none-eabi-nm')
+objdump = Path(compiler).with_name('arm-none-eabi-objdump')
+for selected in modes:
+    elf = build(selected)
+    subprocess.run([str(size), str(elf)], check=True)
+    symbols = subprocess.run([str(nm), str(elf)], check=True,
+                             capture_output=True, text=True).stdout
+    if symbols.count(' T SysTick_Handler\n') != 1:
+        raise SystemExit(selected + ': expected exactly one SysTick_Handler')
+    disassembly = subprocess.run([str(objdump), '-d', str(elf)], check=True,
+                                 capture_output=True, text=True).stdout
+    marker = '<SysTick_Handler>:'
+    handler = disassembly.split(marker, 1)[1].split('\n\n', 1)[0]
+    if 'HAL_IncTick' not in handler:
+        raise SystemExit(selected + ': SysTick no longer maintains HAL time')
+    if selected == 'rtos':
+        for symbol in [' T xPortSysTickHandler\n', ' T vApplicationTickHook\n',
+                       ' T CarRTOS_FatalStop\n']:
+            if symbol not in symbols:
+                raise SystemExit('rtos: missing symbol ' + symbol.strip())
+        for call in ['CarTick_UseKernel', 'xPortSysTickHandler']:
+            if call not in handler:
+                raise SystemExit('rtos: SysTick handoff missing ' + call)
+        print('PASS: RTOS SysTick contains HAL-before-start and kernel-after-start paths')
+    elif 'xPortSysTickHandler' in symbols:
+        raise SystemExit('baremetal: FreeRTOS port unexpectedly linked')
+    elif 'CarTick_UseKernel' in handler:
+        raise SystemExit('baremetal: SysTick unexpectedly references the kernel')
+    else:
+        print('PASS: bare-metal SysTick contains only the HAL time-base path')
+    print('PASS: ' + selected + ' firmware linked at ' + str(elf))

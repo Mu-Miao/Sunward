@@ -39,7 +39,7 @@ python3 tools/build_firmware.py
 python3 tools/tests/run_tests.py --sanitize
 ```
 
-当前链接结果约为 80 KB Flash、18 KB RAM（工具链版本不同会有小幅变化），在 STM32F103RCT6 资源范围内。
+构建脚本默认同时验证 RTOS 与裸机回退；也可使用 `--mode rtos` 或 `--mode baremetal`。当前 RTOS 链接结果约为 80 KB Flash、18 KB RAM，在 STM32F103RCT6 资源范围内。SysTick 交接和致命故障制动的实现与验证见 [FreeRTOS 安全修复记录](FREERTOS_SAFETY_FIX_20261020.md)。
 
 ## 上车顺序
 

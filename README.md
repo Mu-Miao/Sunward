@@ -63,7 +63,7 @@
 1. 初次克隆执行 `git submodule update --init`，取得仓库锁定的 FreeRTOS Kernel。
 2. 安装 VS Code、Embedded IDE（`cl.eide`）及 Arm GNU 工具链。
 3. 打开 `Sunward.code-workspace`，在 EIDE 中配置工具链路径并选择 **Debug**。
-4. 执行 **Rebuild**，或在终端运行 `python3 tools/build_firmware.py`。
+4. 执行 **Rebuild**，或在终端运行 `python3 tools/build_firmware.py`，同时产生 `Sunward-rtos.elf` 和 `Sunward-baremetal.elf`。
 5. 如需下载，在 EIDE 中配置对应调试器；当前 Debug 使用 pyOCD / CMSIS-DAP / SWD，目标为 `stm32f103rc`、速度 4 MHz。
 
 固件从 `Core/` 和 `Drivers/` 构建；`tools/tests/` 的模拟 HAL 仅用于主机测试，不应加入固件包含路径。`build/` 为本地产物，不提交到 Git。
@@ -102,6 +102,7 @@ python3 tools/tests/run_tests.py --sanitize
 
 ## 调试记录
 
+- [FreeRTOS SysTick 交接、致命制动和双构建验证](FREERTOS_SAFETY_FIX_20261020.md)
 - [pyOCD实时只读采集方法](tools/PYOCD_采集说明.md)
 - [航向融合 V1 机制和诊断字段](HEADING_FUSION_V1_说明.md)
 - [任务四 FUSE V2 BD 实测与修改](TASK4_FUSE_V2_BD_实测与修改.md)

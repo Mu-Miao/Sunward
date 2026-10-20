@@ -24,6 +24,7 @@ virtualFolder:
         - path: Core/Src/car_task3.c
         - path: Core/Src/car_task3_port.c
         - path: Core/Src/car_task4.c
+        - path: Core/Src/car_tick.c
         - path: Core/Src/car_signal.c
         - path: Core/Src/car_ui.c
         - path: Core/Src/car_wheel.c
@@ -69,6 +70,7 @@ targets:
       - Core/Src/car_task3.c
       - Core/Src/car_task3_port.c
       - Core/Src/car_task4.c
+      - Core/Src/car_tick.c
       - Core/Src/car_signal.c
       - Core/Src/car_ui.c
       - Core/Src/car_wheel.c
@@ -173,6 +175,7 @@ targets:
       - Core/Src/car_task3.c
       - Core/Src/car_task3_port.c
       - Core/Src/car_task4.c
+      - Core/Src/car_tick.c
       - Core/Src/car_signal.c
       - Core/Src/car_ui.c
       - Core/Src/car_wheel.c

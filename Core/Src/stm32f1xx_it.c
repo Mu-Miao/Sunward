@@ -24,6 +24,10 @@
 /* USER CODE BEGIN Includes */
 #include "lab_uart_async.h"
 #include "car_config.h"
+#if CAR_USE_FREERTOS
+#include "car_tick.h"
+extern void xPortSysTickHandler(void);
+#endif
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -186,18 +190,21 @@ void PendSV_Handler(void)
 /**
   * @brief This function handles System tick timer.
   */
-#if !CAR_USE_FREERTOS
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
-
+#if CAR_USE_FREERTOS
+  if (CarTick_UseKernel()) {
+    xPortSysTickHandler();
+    return;
+  }
+#endif
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
 
   /* USER CODE END SysTick_IRQn 1 */
 }
-#endif
 
 /******************************************************************************/
 /* STM32F1xx Peripheral Interrupt Handlers                                    */

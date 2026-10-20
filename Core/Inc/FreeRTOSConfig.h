@@ -2,6 +2,8 @@
 #define FREERTOS_CONFIG_H
 
 #include <stdint.h>
+#include "car_config.h"
+#include "car_rtos.h"
 extern uint32_t SystemCoreClock;
 
 #define configUSE_PREEMPTION                    1
@@ -57,12 +59,13 @@ extern uint32_t SystemCoreClock;
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY \
     (configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8U - configPRIO_BITS))
 
+#if CAR_USE_FREERTOS
 #define vPortSVCHandler                         SVC_Handler
 #define xPortPendSVHandler                      PendSV_Handler
-#define xPortSysTickHandler                     SysTick_Handler
+#endif
 
 #define configASSERT(condition) do { \
-    if (!(condition)) { __asm volatile("cpsid i" ::: "memory"); for (;;) {} } \
+    if (!(condition)) CarRTOS_FatalStop(); \
 } while (0)
 
 #endif

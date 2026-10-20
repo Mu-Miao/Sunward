@@ -3,7 +3,9 @@
 #include "stm32f1xx_hal.h"
 
 /* 1：FreeRTOS 10ms 周期任务；0：保留 TIM2+前台轮询回退路径。 */
+#ifndef CAR_USE_FREERTOS
 #define CAR_USE_FREERTOS 1U
+#endif
 
 /* 集中保存现有标定值和调试参数，DPT_ 命名与原操作记录对应。
  * 参数调整统一在本文件进行，避免各模块分别保存不同数值。 */
