@@ -180,6 +180,124 @@ static void fault_regression(void)
  }
 }
 
+/* Retain measured pre-C speed/integral state; close the plant around the
+   actual PI outputs, rather than assuming wheels instantly follow targets.
+   The motor gain/dead zone/lag are sensitivity assumptions, not a vehicle fit. */
+static int c_handoff_plant(int legacy,float gain,float deadband,float lag,
+    float *turn_mm,float *error_deg)
+{
+ continuous_start();CarTask3 *t=&app()->route.task3;
+ t->phase=T3_DIAGONAL;t->leg=0;t->leg_start_mm=t->phase_start_mm=0;
+ t->phase_ms=ms-4000;t->pending_start_signal=0;
+ float distance=t->diagonal_mm-50,yaw=t->start_heading_deg,turn_origin=0;
+ float velocity[2]={215.45717f,216.18494f};
+ app()->route.targets[0]=195.13977f;app()->route.targets[1]=195.82629f;
+ app()->wheel.items[0].integral=1881.1471f;app()->wheel.items[1].integral=1868.4648f;
+ app()->wheel.items[0].command=1231;app()->wheel.items[1].command=1217;
+ app()->line.valid=1;app()->line.count=2;app()->line.error=0;
+ for(unsigned n=0;n<500;n++) {
+  ms+=10;distance+=(velocity[0]+velocity[1])*.005f;
+  yaw=CarMath_WrapDegrees(yaw+(velocity[1]-velocity[0])*.01f/160*57.2957795131f);
+  CarTask3Input in={.now_ms=ms,.distance_mm=distance,.yaw_deg=yaw,
+   .left_mmps=velocity[0],.right_mmps=velocity[1],.heading_ready=1,
+   .line_valid=1,.black_count=2,.centered=1,.enabled=1};
+  CarTask3Phase previous=t->phase;
+  CarTask3Output out;CarTask4_Update(&app()->route.task4,t,&in,&out);
+  if(previous!=T3_ALIGN && t->phase==T3_ALIGN)turn_origin=t->phase_start_mm;
+  if(t->phase==T3_FAULT) {
+   assert(t->fault==T3_TURN);CarApp_Stop(app(),CarTask3Port_StopState(t->fault),'-');
+   *turn_mm=distance-turn_origin;*error_deg=CarMath_WrapDegrees(t->start_heading_deg+t->diagonal_angle_deg-yaw);
+   assert(a==0 && b==0);return 0;
+  }
+  if(legacy)out.retarget_integrals=0;
+  app()->heading.angle=yaw;
+  for(unsigned w=0;w<2;w++)app()->wheel.items[w].velocity=velocity[w];
+  assert(out.control!=T3_HALT && !out.reset_controllers);
+  CarTask3Port_Apply(app(),&out,ms);
+  assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+  for(unsigned w=0;w<2;w++)CarWheel_Control(app(),w,.01f);
+  assert(app()->runtime.state==RUNNING);
+  app()->runtime.drive(app()->wheel.items[0].command,-app()->wheel.items[1].command);
+  if(t->phase==T3_CAPTURE) {
+   *turn_mm=distance-turn_origin;
+   *error_deg=CarMath_WrapDegrees(t->start_heading_deg+t->diagonal_angle_deg-yaw);
+   return 1;
+  }
+  for(unsigned w=0;w<2;w++) {
+   float steady=gain*fmaxf(0,(float)app()->wheel.items[w].command-deadband);
+   velocity[w]+=(steady-velocity[w])*(1-expf(-.01f/lag));
+   assert(velocity[w]>0);
+  }
+ }
+ assert(0 && "C turn neither completes nor faults within watchdog");return 0;
+}
+
+static void handoff_regression(void)
+{
+ float mm,error;
+ int old=c_handoff_plant(1,.15f,250,.08f,&mm,&error);
+ printf("OLD C motor model: pass=%d mm=%.2f error=%.2f\n",old,mm,error);
+ int fixed=c_handoff_plant(0,.15f,250,.08f,&mm,&error);
+ printf("FIX C motor model: pass=%d mm=%.2f error=%.2f\n",fixed,mm,error);
+ assert(!old && fixed);
+ const float gains[]={.12f,.15f,.18f},deadbands[]={150,250,350},lags[]={.05f,.08f,.11f};
+ float maximum=0;unsigned count=0;
+ for(unsigned g=0;g<3;g++)for(unsigned d=0;d<3;d++)for(unsigned lidx=0;lidx<3;lidx++) {
+  int passed=c_handoff_plant(0,gains[g],deadbands[d],lags[lidx],&mm,&error);
+  if(!passed)fprintf(stderr,"C model gain=%.2f dead=%.0f lag=%.2f mm=%.2f error=%.2f\n",gains[g],deadbands[d],lags[lidx],mm,error);
+  assert(passed && mm<=120 && fabsf(error)<=3);maximum=fmaxf(maximum,mm);++count;
+ }
+ printf("C handoff: %u motor assumptions pass, maximum turn travel %.2f mm; software model only.\n",count,maximum);
+}
+
+static void integral_transfer_regression(void)
+{
+ continuous_start();
+ CarTask3Output out={.control=T3_HOLD_HEADING,.heading_deg=app()->heading.angle,
+  .base_mmps=50,.retarget_integrals=1};
+ for(unsigned w=0;w<2;w++) {
+  app()->route.targets[w]=200;app()->wheel.items[w].integral=1800;
+  app()->wheel.items[w].bad_sign_us=20000;app()->wheel.items[w].stall_us=300000;
+ }
+ int before_a=a,before_b=b;CarTask3Port_Apply(app(),&out,ms);
+ for(unsigned w=0;w<2;w++) {
+  assert(app()->route.targets[w]==50 && app()->wheel.items[w].integral==450);
+  assert(app()->wheel.items[w].bad_sign_us==20000 && app()->wheel.items[w].stall_us==300000);
+ }
+ assert(a==before_a && b==before_b); /* no drive(0,0) pulse */
+ out.control=T3_TURN_FORWARD;out.heading_deg=CarMath_WrapDegrees(app()->heading.angle+30);
+ out.left_mmps=20;out.right_mmps=80;CarTask3Port_Apply(app(),&out,ms);
+ assert(app()->wheel.items[0].integral==180 && app()->wheel.items[1].integral==450);
+ assert(app()->route.targets[0]==20 && app()->route.targets[1]==80);
+ out.retarget_integrals=0;CarTask3Port_Apply(app(),&out,ms);
+ assert(app()->wheel.items[0].integral==180 && app()->wheel.items[1].integral==450);
+ for(unsigned w=0;w<2;w++){app()->route.targets[w]=50;app()->wheel.items[w].integral=450;}
+ out.retarget_integrals=1;out.heading_deg=CarMath_WrapDegrees(app()->heading.angle-30);
+ out.left_mmps=80;out.right_mmps=20;CarTask3Port_Apply(app(),&out,ms);
+ assert(app()->wheel.items[0].integral==450 && app()->wheel.items[1].integral==180);
+ /* Task3 and the optional parked Task4 profile retain their prior PI behavior. */
+ for(unsigned mode=0;mode<2;mode++) {
+  app()->route.motion=mode?MOVE_TASK4:MOVE_TASK3;app()->route.task3.config.continuous_motion=0;
+  for(unsigned w=0;w<2;w++){app()->route.targets[w]=200;app()->wheel.items[w].integral=1800;}
+  CarTask3Port_Apply(app(),&out,ms);
+  assert(app()->wheel.items[0].integral==1800 && app()->wheel.items[1].integral==1800);
+ }
+ /* One transfer on entering low-speed confirmation and one on starting
+    the turn; ordinary samples retain their integral. */
+ CarTask3Config cfg=CarTask4_Config();CarTask3 route={0};
+ CarTask3Input in={.now_ms=1000,.enabled=1,.heading_ready=1};
+ assert(CarTask3_Start(&route,&cfg,&in));
+ route.phase=T3_DIAGONAL;route.pending_start_signal=0;
+ in.distance_mm=route.diagonal_mm-50;in.yaw_deg=route.start_heading_deg;
+ in.line_valid=in.centered=1;in.black_count=2;in.left_mmps=in.right_mmps=100;
+ for(unsigned n=0;n<5;n++) {
+  in.now_ms+=10;CarTask3_Update(&route,&in,&out);
+  assert(out.retarget_integrals==(n==0 || n==3));
+  assert(!out.reset_controllers && out.control!=T3_HALT);
+ }
+ assert(route.phase==T3_ALIGN);
+}
+
 int main(void)
 {
  CarTask3Config c=CarTask4_Config();assert(CarTask3_ConfigValid(&c));
@@ -188,7 +306,7 @@ int main(void)
  c=CarTask4_Config();c.turn_inner_mmps=NAN;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.turn_travel_limit_mm=121;assert(!CarTask3_ConfigValid(&c));
  assert(!CarRoute_Task3Config().continuous_motion && CarRoute_Task3Config().turn_travel_limit_mm==80);
- four_lap_regression();dual_turn_regression();moving_recovery_regression();fault_regression();
+ integral_transfer_regression();handoff_regression();four_lap_regression();dual_turn_regression();moving_recovery_regression();fault_regression();
  puts("PASS: production Task4 continuous A/B/C/D and3 rolling lap joins, both wheels positive through16 turns, no normal zero-drive handoffs, final settled completion, bounded moving recovery/search and retained fault stops. Software only.");
  return 0;
 }

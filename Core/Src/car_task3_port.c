@@ -27,6 +27,7 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
 
 void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t now)
 {
+    float previous_targets[2] = {app->route.targets[LEFT], app->route.targets[RIGHT]};
     app->route.targets[LEFT] = app->route.targets[RIGHT] = 0.0f;
     /* 整车已锁存故障时，之前计算的运动输出不得重新使电机启动。 */
     if (app->runtime.state != RUNNING) {
@@ -123,6 +124,18 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         app->heading.reference = o->heading_deg; app->heading.error = heading;
     } else if (o->control == T3_FOLLOW_LINE) {
         CarLine_SetTargets(app, now, o->base_mmps);
+    }
+    if (app->runtime.state == RUNNING && app->route.motion == MOVE_TASK4 &&
+        app->route.task3.config.continuous_motion && o->retarget_integrals &&
+        !o->reset_controllers && o->control != T3_HALT) {
+        /* 只在已确认的换段/首次低速确认时缩减降速轮积分。
+           防止直线大积分带进20/80转向；不增加积分、不发零驱动，
+           不重置反向/堵转计时。后续每拍仍由原PI和保护处理。 */
+        for (unsigned w = 0; w < 2U; ++w) {
+            float target = app->route.targets[w], previous = previous_targets[w];
+            if (target > 0.0f && target < previous)
+                app->wheel.items[w].integral *= target / previous;
+        }
     }
     if (app->runtime.state == RUNNING && o->signal_point != T3_NO_POINT) {
         app->signal.ms = now;

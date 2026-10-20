@@ -1,0 +1,703 @@
+{
+  "firmware": "TASK 4 V16 CONT",
+  "source_commit": "0497e4741fb0eda2ce65ea632da4d010888bb050",
+  "elf_sha256": "a67881a620a8dee526eb740e7e89ceab06fb74bf5320b0cee57931bde8ea2680",
+  "capture_session": "20261020_230428",
+  "sampling": "20Hz asynchronous live RAM; fields may straddle scheduler updates",
+  "run_start_ms": 279339,
+  "result": {
+    "state": "YAW_BAD",
+    "fault": 8,
+    "fault_name": "T3_TURN",
+    "leg": 1,
+    "vertex": "C",
+    "completed_laps": 0,
+    "arc_number": 0,
+    "route_elapsed_ms": 9226,
+    "turn_travel_mm": 120.10809326171875,
+    "configured_turn_limit_mm": 120,
+    "yaw_error_deg_at_sample": 9.170470237731934,
+    "motor_commands_at_fault": [
+      0,
+      0
+    ]
+  },
+  "interpretation": "Observed C turn exceeded120mm with about9 degrees remaining. Cruise PI integrals remained near1880 on entering20/80mm/s turn, with measured speeds above targets. This is a failed V16 field run; it is not a V17 acceptance result.",
+  "samples": [
+    {
+      "host_time": "2026-10-20T23:07:16.898370+08:00",
+      "sample": 3354,
+      "core_state": "RUNNING",
+      "state_name": "RUNNING",
+      "phase_name": "DIAGONAL",
+      "runtime": {
+        "state": 1,
+        "old_tick": 28666,
+        "old_ms": 286682,
+        "dt_us": 9987,
+        "fault_wheel": 45,
+        "bluetooth_on": 1
+      },
+      "route": {
+        "motion": 12,
+        "distance_mm": [
+          1300.80517578125,
+          1199.34619140625
+        ],
+        "targets": [
+          269.7222900390625,
+          270.2777099609375
+        ],
+        "base": 270.0,
+        "elapsed_ms": 7343,
+        "start_ms": 279339
+      },
+      "task3": {
+        "phase": 1,
+        "fault": 0,
+        "leg": 0,
+        "start_heading_deg": -38.41322326660156,
+        "leg_start_mm": 78.7020492553711,
+        "phase_start_mm": 78.7020492553711,
+        "phase_ms": 281462,
+        "lost_seen": 0,
+        "loss_seek": 0,
+        "gap_seek": 0,
+        "loss_limits": 0,
+        "loss_duration_ms": 0,
+        "loss_distance_mm": 0.0,
+        "loss_turn_deg": 0.0,
+        "entry_yaw_deg": 0.0,
+        "entry_diff_mmps": 0.0
+      },
+      "heading": {
+        "phase": 3,
+        "angle": -38.690921783447266,
+        "reference": -38.41322326660156,
+        "error": 0.2776985168457031,
+        "gyro_angle": -38.690921783447266,
+        "bias": -433.8760070800781,
+        "bias_rate": 0.0,
+        "fusion_active": 0,
+        "fusion_learning": 0,
+        "wheel_rate": 0.6596651673316956,
+        "samples": 500,
+        "io_us": 2960
+      },
+      "wheel": [
+        {
+          "velocity": 267.28619384765625,
+          "command": 1983,
+          "integral": 1904.947998046875,
+          "bad_sign_us": 0
+        },
+        {
+          "velocity": 269.1283264160156,
+          "command": 1929,
+          "integral": 1892.434326171875,
+          "bad_sign_us": 0
+        }
+      ]
+    },
+    {
+      "host_time": "2026-10-20T23:07:16.949032+08:00",
+      "sample": 3355,
+      "core_state": "RUNNING",
+      "state_name": "RUNNING",
+      "phase_name": "DIAGONAL",
+      "runtime": {
+        "state": 1,
+        "old_tick": 28671,
+        "old_ms": 286732,
+        "dt_us": 9996,
+        "fault_wheel": 45,
+        "bluetooth_on": 1
+      },
+      "route": {
+        "motion": 12,
+        "distance_mm": [
+          1314.045166015625,
+          1212.6236572265625
+        ],
+        "targets": [
+          258.9208068847656,
+          259.4383239746094
+        ],
+        "base": 259.1795654296875,
+        "elapsed_ms": 7393,
+        "start_ms": 279339
+      },
+      "task3": {
+        "phase": 1,
+        "fault": 0,
+        "leg": 0,
+        "start_heading_deg": -38.41322326660156,
+        "leg_start_mm": 78.7020492553711,
+        "phase_start_mm": 78.7020492553711,
+        "phase_ms": 281462,
+        "lost_seen": 0,
+        "loss_seek": 0,
+        "gap_seek": 0,
+        "loss_limits": 0,
+        "loss_duration_ms": 0,
+        "loss_distance_mm": 0.0,
+        "loss_turn_deg": 0.0,
+        "entry_yaw_deg": 0.0,
+        "entry_diff_mmps": 0.0
+      },
+      "heading": {
+        "phase": 3,
+        "angle": -38.67198944091797,
+        "reference": -38.41322326660156,
+        "error": 0.25876617431640625,
+        "gyro_angle": -38.67198944091797,
+        "bias": -433.8760070800781,
+        "bias_rate": 0.0,
+        "fusion_active": 0,
+        "fusion_learning": 0,
+        "wheel_rate": 1.1468160152435303,
+        "samples": 500,
+        "io_us": 2957
+      },
+      "wheel": [
+        {
+          "velocity": 266.3716125488281,
+          "command": 1669,
+          "integral": 1906.9910888671875,
+          "bad_sign_us": 0
+        },
+        {
+          "velocity": 269.5741271972656,
+          "command": 1570,
+          "integral": 1894.2646484375,
+          "bad_sign_us": 0
+        }
+      ]
+    },
+    {
+      "host_time": "2026-10-20T23:07:16.998562+08:00",
+      "sample": 3356,
+      "core_state": "RUNNING",
+      "state_name": "RUNNING",
+      "phase_name": "DIAGONAL",
+      "runtime": {
+        "state": 1,
+        "old_tick": 28676,
+        "old_ms": 286782,
+        "dt_us": 9993,
+        "fault_wheel": 45,
+        "bluetooth_on": 1
+      },
+      "route": {
+        "motion": 12,
+        "distance_mm": [
+          1326.4697265625,
+          1225.108154296875
+        ],
+        "targets": [
+          225.2424774169922,
+          225.86253356933594
+        ],
+        "base": 225.55250549316406,
+        "elapsed_ms": 7443,
+        "start_ms": 279339
+      },
+      "task3": {
+        "phase": 1,
+        "fault": 0,
+        "leg": 0,
+        "start_heading_deg": -38.41322326660156,
+        "leg_start_mm": 78.7020492553711,
+        "phase_start_mm": 78.7020492553711,
+        "phase_ms": 281462,
+        "lost_seen": 0,
+        "loss_seek": 0,
+        "gap_seek": 0,
+        "loss_limits": 0,
+        "loss_duration_ms": 0,
+        "loss_distance_mm": 0.0,
+        "loss_turn_deg": 0.0,
+        "entry_yaw_deg": 0.0,
+        "entry_diff_mmps": 0.0
+      },
+      "heading": {
+        "phase": 3,
+        "angle": -38.72324752807617,
+        "reference": -38.41322326660156,
+        "error": 0.3100242614746094,
+        "gyro_angle": -38.72324752807617,
+        "bias": -433.8760070800781,
+        "bias_rate": 0.0,
+        "fusion_active": 0,
+        "fusion_learning": 0,
+        "wheel_rate": 0.2750271260738373,
+        "samples": 500,
+        "io_us": 2959
+      },
+      "wheel": [
+        {
+          "velocity": 237.5309600830078,
+          "command": 1504,
+          "integral": 1896.944580078125,
+          "bad_sign_us": 0
+        },
+        {
+          "velocity": 238.29898071289062,
+          "command": 1486,
+          "integral": 1883.5562744140625,
+          "bad_sign_us": 0
+        }
+      ]
+    },
+    {
+      "host_time": "2026-10-20T23:07:17.049549+08:00",
+      "sample": 3357,
+      "core_state": "RUNNING",
+      "state_name": "RUNNING",
+      "phase_name": "DIAGONAL",
+      "runtime": {
+        "state": 1,
+        "old_tick": 28681,
+        "old_ms": 286832,
+        "dt_us": 9994,
+        "fault_wheel": 45,
+        "bluetooth_on": 1
+      },
+      "route": {
+        "motion": 12,
+        "distance_mm": [
+          1337.6068115234375,
+          1236.24462890625
+        ],
+        "targets": [
+          195.1397705078125,
+          195.8262939453125
+        ],
+        "base": 195.4830322265625,
+        "elapsed_ms": 7493,
+        "start_ms": 279339
+      },
+      "task3": {
+        "phase": 1,
+        "fault": 0,
+        "leg": 0,
+        "start_heading_deg": -38.41322326660156,
+        "leg_start_mm": 78.7020492553711,
+        "phase_start_mm": 78.7020492553711,
+        "phase_ms": 281462,
+        "lost_seen": 0,
+        "loss_seek": 0,
+        "gap_seek": 0,
+        "loss_limits": 0,
+        "loss_duration_ms": 0,
+        "loss_distance_mm": 0.0,
+        "loss_turn_deg": 0.0,
+        "entry_yaw_deg": 0.0,
+        "entry_diff_mmps": 0.0
+      },
+      "heading": {
+        "phase": 3,
+        "angle": -38.756492614746094,
+        "reference": -38.41322326660156,
+        "error": 0.34326934814453125,
+        "gyro_angle": -38.756492614746094,
+        "bias": -433.8760070800781,
+        "bias_rate": 0.0,
+        "fusion_active": 0,
+        "fusion_learning": 0,
+        "wheel_rate": 0.26061269640922546,
+        "samples": 500,
+        "io_us": 2957
+      },
+      "wheel": [
+        {
+          "velocity": 215.45716857910156,
+          "command": 1231,
+          "integral": 1881.1470947265625,
+          "bad_sign_us": 0
+        },
+        {
+          "velocity": 216.1849365234375,
+          "command": 1217,
+          "integral": 1868.46484375,
+          "bad_sign_us": 0
+        }
+      ]
+    },
+    {
+      "host_time": "2026-10-20T23:07:17.099340+08:00",
+      "sample": 3358,
+      "core_state": "RUNNING",
+      "state_name": "RUNNING",
+      "phase_name": "ALIGN",
+      "runtime": {
+        "state": 1,
+        "old_tick": 28686,
+        "old_ms": 286882,
+        "dt_us": 9996,
+        "fault_wheel": 45,
+        "bluetooth_on": 1
+      },
+      "route": {
+        "motion": 12,
+        "distance_mm": [
+          1345.5128173828125,
+          1244.181884765625
+        ],
+        "targets": [
+          20.0,
+          80.0
+        ],
+        "base": 50.0,
+        "elapsed_ms": 7543,
+        "start_ms": 279339
+      },
+      "task3": {
+        "phase": 3,
+        "fault": 0,
+        "leg": 1,
+        "start_heading_deg": -38.41322326660156,
+        "leg_start_mm": 78.7020492553711,
+        "phase_start_mm": 1293.86962890625,
+        "phase_ms": 286872,
+        "lost_seen": 0,
+        "loss_seek": 0,
+        "gap_seek": 0,
+        "loss_limits": 0,
+        "loss_duration_ms": 0,
+        "loss_distance_mm": 0.0,
+        "loss_turn_deg": 0.0,
+        "entry_yaw_deg": 0.0,
+        "entry_diff_mmps": 0.0
+      },
+      "heading": {
+        "phase": 3,
+        "angle": -38.6901741027832,
+        "reference": 0.24658203125,
+        "error": 38.9367561340332,
+        "gyro_angle": -38.6901741027832,
+        "bias": -433.8760070800781,
+        "bias_rate": 0.0,
+        "fusion_active": 0,
+        "fusion_learning": 0,
+        "wheel_rate": 0.9153355360031128,
+        "samples": 500,
+        "io_us": 2957
+      },
+      "wheel": [
+        {
+          "velocity": 96.48452758789062,
+          "command": 0,
+          "integral": 1881.1470947265625,
+          "bad_sign_us": 0
+        },
+        {
+          "velocity": 99.0406265258789,
+          "command": 1246,
+          "integral": 1855.464111328125,
+          "bad_sign_us": 0
+        }
+      ]
+    },
+    {
+      "host_time": "2026-10-20T23:07:17.196391+08:00",
+      "sample": 3360,
+      "core_state": "RUNNING",
+      "state_name": "RUNNING",
+      "phase_name": "ALIGN",
+      "runtime": {
+        "state": 1,
+        "old_tick": 28696,
+        "old_ms": 286982,
+        "dt_us": 10000,
+        "fault_wheel": 45,
+        "bluetooth_on": 1
+      },
+      "route": {
+        "motion": 12,
+        "distance_mm": [
+          1351.8082275390625,
+          1255.3218994140625
+        ],
+        "targets": [
+          20.0,
+          80.0
+        ],
+        "base": 50.0,
+        "elapsed_ms": 7643,
+        "start_ms": 279339
+      },
+      "task3": {
+        "phase": 3,
+        "fault": 0,
+        "leg": 1,
+        "start_heading_deg": -38.41322326660156,
+        "leg_start_mm": 78.7020492553711,
+        "phase_start_mm": 1293.86962890625,
+        "phase_ms": 286872,
+        "lost_seen": 0,
+        "loss_seek": 0,
+        "gap_seek": 0,
+        "loss_limits": 0,
+        "loss_duration_ms": 0,
+        "loss_distance_mm": 0.0,
+        "loss_turn_deg": 0.0,
+        "entry_yaw_deg": 0.0,
+        "entry_diff_mmps": 0.0
+      },
+      "heading": {
+        "phase": 3,
+        "angle": -37.19512176513672,
+        "reference": 0.24658203125,
+        "error": 37.44170379638672,
+        "gyro_angle": -37.19512176513672,
+        "bias": -433.8760070800781,
+        "bias_rate": 0.0,
+        "fusion_active": 0,
+        "fusion_learning": 0,
+        "wheel_rate": 20.890148162841797,
+        "samples": 500,
+        "io_us": 2957
+      },
+      "wheel": [
+        {
+          "velocity": 45.90709686279297,
+          "command": 979,
+          "integral": 1807.6790771484375,
+          "bad_sign_us": 0
+        },
+        {
+          "velocity": 104.24339294433594,
+          "command": 1017,
+          "integral": 1792.6549072265625,
+          "bad_sign_us": 0
+        }
+      ]
+    },
+    {
+      "host_time": "2026-10-20T23:07:17.699993+08:00",
+      "sample": 3370,
+      "core_state": "RUNNING",
+      "state_name": "RUNNING",
+      "phase_name": "ALIGN",
+      "runtime": {
+        "state": 1,
+        "old_tick": 28746,
+        "old_ms": 287482,
+        "dt_us": 10010,
+        "fault_wheel": 45,
+        "bluetooth_on": 1
+      },
+      "route": {
+        "motion": 12,
+        "distance_mm": [
+          1378.3424072265625,
+          1306.335205078125
+        ],
+        "targets": [
+          20.0,
+          80.0
+        ],
+        "base": 50.0,
+        "elapsed_ms": 8143,
+        "start_ms": 279339
+      },
+      "task3": {
+        "phase": 3,
+        "fault": 0,
+        "leg": 1,
+        "start_heading_deg": -38.41322326660156,
+        "leg_start_mm": 78.7020492553711,
+        "phase_start_mm": 1293.86962890625,
+        "phase_ms": 286872,
+        "lost_seen": 0,
+        "loss_seek": 0,
+        "gap_seek": 0,
+        "loss_limits": 0,
+        "loss_duration_ms": 0,
+        "loss_distance_mm": 0.0,
+        "loss_turn_deg": 0.0,
+        "entry_yaw_deg": 0.0,
+        "entry_diff_mmps": 0.0
+      },
+      "heading": {
+        "phase": 3,
+        "angle": -28.249353408813477,
+        "reference": 0.24658203125,
+        "error": 28.495935440063477,
+        "gyro_angle": -28.249353408813477,
+        "bias": -433.8760070800781,
+        "bias_rate": 0.0,
+        "fusion_active": 0,
+        "fusion_learning": 0,
+        "wheel_rate": 18.688953399658203,
+        "samples": 500,
+        "io_us": 2957
+      },
+      "wheel": [
+        {
+          "velocity": 50.64502716064453,
+          "command": 496,
+          "integral": 1476.9923095703125,
+          "bad_sign_us": 0
+        },
+        {
+          "velocity": 102.83442687988281,
+          "command": 842,
+          "integral": 1572.392822265625,
+          "bad_sign_us": 0
+        }
+      ]
+    },
+    {
+      "host_time": "2026-10-20T23:07:18.727760+08:00",
+      "sample": 3386,
+      "core_state": "RUNNING",
+      "state_name": "RUNNING",
+      "phase_name": "ALIGN",
+      "runtime": {
+        "state": 1,
+        "old_tick": 28849,
+        "old_ms": 288512,
+        "dt_us": 9999,
+        "fault_wheel": 45,
+        "bluetooth_on": 1
+      },
+      "route": {
+        "motion": 12,
+        "distance_mm": [
+          1422.1600341796875,
+          1399.4478759765625
+        ],
+        "targets": [
+          20.0,
+          55.0
+        ],
+        "base": 37.5,
+        "elapsed_ms": 9173,
+        "start_ms": 279339
+      },
+      "task3": {
+        "phase": 3,
+        "fault": 0,
+        "leg": 1,
+        "start_heading_deg": -38.41322326660156,
+        "leg_start_mm": 78.7020492553711,
+        "phase_start_mm": 1293.86962890625,
+        "phase_ms": 286872,
+        "lost_seen": 0,
+        "loss_seek": 0,
+        "gap_seek": 0,
+        "loss_limits": 0,
+        "loss_duration_ms": 0,
+        "loss_distance_mm": 0.0,
+        "loss_turn_deg": 0.0,
+        "entry_yaw_deg": 0.0,
+        "entry_diff_mmps": 0.0
+      },
+      "heading": {
+        "phase": 3,
+        "angle": -9.653433799743652,
+        "reference": 0.24658203125,
+        "error": 9.900015830993652,
+        "gyro_angle": -9.653433799743652,
+        "bias": -433.8760070800781,
+        "bias_rate": 0.0,
+        "fusion_active": 0,
+        "fusion_learning": 0,
+        "wheel_rate": 12.943585395812988,
+        "samples": 500,
+        "io_us": 2961
+      },
+      "wheel": [
+        {
+          "velocity": 39.715370178222656,
+          "command": 374,
+          "integral": 1004.7008666992188,
+          "bad_sign_us": 0
+        },
+        {
+          "velocity": 65.6313247680664,
+          "command": 903,
+          "integral": 1242.8302001953125,
+          "bad_sign_us": 0
+        }
+      ]
+    },
+    {
+      "host_time": "2026-10-20T23:07:18.781450+08:00",
+      "sample": 3387,
+      "core_state": "RUNNING",
+      "state_name": "YAW_BAD",
+      "phase_name": "FAULT",
+      "runtime": {
+        "state": 12,
+        "old_tick": 28855,
+        "old_ms": 288572,
+        "dt_us": 10008,
+        "fault_wheel": 45,
+        "bluetooth_on": 1
+      },
+      "route": {
+        "motion": 12,
+        "distance_mm": [
+          1424.317626953125,
+          1403.6378173828125
+        ],
+        "targets": [
+          20.0,
+          55.0
+        ],
+        "base": 0.0,
+        "elapsed_ms": 9226,
+        "start_ms": 279339
+      },
+      "task3": {
+        "phase": 8,
+        "fault": 8,
+        "leg": 1,
+        "start_heading_deg": -38.41322326660156,
+        "leg_start_mm": 78.7020492553711,
+        "phase_start_mm": 1293.86962890625,
+        "phase_ms": 286872,
+        "lost_seen": 0,
+        "loss_seek": 0,
+        "gap_seek": 0,
+        "loss_limits": 0,
+        "loss_duration_ms": 0,
+        "loss_distance_mm": 0.0,
+        "loss_turn_deg": 0.0,
+        "entry_yaw_deg": 0.0,
+        "entry_diff_mmps": 0.0
+      },
+      "heading": {
+        "phase": 3,
+        "angle": -8.923888206481934,
+        "reference": 0.24658203125,
+        "error": 9.170470237731934,
+        "gyro_angle": -8.923888206481934,
+        "bias": -433.8760070800781,
+        "bias_rate": 0.0,
+        "fusion_active": 0,
+        "fusion_learning": 0,
+        "wheel_rate": 12.210454940795898,
+        "samples": 500,
+        "io_us": 2956
+      },
+      "wheel": [
+        {
+          "velocity": 32.928062438964844,
+          "command": 0,
+          "integral": 0.0,
+          "bad_sign_us": 0
+        },
+        {
+          "velocity": 56.45256042480469,
+          "command": 0,
+          "integral": 0.0,
+          "bad_sign_us": 0
+        }
+      ]
+    }
+  ]
+}

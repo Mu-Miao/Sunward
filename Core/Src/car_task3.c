@@ -101,6 +101,7 @@ static void phase(CarTask3 *r, CarTask3Phase p, const CarTask3Input *i, CarTask3
     r->arc_side_valid = 0U;
     o->control = T3_HALT;
     o->reset_controllers = 1U;
+    o->retarget_integrals = r->config.continuous_motion;
 }
 static int stable(CarTask3 *r, int matches, uint32_t now)
 {
@@ -254,6 +255,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             if (r->config.rolling_entry) {
                 o->control = T3_HOLD_HEADING;
                 o->heading_deg = target; o->base_mmps = r->config.capture_mmps;
+                o->retarget_integrals = r->config.continuous_motion && !r->edge_seen;
             } else o->reset_controllers = 1U;
             if (stable(r, 1, i->now_ms)) {
                 o->signal_point = r->leg == 0U ? T3_POINT_C : T3_POINT_D;
@@ -347,6 +349,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             if (r->config.continuous_motion) {
                 o->control = T3_HOLD_HEADING; o->base_mmps = r->config.capture_mmps;
                 o->heading_deg = tangent_heading(r, 1);
+                o->retarget_integrals = !r->edge_seen;
             } else o->reset_controllers = 1U;
             if (stable(r, 1, i->now_ms)) {
                 if (r->leg == 3U) {
@@ -370,6 +373,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                     ((r->leg == 3U && r->arc_outer_valid && r->config.da_outer_gap) ||
                      (r->arc_side_valid && r->config.history_gap));
                 o->reset_controllers = !r->config.continuous_motion || !r->loss_seek;
+                o->retarget_integrals = r->config.continuous_motion && r->loss_seek;
             }
             if (r->lost_seen && !i->line_valid && i->black_count != 0U) r->loss_seek = r->gap_seek = 0U;
             uint32_t budget = r->loss_seek ? r->config.white_seek_ms : r->config.lost_ms;

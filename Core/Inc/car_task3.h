@@ -64,6 +64,7 @@ typedef struct {
     float left_mmps, right_mmps; /* 前进转向/入弧阶段的左右轮目标速度。 */
     CarTask3Point signal_point; /* 点位提示仅在一次更新中给出，由上层计时控制声光持续时间。 */
     uint8_t start_signal, reset_controllers;
+    uint8_t retarget_integrals; /* 连续低速换段：缩减降速轮的旧积分，不停车/清保护计时。 */
 } CarTask3Output;
 
 typedef struct {
