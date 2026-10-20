@@ -8,7 +8,7 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 V13 ENTRY")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 V14 PWM22")==0);
 }
 static void task4_start(void)
 {
@@ -172,8 +172,77 @@ static void robust_regression(void)
  in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(out.control==T3_FOLLOW_LINE && t.phase==T3_ARC);
  puts("PASS: Task4 bounded stationary recovery/stable debounce/ramp, original deadline under chatter, exact deadline, invalid patterns, preserved loss snapshot, outer-probe slowdown, turn slowdown, protection priority and recovery millis wrap.");
 }
+static void pwm22_straight(void)
+{
+ task4_start();until_lap_phase(0,T3_DIAGONAL);
+ app()->route.task3.phase_ms=ms-2000U;line_inputs=15;
+ step(10,177,176);
+ assert(app()->runtime.state==RUNNING && app()->route.base==270);
+ assert(a==2200 && b==-2200);
+}
+
+static void output_limit_regression(void)
+{
+ assert(DPT_MAX_CMD==1800 && DPT_TASK4_MAX_CMD==2200 && DPT_MANUAL_MAX_CMD==3000);
+ assert(CarWheel_ConfigValid());
+ /* Exercise every existing mode: the new cap must not leak into Task1/2/3
+    or change the separate manual limits. Both PI outputs saturate here. */
+ task4_start();
+ const Motion modes[]={MOVE_TEST,MOVE_HEADING,MOVE_DISTANCE,MOVE_ROUTE,MOVE_LINE,
+  MOVE_TASK2,MOVE_TASK3,MOVE_TASK4,MOVE_FORWARD,MOVE_BACK,MOVE_LEFT,MOVE_RIGHT};
+ for(unsigned n=0;n<sizeof modes/sizeof modes[0];n++) {
+  app()->route.motion=modes[n];CarWheel_Clear(app());
+  int expected=n<7?1800:(n==7?2200:3000);
+  for(unsigned w=0;w<2;w++) {
+   app()->route.targets[w]=270;app()->wheel.items[w].velocity=60;
+   CarWheel_Control(app(),w,.01f);
+   assert(app()->runtime.state==RUNNING && app()->wheel.items[w].command==expected);
+  }
+ }
+ /* The retained conditional integrator must freeze at the new cap and
+    unwind as feedback catches up, rather than sticking at maximum output. */
+ app()->route.motion=MOVE_TASK4;CarWheel_Clear(app());
+ app()->route.targets[0]=270;app()->wheel.items[0].velocity=230;app()->wheel.items[0].integral=2100;
+ CarWheel_Control(app(),0,.01f);
+ assert(app()->wheel.items[0].command==2200 && app()->wheel.items[0].integral==2100);
+ app()->wheel.items[0].velocity=300;CarWheel_Control(app(),0,.01f);
+ assert(app()->wheel.items[0].command<2200 && app()->wheel.items[0].integral<2100);
+ app()->route.targets[0]=0;CarWheel_Control(app(),0,.01f);
+ assert(app()->wheel.items[0].command==0 && app()->wheel.items[0].integral==0);
+ /* Start with >1800 actually committed to the mock motor, then prove
+    protections still zero both wheels and never restart on a later tick. */
+ for(unsigned event=0;event<13;event++) {
+  pwm22_straight();
+  TestState expected=STOPPED;
+  switch(event) {
+  case 0:queue(0,"STOP!TASK4!");break;
+  case 1:off=1;expected=OFF;break;
+  case 2:imu_fail=1;expected=YAW_BAD;break;
+  case 3:adc_fail=1;app()->power.sample_ms=ms-100;expected=ADC_BAD;break;
+  case 4:bat=1000;app()->power.sample_ms=ms-100;expected=LOW;break;
+  case 5:faults[0]=1;expected=UART_BAD;break;
+  case 6:step(30,177,176);expected=GAP;break;
+  case 7:step(10,2000,0);expected=FAST;break;
+  case 8:for(unsigned n=0;n<5;n++)step(10,-177,176);expected=REVERSE;break;
+  case 9:for(unsigned n=0;n<50;n++)step(10,0,0);expected=STALL;break;
+  case 10:app()->route.start_ms=ms-160000U;expected=TIMEOUT;break;
+  case 11:app()->heading.angle=CarMath_WrapDegrees(app()->heading.reference+21);expected=YAW_BAD;break;
+  case 12:
+   app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+
+    app()->route.task3.diagonal_mm+app()->route.task3.config.entry_window_mm+1;
+   expected=LINE_BAD;break;
+  }
+  step(10,0,0);assert(app()->runtime.state==expected && a==0 && b==0);
+  assert(app()->wheel.items[0].integral==0 && app()->wheel.items[1].integral==0);
+  for(unsigned n=0;n<5;n++)step(10,0,0);
+  assert(app()->runtime.state==expected && a==0 && b==0);
+ }
+ puts("PASS: Task4-only 2200 cap, unchanged 1800/3000 mode isolation, PI anti-windup/release and zero target, real scheduler output above1800, all retained fault stops and no restart. Software only.");
+}
+
 int main(void)
 {
+ output_limit_regression();
  robust_regression();
  CarTask3Config c=CarTask4_Config();assert(CarTask3_ConfigValid(&c) && c.deadline_ms==80000U);
  assert(CarRoute_Task3Config().deadline_ms==40000U);

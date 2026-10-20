@@ -28,7 +28,7 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             state_text = wheel_state;
         }
         const char *title = "TASK 1 A->B";
-        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V13 ENTRY";
+        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V14 PWM22";
         else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V3 GYRO";
         else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
