@@ -85,10 +85,19 @@ for selected in modes:
     subprocess.run([str(size), str(elf)], check=True)
     symbols = subprocess.run([str(nm), str(elf)], check=True,
                              capture_output=True, text=True).stdout
+    if ' T CarEmergency_Stop\n' not in symbols:
+        raise SystemExit(selected + ': missing common emergency stop')
     if symbols.count(' T SysTick_Handler\n') != 1:
         raise SystemExit(selected + ': expected exactly one SysTick_Handler')
     disassembly = subprocess.run([str(objdump), '-d', str(elf)], check=True,
                                  capture_output=True, text=True).stdout
+    for fatal in ['NMI_Handler', 'HardFault_Handler', 'MemManage_Handler',
+                  'BusFault_Handler', 'UsageFault_Handler', 'Error_Handler']:
+        fatal_body = disassembly.split('<' + fatal + '>:', 1)[1].split('\n\n', 1)[0]
+        if 'CarEmergency_Stop' not in fatal_body:
+            raise SystemExit(selected + ': ' + fatal + ' bypasses emergency stop')
+        if fatal != 'Error_Handler' and ('push' in fatal_body or ' sp' in fatal_body):
+            raise SystemExit(selected + ': ' + fatal + ' unexpectedly uses the faulted stack')
     marker = '<SysTick_Handler>:'
     handler = disassembly.split(marker, 1)[1].split('\n\n', 1)[0]
     if 'HAL_IncTick' not in handler:

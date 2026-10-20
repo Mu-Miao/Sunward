@@ -36,6 +36,8 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
     if (o->reset_controllers || o->control == T3_HALT) {
         app->runtime.drive(0, 0);
         CarWheel_Clear(app);
+        /* 阶段停车和失线恢复会中断巡线采样，不能让旧微分/积分跨段复用。 */
+        CarHybrid_Reset(&app->line.hybrid);
     }
     if (o->control == T3_HOLD_HEADING) {
         app->heading.reference = o->heading_deg;

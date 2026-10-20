@@ -61,6 +61,7 @@ void CarLine_SetTargets(CarAppContext *app, uint32_t now, float base)
            故障锁存后必须重新满足启动条件，不自动搜线。 */
         app->runtime.drive(0, 0);
         CarWheel_Clear(app);
+        CarHybrid_Reset(&app->line.hybrid);
         app->route.targets[LEFT] = app->route.targets[RIGHT] = app->line.diff = 0.0f;
         if (!app->line.invalid_seen) { app->line.invalid_seen = 1U; app->line.invalid_ms = now; }
         else if ((uint32_t)(now - app->line.invalid_ms) >= DPT_LINE_INVALID_MS)

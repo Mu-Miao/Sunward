@@ -23,6 +23,7 @@ void CarApp_Stop(CarAppContext *app, TestState why, char faulty)
     uint8_t completed_route = why == DONE && app->runtime.state == BRAKING && (app->route.motion == MOVE_ROUTE || app->route.motion == MOVE_LINE || app->route.motion == MOVE_TASK2);
     app->runtime.drive(0, 0);
     CarWheel_Clear(app);
+    CarHybrid_Reset(&app->line.hybrid);
     CarSignal_Set(app, 0);
     app->route.switching = 0;
     if (app->heading.phase == Y_WARM || app->heading.phase == Y_CAL) app->heading.phase = Y_NONE;

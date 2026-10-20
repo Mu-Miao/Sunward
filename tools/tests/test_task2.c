@@ -237,6 +237,18 @@ static void near_arc_end(void){
  CarApp_TestContext()->heading.angle=CarMath_WrapDegrees(CarApp_TestContext()->route.start_heading+180);
 }
 int main(void){
+ /* Invalid line samples must discard hybrid history before reacquisition. */
+ setup();
+ CarApp_TestContext()->line.hybrid.previous_error=3.0f;
+ CarApp_TestContext()->line.hybrid.filtered_rate=12.0f;
+ CarApp_TestContext()->line.hybrid.integral=1.0f;
+ CarApp_TestContext()->line.hybrid.initialized=1U;
+ line_inputs=15;CarLine_Decode(CarApp_TestContext());
+ CarLine_SetTargets(CarApp_TestContext(),ms,200.0f);
+ assert(!CarApp_TestContext()->line.hybrid.initialized);
+ assert(CarApp_TestContext()->line.hybrid.previous_error==0.0f);
+ assert(CarApp_TestContext()->line.hybrid.filtered_rate==0.0f);
+ assert(CarApp_TestContext()->line.hybrid.integral==0.0f);
  /* Independent raw-pattern truth table retains the tuned LF polarity and signs. */
  const int valid[16]={0,1,0,1,0,0,0,1,1,1,0,1,1,1,1,0};
  for(unsigned mask=0;mask<16;mask++){

@@ -180,6 +180,7 @@ void CarRoute_UpdateTask2(CarAppContext *app, uint32_t now)
             ++app->route.leg;
             app->route.leg_start = travelled;
             CarWheel_Clear(app);
+            CarHybrid_Reset(&app->line.hybrid);
             app->signal.ms = now;
             CarSignal_Set(app, 1); /* 经过 B、C、D 时触发声光提示，提示本身不暂停路线执行。 */
             app->route.cruise = CarRoute_IsArc(app) ? DPT_LINE_CRUISE_MMPS : DPT_TASK2_STRAIGHT_MMPS;

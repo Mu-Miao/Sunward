@@ -111,6 +111,20 @@ static void reach_phase(CarTask3Phase phase)
 #endif
 int CAR_TASK3_TEST_MAIN(void)
 {
+ /* Phase HALT/reset and unified Stop both discard cross-segment hybrid state. */
+ setup();
+ app()->runtime.state=RUNNING;
+ app()->line.hybrid=(CarHybridState){.previous_error=3.0f,.filtered_rate=12.0f,
+     .integral=1.0f,.initialized=1U};
+ CarTask3Output reset={.control=T3_HALT,.reset_controllers=1U};
+ CarTask3Port_Apply(app(),&reset,ms);
+ assert(!app()->line.hybrid.initialized && app()->line.hybrid.previous_error==0.0f &&
+     app()->line.hybrid.filtered_rate==0.0f && app()->line.hybrid.integral==0.0f);
+ app()->line.hybrid=(CarHybridState){.previous_error=-3.0f,.filtered_rate=-12.0f,
+     .integral=-1.0f,.initialized=1U};
+ CarApp_Stop(app(),STOPPED,'-');
+ assert(!app()->line.hybrid.initialized && app()->line.hybrid.previous_error==0.0f &&
+     app()->line.hybrid.filtered_rate==0.0f && app()->line.hybrid.integral==0.0f);
  task3_start();
  assert(app()->route.task3.phase==T3_START_ALIGN && app()->route.task3.leg==0);
  assert(fabsf(app()->route.task3.start_heading_deg + 38.65981f)<0.01f);

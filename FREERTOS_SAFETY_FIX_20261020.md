@@ -13,14 +13,18 @@
 
 ## 致命故障停车
 
-`CarRTOS_FatalStop()` 不调用调度器、堆分配、HAL 延时或串口：
+`CarEmergency_Stop()` 是不使用当前栈的裸汇编入口，不调用调度器、堆分配、HAL 延时或串口：
 
 1. 首先关中断；
 2. 直接将 TIM3 CCR1至CCR4 写为 `ARR+1`，与现有 `Lab_MotorRawAB(0, 0)` 的双桥制动状态一致；
 3. 直接写 EGR.UG，使预装载比较值立即进入活动寄存器；
 4. 执行 DSB/ISB 后死循环。
 
-FreeRTOS `configASSERT`、malloc 失败、栈溢出和调度器异常返回全部进入该路径。
+NMI、HardFault、MemManage、BusFault、UsageFault 使用无栈分支进入该入口；`Error_Handler`、FreeRTOS `configASSERT`、malloc 失败、栈溢出和调度器异常返回也全部进入同一路径。构建脚本会检查最终 ELF 中每个异常入口都引用紧急停车，并确认 CPU fault 包装器不生成栈访问。
+
+## 混合控制器状态边界
+
+统一停车、无效循线样本、任务二直线/半圆交接，以及任务三/四的 HALT/控制器复位都会同步调用 `CarHybrid_Reset()`。重新捕线和进入下一弧段时不再把数百毫秒前的误差按当前 10ms 周期计算微分，也不会沿用上一段的积分。
 
 ## RTOS/裸机双构建
 
@@ -34,6 +38,6 @@ STM32CubeIDE Arm GCC 14.3.1 验证结果：
 | 配置 | Flash text+data | RAM data+bss | 结果 |
 | --- | ---: | ---: | --- |
 | RTOS | 80,592 B | 18,400 B | 编译、链接、符号/反汇编检查通过 |
-| baremetal | 75,288 B | 5,832 B | 编译、链接、无 FreeRTOS port 符号 |
+| baremetal | 75,360 B | 5,832 B | 编译、链接、无 FreeRTOS port 符号 |
 
 同次验证中，LQR/PID 单测、SysTick 交接单测和 14 组主机回归均在 ASan/UBSan 下通过。本记录不代表已烧录或实车验收。
