@@ -14,7 +14,7 @@ root = args.project.resolve()
 tests = Path(__file__).resolve().parent
 modules = sorted(p for p in (root / 'Core/Src').glob('car_*.c')
                  if p.name != 'car_rtos.c')
-assert len(modules) == 16, 'Expected all 16 host-testable car modules in Core/Src'
+assert len(modules) == 17, 'Expected all 17 host-testable car modules in Core/Src'
 assert not any('#include' in line and '.c"' in line
                for path in modules for line in path.read_text().splitlines())
 flags = [os.environ.get('CC', 'cc'), '-std=c11', '-Wall', '-Wextra', '-Werror',
@@ -35,6 +35,12 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                             '-o', boundary], check=True)
     result = subprocess.run([boundary], capture_output=True, text=True, check=True)
     print('rtos_boundary: ' + result.stdout.strip())
+    run_log = str(Path(folder) / 'run_log')
+    subprocess.run(flags + [str(tests / 'test_run_log.c'),
+                            str(root / 'Core/Src/car_run_log.c'),
+                            '-lm', '-o', run_log], check=True)
+    result = subprocess.run([run_log], capture_output=True, text=True, check=True)
+    print('run_log: ' + result.stdout.strip())
     for suite in ['motion', 'task2', 'task3', 'task4', 'seek', 'turn', 'heading']:
         for public in [False, True]:
             name = suite + ('_car_app' if public else '_legacy_api')
@@ -52,4 +58,4 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                 print(result.stdout + result.stderr, flush=True)
                 result.check_returncode()
             print(name + ': ' + result.stdout.strip())
-print('PASS: hybrid and SysTick boundary units; motion/task2/task3/task4/seek/turn/heading regressions; CarApp and compatibility APIs; separate module linkage.')
+print('PASS: hybrid, SysTick and run-log units; motion/task2/task3/task4/seek/turn/heading regressions; CarApp and compatibility APIs; separate module linkage.')

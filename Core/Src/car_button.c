@@ -61,6 +61,11 @@ void CarButton_Handle(CarAppContext *app, uint32_t now, int enabled, uint8_t was
                 CarApp_Stop(app, STOPPED, '-');
                 (*stop_requested) = 1;
                 app->button.action = KEY_STOP;
+            } else if (key_pressed == KEY_EVENT_HOLD && !enabled && CarRunLog_IsFrozen()) {
+                /* 故障后 OFF 长按：首次分帧导出，导出完成后再长按才清理。 */
+                if (CarRunLog_IsExported()) CarRunLog_Clear(now);
+                else CarRunLog_RequestDump();
+                app->button.action = KEY_LOG;
             } else if (key_pressed == KEY_EVENT_HOLD && !enabled && !app->heading.cal_requested) {
                 CarRoute_Select(app, app->button.selected_motion == MOVE_ROUTE ? MOVE_LINE : (app->button.selected_motion == MOVE_LINE ? MOVE_TASK2 : (app->button.selected_motion == MOVE_TASK2 ? MOVE_TASK3 : (app->button.selected_motion == MOVE_TASK3 ? MOVE_TASK4 : MOVE_ROUTE))), now);
                 (*requested) = MOVE_NONE;

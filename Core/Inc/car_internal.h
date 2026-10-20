@@ -5,6 +5,7 @@
 #include "car_math.h"
 #include "car_state.h"
 #include "car_wheel.h"
+#include "car_run_log.h"
 void CarApp_Stop(CarAppContext *app, TestState why, char faulty);
 #include "car_button.h"
 #include "car_route.h"

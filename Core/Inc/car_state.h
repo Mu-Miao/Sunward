@@ -19,7 +19,7 @@ static inline int CarMotion_IsFigureEight(Motion motion)
     return motion == MOVE_TASK3 || motion == MOVE_TASK4;
 }
 typedef enum { Y_NONE, Y_WARM, Y_CAL, Y_READY, Y_FAIL } YawPhase;
-typedef enum { KEY_NONE, KEY_CAL, KEY_START, KEY_STOP, KEY_WAIT, KEY_BLOCK, KEY_MODE } KeyAction;
+typedef enum { KEY_NONE, KEY_CAL, KEY_START, KEY_STOP, KEY_WAIT, KEY_BLOCK, KEY_MODE, KEY_LOG } KeyAction;
 typedef enum { KEY_EVENT_NONE, KEY_EVENT_SHORT, KEY_EVENT_HOLD } KeyEvent;
 typedef struct {
     TIM_HandleTypeDef *encoder;

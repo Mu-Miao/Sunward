@@ -123,6 +123,15 @@ static float speed(const CarTask3 *r, const CarTask3Input *i, float cruise, floa
     return fminf(v, ramp);
 }
 
+static void seek_line(const CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
+{
+    float travel = fmaxf(i->distance_mm - r->lost_start_mm, 0.0f);
+    o->control = T3_SEEK_LINE;
+    o->base_mmps = r->config.seek_mmps;
+    o->heading_deg = wrap(r->lost_yaw_deg + (r->leg == 1U ? 1.0f : -1.0f) *
+        travel / r->config.radius_mm * 57.2957795131f);
+}
+
 int CarTask3_ConfigValid(const CarTask3Config *c) { return c && config_valid(c); }
 
 CarTask3Config CarTask3_DefaultConfig(void)
@@ -229,7 +238,9 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                 r->gap_seek = r->loss_seek &&
                     ((r->leg == 3U && r->arc_outer_valid && r->config.da_outer_gap) ||
                      (r->arc_side_valid && r->config.history_gap));
-                o->reset_controllers = 1U;
+                /* 有可信弧段历史时不在第一帧全白上刹停。后续用冻结
+                   方向低速跨过探头盲区；无历史或异常黑块仍立即停车。 */
+                if (!r->loss_seek) o->reset_controllers = 1U;
             }
             if (r->lost_seen && !i->line_valid && i->black_count != 0U) r->loss_seek = r->gap_seek = 0U;
             uint32_t budget = r->loss_seek ? r->config.white_seek_ms : r->config.lost_ms;
@@ -255,10 +266,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                 r->recovery_seen = 0U;
                 if (r->loss_seek) {
                     /* 全白且本弧段有有效历史才允许低速桥接；不把 1111 伪装成有效线。 */
-                    o->control = T3_SEEK_LINE;
-                    o->base_mmps = r->config.seek_mmps;
-                    o->heading_deg = wrap(r->lost_yaw_deg + (r->leg == 1U ? 1.0f : -1.0f) *
-                        fmaxf(loss_travel, 0.0f) / r->config.radius_mm * 57.2957795131f);
+                    seek_line(r, i, o);
                 } else o->reset_controllers = 1U;
             } else {
                 int recovered = !r->lost_seen || r->config.recovery_ms == 0U;
@@ -266,7 +274,12 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                     if (!r->recovery_seen) { r->recovery_seen = 1U; r->recovery_start_ms = i->now_ms; }
                     recovered = (uint32_t)(i->now_ms - r->recovery_start_ms) >= r->config.recovery_ms;
                 }
-                if (!recovered) o->reset_controllers = 1U;
+                /* 重新见线后仍需连续确认，但确认期沿冻结方向继续低速走，
+                   不再每次跨探头间隙都刹停 30 ms。 */
+                if (!recovered) {
+                    if (r->loss_seek) seek_line(r, i, o);
+                    else o->reset_controllers = 1U;
+                }
                 else {
                     if (r->lost_seen) { r->resume_active = 1U; r->resume_ms = i->now_ms; }
                     r->lost_seen = r->recovery_seen = r->loss_seek = r->gap_seek = 0U;

@@ -82,7 +82,19 @@ nm = Path(compiler).with_name('arm-none-eabi-nm')
 objdump = Path(compiler).with_name('arm-none-eabi-objdump')
 for selected in modes:
     elf = build(selected)
-    subprocess.run([str(size), str(elf)], check=True)
+    size_result = subprocess.run([str(size), str(elf)], check=True,
+                                 capture_output=True, text=True)
+    print(size_result.stdout, end='')
+    fields = size_result.stdout.splitlines()[1].split()
+    text_bytes, data_bytes, bss_bytes = map(int, fields[:3])
+    flash_bytes = text_bytes + data_bytes
+    ram_bytes = data_bytes + bss_bytes
+    if flash_bytes > 224 * 1024:
+        raise SystemExit(selected + ': flash headroom below 32 KiB')
+    if ram_bytes > 36 * 1024:
+        raise SystemExit(selected + ': static RAM headroom below 12 KiB')
+    print(f'PASS: {selected} resources FLASH={flash_bytes}/262144 '
+          f'RAM={ram_bytes}/49152 bytes')
     symbols = subprocess.run([str(nm), str(elf)], check=True,
                              capture_output=True, text=True).stdout
     if ' T CarEmergency_Stop\n' not in symbols:

@@ -373,6 +373,10 @@ int main(void){
  assert(strlen(oled_lines[2])<=21);
  cmd("STOP!");assert(CarApp_TestContext()->route.elapsed_ms==300);
  assert(sizeof CarCommand_Banner-1<=160);
+ /* The only software-readable PA0 key exports a frozen log on OFF long-hold. */
+ setup();g_car_run_log.count=1;g_car_run_log.frozen=1;g_car_run_log.reason=LINE_LOST;
+ release_key();key_input=1;for(int i=0;i<154;i++)step(10,0,0);release_key();
+ assert(CarApp_TestContext()->button.action==KEY_LOG && (g_car_run_log.dump_stage!=0 || g_car_run_log.exported));
  (void)head;
  puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
  printf("TRACE hash=%016llx events=%llu\n",(unsigned long long)trace_hash,(unsigned long long)trace_events);

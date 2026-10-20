@@ -64,12 +64,18 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
             app->route.base = (app->route.targets[LEFT] + app->route.targets[RIGHT]) * 0.5f;
         }
     } else if (o->control == T3_SEEK_LINE) {
-        /* 仅核心已授权的弧段全白桥接；不调用正常巡线接口，也不伪造 valid。 */
+        /* 仅核心已授权的弧段桥接。全白时搜线；重新见线的30ms
+           确认期仍沿冻结方向运行，确认后才交回 LQR/PID。 */
+        int white_seek = !app->line.valid && app->line.count == 0U;
+        int confirming = app->line.valid && app->route.task3.lost_seen &&
+            app->route.task3.recovery_seen;
         if (app->route.task3.phase != T3_ARC || !app->route.task3.loss_seek ||
             !app->route.task3.arc_valid_seen || !app->route.task3_trace.valid_seen ||
-            app->line.valid || app->line.count != 0U) {
+            (!white_seek && !confirming)) {
             app->runtime.drive(0, 0); CarWheel_Clear(app); return;
         }
+        /* 避免重新交线时将跨缝前的离散误差当成当前微分。 */
+        CarHybrid_Reset(&app->line.hybrid);
         float base = fminf(o->base_mmps, 50.0f);
         float heading = CarMath_WrapDegrees(o->heading_deg - app->heading.angle);
         float last_error = app->route.task3_trace.valid_error;

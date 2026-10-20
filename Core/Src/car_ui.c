@@ -29,7 +29,7 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         }
         const char *title = "TASK 1 A->B";
         if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V11 FAST";
-        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V3 GYRO";
+        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V4 SMOOTH";
         else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
         else if (app->route.motion == MOVE_DISTANCE) title = "TEST GO20";
@@ -317,7 +317,7 @@ void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
     }
     CarSignal_UpdateReady(app, now);
     if ((uint32_t)(now - app->ui.button_log_ms) >= 1000U) {
-        static const char *const actions[] = {"-", "CAL", "START", "STOP", "WAIT", "BLOCK", "MODE"};
+        static const char *const actions[] = {"-", "CAL", "START", "STOP", "WAIT", "BLOCK", "MODE", "LOG"};
         char msg[96];
         int n = snprintf(msg, sizeof msg, "KEY EN=%u RAW=%u ARM=%u EVT=%lu ACT=%s %s\r\n",
             (unsigned)enabled, (unsigned)app->button.raw, (unsigned)app->button.armed,

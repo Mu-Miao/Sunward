@@ -23,6 +23,10 @@ CarTask3Config CarRoute_Task3Config(void)
     c.white_seek_ms = DPT_TASK3_WHITE_SEEK_MS;
     c.white_seek_mm = DPT_TASK3_WHITE_SEEK_MM; c.white_seek_deg = DPT_TASK3_WHITE_SEEK_DEG;
     c.seek_mmps = DPT_TASK3_SEEK_MMPS;
+    /* 四路数字探头在弯道上会经过相邻通道的物理盲区。
+       只有本弧段已见到可信单探头时，才允许沿冻结方向使用较大跨缝边界。 */
+    c.history_gap = 1U;
+    c.da_gap_mm = DPT_TASK3_GAP_MM; c.da_gap_deg = DPT_TASK3_GAP_DEG;
     c.vertex_seek_ms = DPT_TASK3_VERTEX_SEEK_MS; c.vertex_seek_mm = DPT_TASK3_VERTEX_SEEK_MM;
     c.recovery_ms = 30U;
     c.settle_ms = DPT_DISTANCE_SETTLE_MS; c.brake_timeout_ms = DPT_DISTANCE_BRAKE_TIMEOUT_MS;
@@ -149,6 +153,7 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
             app->route.run_duration = requested == MOVE_TASK4 ? DPT_TASK4_TIMEOUT_MS : config.deadline_ms;
         }
         app->runtime.state = RUNNING;
+        CarRunLog_BeginRun(app, now);
     }
 }
 

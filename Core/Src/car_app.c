@@ -11,6 +11,7 @@ CarAppContext *CarApp_TestContext(void) { return &instance; }
 
 void CarApp_Stop(CarAppContext *app, TestState why, char faulty)
 {
+    CarRunLog_OnStop(app, why, HAL_GetTick());
     if (why == REVERSE && CarMotion_IsFigureEight(app->route.motion)) {
         app->route.reverse_trace.seen = 1U;
         app->route.reverse_trace.phase = (uint8_t)app->route.task3.phase;
@@ -171,6 +172,7 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     app->line.center_ms = app->line.sample_ms = app->line.invalid_ms = now;
     app->line.error = app->line.diff = 0.0f;
     CarHybrid_Reset(&app->line.hybrid);
+    CarRunLog_Init(now);
     if (LabUART_Begin(u) != HAL_OK) return HAL_ERROR;
     if (!LabUART_TryWrite(CarCommand_Banner, sizeof CarCommand_Banner - 1U)) return HAL_ERROR;
     app->command.inputs[LAB_UART_USB].ms = now;
@@ -280,6 +282,8 @@ void CarApp_Poll(uint32_t tick10_count)
         app->runtime.old_cycles = cycles; app->runtime.old_tick = tick10_count; app->runtime.old_ms = now;
     }
 
+    CarRunLog_Poll(app, now);
+    CarRunLog_Service(app);
     CarUI_Log(app, now, enabled);
     CarUI_UpdateOLED(app, now, enabled);
 

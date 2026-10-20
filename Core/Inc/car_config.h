@@ -118,10 +118,12 @@
 #define DPT_TASK3_TURN_TIMEOUT_MS 4000U
 #define DPT_TASK3_CAPTURE_TIMEOUT_MS 2000U
 /* 任务三、四受限寻线初值；车身投影是否仍覆盖黑线必须实车确认。 */
-#define DPT_TASK3_WHITE_SEEK_MS 300U
+#define DPT_TASK3_WHITE_SEEK_MS 500U
 #define DPT_TASK3_WHITE_SEEK_MM 20.0f
 #define DPT_TASK3_WHITE_SEEK_DEG 12.0f
 #define DPT_TASK3_SEEK_MMPS 40.0f
+#define DPT_TASK3_GAP_MM 35.0f
+#define DPT_TASK3_GAP_DEG 18.0f
 #define DPT_TASK3_VERTEX_SEEK_MS 3000U
 #define DPT_TASK3_VERTEX_SEEK_MM 80.0f
 #define DPT_TASK3_TURN_SLOW_DEG 15.0f
@@ -132,7 +134,8 @@
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。
  * 已授权的全白桥接使用下方 500 毫秒预算；恢复需连续有效 30 毫秒。
- * 普通桥接受 20 毫米/12 度约束；DA 外侧交接使用下方独立边界。任务三保持 300 毫秒。
+ * 普通桥接受 20 毫米/12 度约束；可信单探头交接使用 35 毫米/18 度边界。
+ * 任务三、四的授权全白搜线均最长 500 毫秒。
  * 下列数值为待实车验证的容错初值，不改变任务三和全局 PI 标定。 */
 #define DPT_TASK4_LOST_MS 200U
 #define DPT_TASK4_WHITE_SEEK_MS 500U
