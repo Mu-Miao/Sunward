@@ -34,6 +34,8 @@
 #include "yaw_diag.h"
 #include "wheel_speed_diag.h"
 #include "car_app.h"
+#include "car_config.h"
+#include "car_rtos.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -459,10 +461,12 @@ int main(void)
 }
 __HAL_TIM_SET_COUNTER(&htim2, 0U);
 __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_UPDATE);
+#if !CAR_USE_FREERTOS
 if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK) {
     Lab_Write("TIM2 start FAIL\r\n");
     Error_Handler();
 }
+#endif
 if (HAL_ADCEx_Calibration_Start(&hadc1) != HAL_OK) {
     Lab_Write("ADC calibration FAIL\r\n");
     Error_Handler();
@@ -489,6 +493,13 @@ if (CarApp_EnableBluetooth(&huart3) != HAL_OK) {
     Error_Handler();
 }
 CarApp_EnableHeading(lab_mpu_ready);
+#if CAR_USE_FREERTOS
+if (!CarRTOS_Start()) {
+    Lab_MotorRawAB(0, 0);
+    Lab_Write("FreeRTOS start FAIL\r\n");
+    Error_Handler();
+}
+#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -507,7 +518,9 @@ CarApp_EnableHeading(lab_mpu_ready);
   //   Lab_PrintBatteryRaw();
   //   Lab_PrintMPURaw();
   // }
+#if !CAR_USE_FREERTOS
   CarApp_Poll(lab_tick10_count);
+#endif
   // YawDiag_Poll();
   
 }

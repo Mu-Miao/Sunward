@@ -84,7 +84,9 @@ static void robust_regression(void)
     outer-probe slowdown is independently retained below. */
  robust_arc();line_inputs=11;step(10,177,176);
  assert(fabsf(app()->route.base-220)<.01f);
- assert(fabsf(app()->route.targets[0]-149.6f)<.01f && fabsf(app()->route.targets[1]-290.4f)<.01f);
+ assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+ assert(app()->route.targets[0]<app()->route.targets[1]);
+ assert(fabsf(app()->route.targets[0]+app()->route.targets[1]-440.0f)<.01f);
  c.recovery_ms=29;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.recovery_ms=c.lost_ms;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.lost_ms=251;assert(!CarTask3_ConfigValid(&c));

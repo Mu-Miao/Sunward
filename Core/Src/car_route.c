@@ -15,6 +15,7 @@ CarTask3Config CarRoute_Task3Config(void)
     c.arc_acceleration_mmps2 = DPT_TASK3_ARC_ACCEL_MMPS2;
     c.approach_mm = DPT_TASK3_APPROACH_MM; c.minimum_mmps = DPT_TASK3_MIN_MMPS;
     c.turn_mmps = DPT_TASK3_TURN_MMPS; c.capture_mmps = DPT_TASK3_CAPTURE_MMPS;
+    c.align_tolerance_deg = DPT_TASK3_ALIGN_TOLERANCE_DEG;
     c.deadline_ms = DPT_TASK3_TIMEOUT_MS;
     c.entry_window_mm = DPT_TASK3_ENTRY_WINDOW_MM; c.exit_window_mm = DPT_TASK3_EXIT_WINDOW_MM;
     c.turn_travel_limit_mm = DPT_TASK3_TURN_LIMIT_MM; c.capture_limit_mm = DPT_TASK3_CAPTURE_LIMIT_MM;
@@ -58,6 +59,7 @@ void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now)
             2.0f * (hypotf(DPT_TASK3_SPAN_MM, 2.0f * DPT_TASK3_RADIUS_MM) + DPT_TASK3_ARC_MM);
     app->line.center_seen = app->line.center_ready = app->line.invalid_seen = 0U;
     app->line.diff = 0.0f;
+    CarHybrid_Reset(&app->line.hybrid);
     app->ui.button_log_ms = now - 1000U;
     app->ui.render_ms = now - 200U;
 }
@@ -115,6 +117,7 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
             app->route.base = requested == MOVE_TASK2 ? DPT_ROUTE_START_MMPS : requested == MOVE_ROUTE ? DPT_ROUTE_START_MMPS : (requested == MOVE_LINE ? DPT_LINE_START_MMPS : DPT_TARGET_MMPS);
             app->line.invalid_seen = 0U;
             app->line.diff = 0.0f;
+            CarHybrid_Reset(&app->line.hybrid);
             app->route.targets[LEFT] = app->route.targets[RIGHT] = app->route.base;
             app->route.tracking = 1;
             app->route.settle_seen = 0;

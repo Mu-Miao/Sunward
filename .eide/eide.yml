@@ -16,6 +16,7 @@ virtualFolder:
         - path: Core/Src/car_button.c
         - path: Core/Src/car_command.c
         - path: Core/Src/car_heading.c
+        - path: Core/Src/car_hybrid.c
         - path: Core/Src/car_line.c
         - path: Core/Src/car_pi.c
         - path: Core/Src/car_power.c
@@ -26,6 +27,14 @@ virtualFolder:
         - path: Core/Src/car_signal.c
         - path: Core/Src/car_ui.c
         - path: Core/Src/car_wheel.c
+        - path: Core/Src/car_rtos.c
+    - name: FreeRTOS-Kernel
+      files:
+        - path: Middlewares/Third_Party/FreeRTOS-Kernel/list.c
+        - path: Middlewares/Third_Party/FreeRTOS-Kernel/queue.c
+        - path: Middlewares/Third_Party/FreeRTOS-Kernel/tasks.c
+        - path: Middlewares/Third_Party/FreeRTOS-Kernel/portable/GCC/ARM_CM3/port.c
+        - path: Middlewares/Third_Party/FreeRTOS-Kernel/portable/MemMang/heap_4.c
       folders: []
 dependenceList: []
 outDir: build
@@ -44,12 +53,15 @@ targets:
         - Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
         - Drivers/CMSIS/Device/ST/STM32F1xx/Include
         - Drivers/CMSIS/Include
+        - Middlewares/Third_Party/FreeRTOS-Kernel/include
+        - Middlewares/Third_Party/FreeRTOS-Kernel/portable/GCC/ARM_CM3
       libList: []
     excludeList:
       - Core/Src/car_app.c
       - Core/Src/car_button.c
       - Core/Src/car_command.c
       - Core/Src/car_heading.c
+      - Core/Src/car_hybrid.c
       - Core/Src/car_line.c
       - Core/Src/car_pi.c
       - Core/Src/car_power.c
@@ -60,6 +72,7 @@ targets:
       - Core/Src/car_signal.c
       - Core/Src/car_ui.c
       - Core/Src/car_wheel.c
+      - Core/Src/car_rtos.c
     settings: {}
     toolchain: GCC
     toolchainConfigMap:
@@ -83,7 +96,7 @@ targets:
             optimization: level-debug
             warnings: all-warnings
           global:
-            $float-abi-type: hard
+            $float-abi-type: soft
             misc-control: []
             not-use-syscalls: true
             output-debug-info: enable
@@ -144,12 +157,15 @@ targets:
         - Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
         - Drivers/CMSIS/Device/ST/STM32F1xx/Include
         - Drivers/CMSIS/Include
+        - Middlewares/Third_Party/FreeRTOS-Kernel/include
+        - Middlewares/Third_Party/FreeRTOS-Kernel/portable/GCC/ARM_CM3
       libList: []
     excludeList:
       - Core/Src/car_app.c
       - Core/Src/car_button.c
       - Core/Src/car_command.c
       - Core/Src/car_heading.c
+      - Core/Src/car_hybrid.c
       - Core/Src/car_line.c
       - Core/Src/car_pi.c
       - Core/Src/car_power.c
@@ -160,6 +176,7 @@ targets:
       - Core/Src/car_signal.c
       - Core/Src/car_ui.c
       - Core/Src/car_wheel.c
+      - Core/Src/car_rtos.c
     settings: {}
     toolchain: GCC
     toolchainConfigMap:
@@ -183,7 +200,7 @@ targets:
             optimization: level-debug
             warnings: all-warnings
           global:
-            $float-abi-type: hard
+            $float-abi-type: soft
             misc-control: []
             not-use-syscalls: true
             output-debug-info: enable

@@ -2,6 +2,9 @@
 #define CAR_CONFIG_H
 #include "stm32f1xx_hal.h"
 
+/* 1：FreeRTOS 10ms 周期任务；0：保留 TIM2+前台轮询回退路径。 */
+#define CAR_USE_FREERTOS 1U
+
 /* 集中保存现有标定值和调试参数，DPT_ 命名与原操作记录对应。
  * 参数调整统一在本文件进行，避免各模块分别保存不同数值。 */
 
@@ -67,6 +70,18 @@
 #define DPT_LINE_TIMEOUT_MS 45000U
 #define DPT_LINE_CENTER_MS 100U
 #define DPT_LINE_INVALID_MS 100U
+/* 巡线上层混合控制。LQR 用离线固定增益，PID 补偿 LF04 的离散量化与安装偏差。
+ * 这些是保守的上车初值，不是已辨识车模的最优解；调参流程见 FREERTOS_LQR_PID_TESTING.md。 */
+#define DPT_HYBRID_ENABLE 1U
+#define DPT_HYBRID_LQR_LINE_K 22.0f
+#define DPT_HYBRID_LQR_RATE_K 0.050f
+#define DPT_HYBRID_LQR_YAW_K 0.80f
+#define DPT_HYBRID_PID_KP 20.0f
+#define DPT_HYBRID_PID_KI 3.0f
+#define DPT_HYBRID_PID_KD 0.020f
+#define DPT_HYBRID_LQR_WEIGHT 0.65f
+#define DPT_HYBRID_RATE_FILTER 0.25f
+#define DPT_HYBRID_INTEGRAL_LIMIT 1.0f
 /* 任务二路线：AB 直线、BC 半圆、CD 直线、DA 半圆；正常运行无需遥控。 */
 #define DPT_TASK2_STRAIGHT_MM 1000.0f
 #define DPT_TASK2_ARC_MM 1256.0f /* 实测 BC 半圆全白出口对应平均编码器里程约 1256 毫米，独立半圆测试参数保持原值。 */
@@ -89,7 +104,9 @@
 #define DPT_TASK3_APPROACH_MM 100.0f
 #define DPT_TASK3_MIN_MMPS 60.0f /* 捕获黑线阶段仍使用独立的 50 毫米/秒速度。 */
 #define DPT_TASK3_TURN_MMPS 80.0f
-/* A/B/C/D 均使用完整几何目标，不再叠加少转角度。 */
+/* 车身投影只需覆盖黑线；转向从单一方向逼近时，首次进入 3 度窗口即停，
+ * 通常会比完整几何角少转约 3 度，为探头/车身投影留容错。 */
+#define DPT_TASK3_ALIGN_TOLERANCE_DEG 3.0f
 #define DPT_TASK3_CAPTURE_MMPS 50.0f
 #define DPT_TASK3_TIMEOUT_MS 40000U
 #define DPT_TASK3_ENTRY_WINDOW_MM 120.0f

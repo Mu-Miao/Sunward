@@ -107,7 +107,7 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
         DPT_MANUAL_MMPS > DPT_MANUAL_MAX_MMPS ||
         DPT_MANUAL_MAX_CMD <= 0 || DPT_MANUAL_MAX_CMD > 3000 ||
         DPT_MANUAL_DURATION_MS < 1000U || DPT_MANUAL_DURATION_MS > 30000U) return HAL_ERROR;
-    if (!CarWheel_ConfigValid()) return HAL_ERROR;
+    if (!CarWheel_ConfigValid() || !CarHybrid_ConfigValid()) return HAL_ERROR;
     if (!CarHeading_ConfigValid()) return HAL_ERROR;
     if (!(DPT_TASK4_DA_GAP_OUTER_MMPS > 0.0f && DPT_TASK4_DA_GAP_OUTER_MMPS <= 140.0f) ||
         !(DPT_TASK4_DA_GAP_INNER_MMPS > 0.0f && DPT_TASK4_DA_GAP_INNER_MMPS < DPT_TASK4_DA_GAP_OUTER_MMPS)) return HAL_ERROR;
@@ -169,6 +169,7 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     app->line.valid = app->line.count = app->line.center_seen = app->line.center_ready = app->line.invalid_seen = 0U;
     app->line.center_ms = app->line.sample_ms = app->line.invalid_ms = now;
     app->line.error = app->line.diff = 0.0f;
+    CarHybrid_Reset(&app->line.hybrid);
     if (LabUART_Begin(u) != HAL_OK) return HAL_ERROR;
     if (!LabUART_TryWrite(CarCommand_Banner, sizeof CarCommand_Banner - 1U)) return HAL_ERROR;
     app->command.inputs[LAB_UART_USB].ms = now;

@@ -2,6 +2,8 @@
 
 基于 **STM32F103RCT6 / STM32 HAL** 的双轮小车固件，包含轮速 PI 闭环、编码器里程、MPU6050 航向保持、LF04 巡线，以及任务一至四的路线控制。
 
+> `feature/freertos-lqr-pid` 是基于 V11 FAST 的实验分支：已加入 FreeRTOS 10ms 周期调度与 LQR/PID 巡线上层，但尚未完成实车重新验收。架构、公式、构建和上车顺序见 [FreeRTOS + LQR/PID 测试说明](FREERTOS_LQR_PID_TESTING.md)。
+
 ## 最新实测（2026-10-18）
 
 **任务四 V11 FAST 已完成一次四圈实测，固件计时 149.606 秒（2 分 29.606 秒）。** 用户现场确认顺利完成，pyOCD 同步记录如下：
@@ -24,7 +26,7 @@
 - 任务三屏幕标题：`TASK 3 V3 GYRO`。
 - 任务四屏幕标题：`TASK 4 V11 FAST`。
 - 仅任务四正常直线240→250mm/s、正常巡线200→220mm/s；任务一至三不提速。转向、捕线、寻线、边缘降速和终点降速规则保留。
-- 删除任务三、四共用的少转5°偏移：A启动对正AC，B对正BD，C/D捕线及顶点搜线使用完整切线。各点对正容差统一为±3°，保留停稳复核。
+- 删除原来固定少转5°偏移，仍以完整几何切线为参考；转向从单一方向首次进入±3°容差窗口即制动，通常形成约3°的可控少转容错，并保留停稳复核。
 - `DPT_HEADING_FUSION_ENABLE=0`：任务三、四均不学习或扣除在线零偏，转向与直线使用同一份静态CAL后的陀螺积分。保留160mm轮距和融合内核用于后续分析，FUS诊断输出`EN=0`；正常重新CAL后Y/G接近一致、B=0。
 - 任务四在 B 点对正完整 BD 航向、D 点对正完整 DA 切线，均达到 ±3°并停稳后才前进；D 点在原终点窗口内停车并连续确认有效线，不再强制前置探头等到完整车轴几何里程才认线。
 - 按 LF04 的 33/14.5/33 mm 探头间距、约45 mm前伸和19 mm线宽，任务四 CB/DA 的可信内外单探头全白交接使用独立桥接；仍限500 ms，角度/位移边界为18°/35 mm，恢复需连续有效30 ms。其他普通桥接保留原12°/20 mm。
@@ -43,6 +45,8 @@
 | `Core/Src/car_wheel.c` / `car_pi.c` | 编码器反馈和轮速闭环 |
 | `Core/Src/car_heading.c` | 静态校准、航向融合与积分 |
 | `Core/Src/car_line.c` | LF04 图样判定与巡线 |
+| `Core/Src/car_hybrid.c` | LQR/PID 混合差速控制 |
+| `Core/Src/car_rtos.c` / `FreeRTOSConfig.h` | 10ms 控制任务和 RTOS 配置 |
 | `Core/Src/car_route.c` | 运动模式、距离控制与路线衔接 |
 | `Core/Src/car_task3.c` / `car_task3_port.c` / `car_task4.c` | 任务三、四状态机及整车适配 |
 | `Core/Src/car_button.c` / `car_command.c` / `car_ui.c` | 按键、调试命令、OLED 和遥测 |
@@ -56,10 +60,11 @@
 
 ## 构建
 
-1. 安装 VS Code、Embedded IDE（`cl.eide`）及 Arm GNU 工具链。
-2. 打开 `Sunward.code-workspace`，在 EIDE 中配置工具链路径并选择 **Debug**。
-3. 执行 **Rebuild**，输出位于 `build/Debug/`：`Sunward.elf`、`Sunward.hex` 和链接映射文件。
-4. 如需下载，在 EIDE 中配置对应调试器；当前 Debug 使用 pyOCD / CMSIS-DAP / SWD，目标为 `stm32f103rc`、速度 4 MHz。下载文件选择 `build/Debug/Sunward.hex`；当前工程的下载文件配置为空，需手动选择。
+1. 初次克隆执行 `git submodule update --init`，取得仓库锁定的 FreeRTOS Kernel。
+2. 安装 VS Code、Embedded IDE（`cl.eide`）及 Arm GNU 工具链。
+3. 打开 `Sunward.code-workspace`，在 EIDE 中配置工具链路径并选择 **Debug**。
+4. 执行 **Rebuild**，或在终端运行 `python3 tools/build_firmware.py`。
+5. 如需下载，在 EIDE 中配置对应调试器；当前 Debug 使用 pyOCD / CMSIS-DAP / SWD，目标为 `stm32f103rc`、速度 4 MHz。
 
 固件从 `Core/` 和 `Drivers/` 构建；`tools/tests/` 的模拟 HAL 仅用于主机测试，不应加入固件包含路径。`build/` 为本地产物，不提交到 Git。
 
@@ -93,7 +98,7 @@ python3 tools/tests/run_tests.py
 python3 tools/tests/run_tests.py --sanitize
 ```
 
-共 7 类场景，分别经过 `CarApp` 和旧兼容 API 两套入口，共 **14 组回归**，覆盖运动、任务二至四、寻线、转向、航向融合及故障保护。`--sanitize` 需要编译器支持 AddressSanitizer 和 UndefinedBehaviorSanitizer。测试产物放在临时目录，结束后自动清理。
+首先运行混合控制器单元测试，再将 7 类场景分别经过 `CarApp` 和旧兼容 API 两套入口，共 **14 组回归**。`--sanitize` 需要编译器支持 AddressSanitizer 和 UndefinedBehaviorSanitizer。
 
 ## 调试记录
 

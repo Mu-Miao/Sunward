@@ -239,12 +239,14 @@ static void near_arc_end(void){
 int main(void){
  /* Independent raw-pattern truth table retains the tuned LF polarity and signs. */
  const int valid[16]={0,1,0,1,0,0,0,1,1,1,0,1,1,1,1,0};
- const float left_at200[16]={0,136,0,120,0,0,0,120,264,200,0,136,280,264,280,0};
  for(unsigned mask=0;mask<16;mask++){
   setup();line_inputs=mask;CarLine_Decode(CarApp_TestContext());assert(CarApp_TestContext()->line.valid==valid[mask]);
   if(valid[mask]){
-   CarLine_SetTargets(CarApp_TestContext(), ms,200);assert(fabsf(CarApp_TestContext()->route.targets[0]-left_at200[mask])<.001f);
-   assert(fabsf(CarApp_TestContext()->route.targets[1]-(400-left_at200[mask]))<.001f);
+   CarLine_SetTargets(CarApp_TestContext(), ms,200);
+   assert(fabsf(CarApp_TestContext()->route.targets[0]+CarApp_TestContext()->route.targets[1]-400.0f)<.001f);
+   assert(CarApp_TestContext()->route.targets[0]>=120&&CarApp_TestContext()->route.targets[1]>=120);
+   if(CarApp_TestContext()->line.error>0)assert(CarApp_TestContext()->route.targets[0]>CarApp_TestContext()->route.targets[1]);
+   if(CarApp_TestContext()->line.error<0)assert(CarApp_TestContext()->route.targets[0]<CarApp_TestContext()->route.targets[1]);
    CarLine_SetTargets(CarApp_TestContext(), ms,50);assert(CarApp_TestContext()->route.targets[0]>=30&&CarApp_TestContext()->route.targets[1]>=30&&CarApp_TestContext()->route.targets[0]<=70&&CarApp_TestContext()->route.targets[1]<=70);
   }
  }

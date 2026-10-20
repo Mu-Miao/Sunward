@@ -4,6 +4,7 @@
 #include "lab_uart_async.h"
 #include "car_task3.h"
 #include "car_task4.h"
+#include "car_hybrid.h"
 
 /* 整车内部状态由 CarApp 持有，只在主循环中访问。
  * 硬件中断通过 lab_uart_async 队列传递数据。 */
@@ -83,6 +84,7 @@ typedef struct {
     uint32_t invalid_ms;
     float error;
     float diff;
+    CarHybridState hybrid;
 } CarLineState;
 
 typedef struct {

@@ -147,7 +147,8 @@ int CAR_TASK3_TEST_MAIN(void)
   line_inputs=9;app()->route.task3.phase_ms=ms-1000;
   app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+182;
   step(10,0,0);assert(app()->runtime.state==RUNNING && fabsf(app()->route.base-151)<.05f);
-  assert(app()->route.targets[0]<152 && app()->route.targets[1]<152);
+  assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+  assert(fabsf(app()->route.targets[0]+app()->route.targets[1]-302.0f)<.1f);
   /* Invalid sensors still stop on the first sample and latch F7 at 100ms. */
   line_inputs=15;step(10,0,0);assert(a==0 && b==0 && app()->runtime.state==RUNNING);
   for(unsigned k=0;k<10;k++)step(10,0,0);
