@@ -42,6 +42,8 @@ typedef struct {
     uint32_t arc_entry_ms, arc_entry_min_ms, arc_entry_confirm_ms;
     float arc_entry_mm, arc_entry_deg, arc_entry_mmps, arc_entry_diff_mmps, arc_entry_line_gain;
     uint8_t rolling_entry; /* C/D连续低速换段，省去入弧前两次停稳；默认0保留任务三流程。 */
+    uint8_t continuous_motion; /* 所有正常换段均滚动通过，最后一圈仍停稳完成。 */
+    float turn_inner_mmps; /* continuous_motion下转向内轮也保持正目标。 */
 } CarTask3Config;
 
 typedef struct {
@@ -53,6 +55,7 @@ typedef struct {
     uint8_t outermost; /* 当前有效图样为最左或最右单探头。 */
     uint8_t side_probe; /* 有效单探头，包含内侧两路。 */
     uint8_t enabled, stop_requested, protection_fault;
+    uint8_t continue_at_a; /* 仅任务四包装层授权前三圈A点不停接续。 */
 } CarTask3Input;
 
 typedef struct {
@@ -92,5 +95,6 @@ int CarTask3_Start(CarTask3 *route, const CarTask3Config *config,
 void CarTask3_Update(CarTask3 *route, const CarTask3Input *input,
     CarTask3Output *output);
 void CarTask3_Cancel(CarTask3 *route);
+int CarTask3_NextLap(CarTask3 *route, const CarTask3Input *input, CarTask3Output *output);
 const char *CarTask3_LegName(const CarTask3 *route);
 #endif

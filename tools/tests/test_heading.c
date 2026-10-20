@@ -204,7 +204,7 @@ static void bd_distance_regression(void)
   CarTask3Config cfg=task==4?CarTask4_Config():CarRoute_Task3Config();
   assert(cfg.bd_full_distance==0);
   /* Retain coverage of the optional historical full-distance gate. */
-  cfg.bd_full_distance=task==4;cfg.start_from_ab=0;cfg.rolling_entry=0;
+  cfg.bd_full_distance=task==4;cfg.start_from_ab=0;cfg.rolling_entry=cfg.continuous_motion=0;
   CarTask3 t={0};CarTask3Output out;
   CarTask3Input in={.now_ms=1000,.heading_ready=1,.enabled=1};
   assert(CarTask3_Start(&t,&cfg,&in));t.leg=leg;t.pending_start_signal=0;
