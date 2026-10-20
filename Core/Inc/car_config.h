@@ -109,6 +109,7 @@
 #define DPT_TASK3_TURN_MIN_MMPS 35.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
 #define DPT_TASK4_MAX_CMD 2200 /* V14：仅任务四1800→2200；轮速/堵转/反向等保护阈值保留。 */
+#define DPT_TASK4_ROLLING_ENTRY 1U /* V15：C/D边走边确认，切线对正后直接捕线，不等待停车。 */
 #define DPT_TASK4_DIAGONAL_MMPS 270.0f /* V13：250→270，仅任务四正常直线；终点降速保留。 */
 #define DPT_TASK4_ARC_MMPS 240.0f /* V13：220→240，仅正常巡线；入弧50、边缘120，寻线不提速。 */
 #define DPT_TASK4_BD_TURN_RELIEF_DEG 3.0f /* V12：仅 B→BD 少左转3°，BD 直线保持同一目标。 */

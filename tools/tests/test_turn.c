@@ -14,6 +14,9 @@ static void turn_start(unsigned mode)
  if(mode==3)task3_start();
  else {setup();line_inputs=15;hold();hold();hold();hold();calibrate();enable();press_key();}
  assert(app()->runtime.state==RUNNING);
+ /* Retain the optional parked-turn regression profile. Production C/D
+    moving confirmation is exercised end-to-end by test_entry. */
+ if(mode==4)app()->route.task3.config.rolling_entry=0;
 }
 static void settle_at(float angle,CarTask3Phase aligning,CarTask3Phase settled)
 {

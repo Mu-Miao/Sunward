@@ -12,6 +12,7 @@ static int positive(float a) { return isfinite(a) && a > 0.0f; }
 static int bounded_time(uint32_t t) { return t > 0U && t <= 80000U; }
 static int config_valid(const CarTask3Config *c)
 {
+    if (c->rolling_entry > 1U) return 0;
     if (c->arc_entry_ms != 0U &&
         (c->arc_entry_ms > 1500U || c->arc_entry_min_ms < 100U ||
          c->arc_entry_min_ms >= c->arc_entry_ms || c->arc_entry_confirm_ms < 30U ||
@@ -139,6 +140,23 @@ static float speed(const CarTask3 *r, const CarTask3Input *i, float cruise, floa
     return fminf(v, ramp);
 }
 
+/* C/D连续换段时保持运动输出；角度仍按原容差确认，超时和位移预算不变。 */
+static void rolling_align(const CarTask3 *r, const CarTask3Input *i,
+    CarTask3Output *o, float target)
+{
+    float error = wrap(target - i->yaw_deg);
+    o->reset_controllers = 0U;
+    o->heading_deg = target;
+    if (fabsf(error) <= align_tolerance(r)) {
+        o->control = T3_HOLD_HEADING;
+        o->base_mmps = r->config.capture_mmps;
+    } else {
+        o->control = T3_TURN_FORWARD;
+        o->left_mmps = error < 0.0f ? r->config.turn_mmps : 0.0f;
+        o->right_mmps = error > 0.0f ? r->config.turn_mmps : 0.0f;
+    }
+}
+
 int CarTask3_ConfigValid(const CarTask3Config *c) { return c && config_valid(c); }
 
 CarTask3Config CarTask3_DefaultConfig(void)
@@ -207,11 +225,17 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         if (fabsf(wrap(target - i->yaw_deg)) > r->config.diagonal_tolerance_deg) fault(r, T3_HEADING);
         else if (progress > r->diagonal_mm + r->config.entry_window_mm) fault(r, T3_EDGE);
         else if (progress >= r->diagonal_mm - early && i->line_valid) {
-            /* 检测到候选顶点时先停止，再静止去抖确认。 */
-            o->reset_controllers = 1U;
+            /* 任务四在原窗口内边走边确认；其他模式仍静止去抖。 */
+            if (r->config.rolling_entry) {
+                o->control = T3_HOLD_HEADING;
+                o->heading_deg = target; o->base_mmps = r->config.capture_mmps;
+            } else o->reset_controllers = 1U;
             if (stable(r, 1, i->now_ms)) {
                 o->signal_point = r->leg == 0U ? T3_POINT_C : T3_POINT_D;
-                phase(r, T3_VERTEX_BRAKE, i, o);
+                if (r->config.rolling_entry) {
+                    ++r->leg; phase(r, T3_ALIGN, i, o);
+                    rolling_align(r, i, o, align_heading(r));
+                } else phase(r, T3_VERTEX_BRAKE, i, o);
             }
         } else if (r->config.vertex_seek_ms != 0U && progress >= r->diagonal_mm &&
                    i->black_count == 0U) {
@@ -270,8 +294,9 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                     r->arc_outer_valid = i->outermost; r->arc_side_valid = i->side_probe;
                     o->reset_controllers = 0U;
                     o->control = T3_FOLLOW_LINE; o->base_mmps = r->config.start_mmps;
-                } else if ((i->line_valid && recovered) || (!i->line_valid && r->loss_seek)) {
-                    if (i->line_valid) {
+                } else if ((i->line_valid && (recovered || (r->config.rolling_entry && r->loss_seek))) ||
+                           (!i->line_valid && r->loss_seek)) {
+                    if (i->line_valid && recovered) {
                         float bias = (r->leg == 1U ? -1.0f : 1.0f) * r->config.arc_entry_diff_mmps;
                         float limit = r->config.arc_entry_mmps * 0.4f;
                         r->entry_diff_mmps = fmaxf(-limit, fminf(limit,
@@ -370,10 +395,14 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         else if (fabsf(wrap(i->yaw_deg - diagonal_heading(r))) > r->diagonal_angle_deg + 12.0f)
             fault(r, T3_HEADING);
         else if (i->line_valid) {
-            o->reset_controllers = 1U;
+            if (r->config.rolling_entry) rolling_align(r, i, o, tangent);
+            else o->reset_controllers = 1U;
             if (stable(r, 1, i->now_ms)) {
                 o->signal_point = r->leg == 0U ? T3_POINT_C : T3_POINT_D;
-                phase(r, T3_VERTEX_BRAKE, i, o);
+                if (r->config.rolling_entry) {
+                    ++r->leg; phase(r, T3_ALIGN, i, o);
+                    rolling_align(r, i, o, align_heading(r));
+                } else phase(r, T3_VERTEX_BRAKE, i, o);
             }
         } else {
             stable(r, 0, i->now_ms);
@@ -450,21 +479,26 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         if ((uint32_t)(i->now_ms - r->phase_ms) >= r->config.align_timeout_ms ||
             phase_travel > r->config.turn_travel_limit_mm) fault(r, T3_TURN);
         else if (fabsf(error) <= align_tolerance(r)) {
-            o->reset_controllers = 1U;
-            if (stable(r, 1, i->now_ms)) {
-                if (r->phase == T3_START_ALIGN) {
-                    /* 停稳单独计时，转向总时间和距离限制仍从原起点计算。 */
-                    uint32_t turn_ms = r->phase_ms;
-                    float turn_origin = r->phase_start_mm;
-                    phase(r, T3_START_SETTLE, i, o);
-                    r->start_settle_ms = i->now_ms;
-                    r->phase_ms = turn_ms;
-                    r->phase_start_mm = turn_origin;
-                }
-                else {
-                    uint32_t turn_ms = r->phase_ms; float origin = r->phase_start_mm;
-                    phase(r, T3_ALIGN_SETTLE, i, o);
-                    r->start_settle_ms = i->now_ms; r->phase_ms = turn_ms; r->phase_start_mm = origin;
+            if (r->phase == T3_ALIGN && (r->leg & 1U) && r->config.rolling_entry) {
+                int aligned = stable(r, 1, i->now_ms);
+                if (aligned) phase(r, T3_CAPTURE, i, o);
+                rolling_align(r, i, o, target);
+            } else {
+                o->reset_controllers = 1U;
+                if (stable(r, 1, i->now_ms)) {
+                    if (r->phase == T3_START_ALIGN) {
+                        /* 停稳单独计时，转向总时间和距离限制仍从原起点计算。 */
+                        uint32_t turn_ms = r->phase_ms;
+                        float turn_origin = r->phase_start_mm;
+                        phase(r, T3_START_SETTLE, i, o);
+                        r->start_settle_ms = i->now_ms;
+                        r->phase_ms = turn_ms;
+                        r->phase_start_mm = turn_origin;
+                    } else {
+                        uint32_t turn_ms = r->phase_ms; float origin = r->phase_start_mm;
+                        phase(r, T3_ALIGN_SETTLE, i, o);
+                        r->start_settle_ms = i->now_ms; r->phase_ms = turn_ms; r->phase_start_mm = origin;
+                    }
                 }
             }
         } else {
@@ -492,6 +526,13 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                 r->entry_diff_mmps = fmaxf(-limit, fminf(limit,
                     bias + r->config.arc_entry_line_gain * i->line_error));
                 r->arc_side_valid = i->side_probe;
+            }
+            if (r->config.rolling_entry) {
+                o->reset_controllers = 0U;
+                o->control = r->config.arc_entry_ms ? T3_ENTER_ARC : T3_FOLLOW_LINE;
+                o->base_mmps = r->config.arc_entry_ms ? r->config.arc_entry_mmps : r->config.capture_mmps;
+                o->left_mmps = o->base_mmps + r->entry_diff_mmps;
+                o->right_mmps = o->base_mmps - r->entry_diff_mmps;
             }
             /* 从进入半圆时重新计算里程，排除顶点转向和捕获期间的移动。 */
             r->leg_start_mm = i->distance_mm;

@@ -41,6 +41,7 @@ typedef struct {
     /* 0 关闭入弧预转向；任务四在捕线后低速建立弧向，再交给正常巡线。 */
     uint32_t arc_entry_ms, arc_entry_min_ms, arc_entry_confirm_ms;
     float arc_entry_mm, arc_entry_deg, arc_entry_mmps, arc_entry_diff_mmps, arc_entry_line_gain;
+    uint8_t rolling_entry; /* C/D连续低速换段，省去入弧前两次停稳；默认0保留任务三流程。 */
 } CarTask3Config;
 
 typedef struct {
