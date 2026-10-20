@@ -1,0 +1,49 @@
+{
+  "title": "TASK 4 V14 PWM22",
+  "source_commit": "c03fd2e59bb70a90d8dd7dd8315db9a8981d5d30",
+  "branch": "codex/task4-v14-pwm22",
+  "archive_date": "2026-10-20",
+  "provenance": "Original V14 binaries and validation logs preserved locally on 2026-10-20; no rebuild or reflashing during this upload.",
+  "source_backup_comparison": {
+    "tracked_core_tools_files": 80,
+    "all_match_source_commit": true
+  },
+  "verification": {
+    "sanitized_host_suites": 16,
+    "arm_compile_units": 50,
+    "flash_bytes": 55160,
+    "ram_bytes": 5856,
+    "instance_bytes": 904
+  },
+  "field_data": {
+    "matching_pyocd_capture_found": false,
+    "field_verified": false,
+    "note": "No local capture metadata matches this V14 ELF SHA256. V13/V16 captures are not V14 field evidence."
+  },
+  "files": {
+    "firmware/Sunward_V14_PWM22.hex": {
+      "bytes": 155234,
+      "sha256": "1d611735fbfda5157de85a519d8876cdc4437102d9116e201202ebf1752bc8ae"
+    },
+    "firmware/Sunward_V14_PWM22.elf": {
+      "bytes": 547772,
+      "sha256": "d3b4d670e67ee5ed4f3b040e7522bfd49b12ad4ab37be576d66f6f46464c7a5c"
+    },
+    "validation/build_manifest.json": {
+      "bytes": 599,
+      "sha256": "0c0efccb97b21e7cde8bfe1a0a34c3a360b1b906d7e6c7966c69db96647087e4"
+    },
+    "validation/host_tests.log": {
+      "bytes": 9688,
+      "sha256": "ab2592ad98001154d53435a565d64cf5b0bb8025e4981d48dd351cccd6a39faf"
+    },
+    "validation/arm_build.log": {
+      "bytes": 5424,
+      "sha256": "e43a0ca5308702afd3021d138fa16fdaf5c5b9eb3b03aea67e0f7b8ac0702ad3"
+    },
+    "validation/pyocd_layout.json": {
+      "bytes": 3361,
+      "sha256": "68866d54cdf1b88c3fa2c8653f8dcda12d1bda953c21d727ffa1a4b775786571"
+    }
+  }
+}
