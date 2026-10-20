@@ -1,0 +1,969 @@
+{
+  "date": "2026-10-21",
+  "purpose": "Complete original documentation/data snapshots before branch-only record cleanup; no firmware source changes.",
+  "source_heads": {
+    "main": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+    "dev": "3f912214a24595865e73545ab46f2a0aef028c2b",
+    "codex/task4-arc-entry-v13": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+    "codex/task4-v14-pwm22": "0d175564ba36fa37a07188f51167c02938d0674e",
+    "codex/freertos-lqr-pid": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f"
+  },
+  "files": {
+    "HEADING_FUSION_V1_说明.md": {
+      "blob": "de39102ba4a8a49e7110ba1b615ea1f7af8665d5",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "HEADING_FUSION_V1_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "HEADING_FUSION_V1_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "HEADING_FUSION_V1_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "HEADING_FUSION_V1_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "HEADING_FUSION_V1_说明.md"
+        }
+      ],
+      "sha256": "a64541b366ed75a441d9de5fd85fae47c313887a06676390f7f808e4cd44c553",
+      "bytes": 8077
+    },
+    "MODULES.md": {
+      "blob": "dfaf48bb2a402b13d40604c62072b5eca3c6a2d9",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "MODULES.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "MODULES.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "MODULES.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "MODULES.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "MODULES.md"
+        }
+      ],
+      "sha256": "7df2c7498b2bec1407a426518aded8a79048f8cc09d6cd65f33ba88985c1e1b8",
+      "bytes": 6328
+    },
+    "TASK4_20261018_213231_A点过转分析.md": {
+      "blob": "a853a3d2894ecb45b7b95febe45f538aff80b22b",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_20261018_213231_A点过转分析.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_20261018_213231_A点过转分析.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_20261018_213231_A点过转分析.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_20261018_213231_A点过转分析.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_20261018_213231_A点过转分析.md"
+        }
+      ],
+      "sha256": "9dd95bced66f67cda7999cfbdba7adaf81c45b502b785e40eb32495a4e176b6f",
+      "bytes": 4086
+    },
+    "TASK4_FUSE_V2_BD_实测与修改.md": {
+      "blob": "0202aedcb646f537d9e24523d4c4512a532a8610",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_FUSE_V2_BD_实测与修改.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_FUSE_V2_BD_实测与修改.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_FUSE_V2_BD_实测与修改.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_FUSE_V2_BD_实测与修改.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_FUSE_V2_BD_实测与修改.md"
+        }
+      ],
+      "sha256": "224241f1a9241e8ada23a05e0faa87698a741b7e82984a57ed43d5603d73bdb4",
+      "bytes": 6844
+    },
+    "TASK4_FUSE_V3_B_说明.md": {
+      "blob": "3ba99dd39c2229fa6a43908e1fb2523cf8e80d38",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_FUSE_V3_B_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_FUSE_V3_B_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_FUSE_V3_B_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_FUSE_V3_B_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_FUSE_V3_B_说明.md"
+        }
+      ],
+      "sha256": "c8c8c2e5abdd22335d49f7d23aa1d7e5d6488e1eb92eeff2756817ab340c4b9c",
+      "bytes": 5050
+    },
+    "TASK4_FUSE_V4_D_说明.md": {
+      "blob": "51158cf90047d8a67b4d36a243726821a40808ec",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_FUSE_V4_D_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_FUSE_V4_D_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_FUSE_V4_D_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_FUSE_V4_D_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_FUSE_V4_D_说明.md"
+        }
+      ],
+      "sha256": "9a20637ff9191adaf62ae0a1c8529f361f6c29917653957b9a5ba5e1b6d3ae13",
+      "bytes": 5598
+    },
+    "TASK4_FUSE_V5_20261018_实测分析.md": {
+      "blob": "3e6f0d49e52e2d4c36d47084172c3c7af0669166",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_FUSE_V5_20261018_实测分析.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_FUSE_V5_20261018_实测分析.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_FUSE_V5_20261018_实测分析.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_FUSE_V5_20261018_实测分析.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_FUSE_V5_20261018_实测分析.md"
+        }
+      ],
+      "sha256": "d88da12fec364bf488b28bff3793162044777f6f320aa170430da4a42c5e0c5b",
+      "bytes": 3942
+    },
+    "TASK4_FUSE_V5_D_说明.md": {
+      "blob": "f4ac4d9ba73c4551cc676228f8b54988b4566a68",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_FUSE_V5_D_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_FUSE_V5_D_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_FUSE_V5_D_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_FUSE_V5_D_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_FUSE_V5_D_说明.md"
+        }
+      ],
+      "sha256": "12b96a4a0d4a7a05758d224a98295e402c0c3bddb363e6c6b614a89ffebcade8",
+      "bytes": 6198
+    },
+    "TASK4_FUSE_V6_GAP_说明.md": {
+      "blob": "41b9a586b5338da47d9dcd03de105d72207cb6fc",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_FUSE_V6_GAP_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_FUSE_V6_GAP_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_FUSE_V6_GAP_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_FUSE_V6_GAP_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_FUSE_V6_GAP_说明.md"
+        }
+      ],
+      "sha256": "b955d6c0826d5d9f3be8964ac6d8e285349d8e1391cfd71270623d4b50191afc",
+      "bytes": 4879
+    },
+    "TASK4_FUSE_V7_HIST_说明.md": {
+      "blob": "d290fafebdc6da1a9986c0c35412025b10e9cf82",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_FUSE_V7_HIST_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_FUSE_V7_HIST_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_FUSE_V7_HIST_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_FUSE_V7_HIST_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_FUSE_V7_HIST_说明.md"
+        }
+      ],
+      "sha256": "6b851717cf7ac2268c968930a0e9ebef9ea19a15cc5f2aa1899a88ee2e4621f4",
+      "bytes": 5865
+    },
+    "TASK4_FUSE_V8_FULL_说明.md": {
+      "blob": "528760d514f99c4ff20cc97d587a621e3f49e907",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_FUSE_V8_FULL_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_FUSE_V8_FULL_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_FUSE_V8_FULL_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_FUSE_V8_FULL_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_FUSE_V8_FULL_说明.md"
+        }
+      ],
+      "sha256": "23b4bbf8c1d6f5c0646354b44aa6610c1d0038e18d3e1672c3909d59d4d7df40",
+      "bytes": 3914
+    },
+    "TASK4_FUSE_V9_TOL3_说明.md": {
+      "blob": "3fd286da524a9b3d9a3286c48c7b83f9e819767c",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_FUSE_V9_TOL3_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_FUSE_V9_TOL3_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_FUSE_V9_TOL3_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_FUSE_V9_TOL3_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_FUSE_V9_TOL3_说明.md"
+        }
+      ],
+      "sha256": "61c3a0218fedea4328371098a6e008c3be32e2a1b45b19cddca9228a23d3da85",
+      "bytes": 2011
+    },
+    "TASK4_RAMP_V1_调试说明.md": {
+      "blob": "ce4c6885ef78061f322f1435fa8607b089d3f3df",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_RAMP_V1_调试说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_RAMP_V1_调试说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_RAMP_V1_调试说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_RAMP_V1_调试说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_RAMP_V1_调试说明.md"
+        }
+      ],
+      "sha256": "13249c7cb6b32ee618d88fb8312e7619539f5c9254ce2fb9998c5b0a98938379",
+      "bytes": 4509
+    },
+    "TASK4_T29_D1_调试说明.md": {
+      "blob": "513baf5360d790d6eae2bcfeee6d45f1c53eed6c",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_T29_D1_调试说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_T29_D1_调试说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_T29_D1_调试说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_T29_D1_调试说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_T29_D1_调试说明.md"
+        }
+      ],
+      "sha256": "f7b2354b8bcc4650ab9193c6189b701db433b303707e72ea61a8f81a2f74063a",
+      "bytes": 17407
+    },
+    "TASK4_V10_GYRO_说明.md": {
+      "blob": "e98c62d6fe804e09564fec520ec045938082fbda",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_V10_GYRO_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_V10_GYRO_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V10_GYRO_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_V10_GYRO_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_V10_GYRO_说明.md"
+        }
+      ],
+      "sha256": "3bc0862d6c0e9420afa72ac9c930fb0cc7e5afba7cacfff4555acf775b87e6d9",
+      "bytes": 3503
+    },
+    "TASK4_V11_20261018_实测四圈完成.md": {
+      "blob": "aa89d981e4fc5e5cf65ab9fff5f0430ccceffa75",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_V11_20261018_实测四圈完成.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_V11_20261018_实测四圈完成.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V11_20261018_实测四圈完成.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_V11_20261018_实测四圈完成.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_V11_20261018_实测四圈完成.md"
+        }
+      ],
+      "sha256": "5e4083e7db2271314d83105f7b6bdb2d4d0036a9096b8f87dbc1eafa4d25b9f3",
+      "bytes": 2931
+    },
+    "TASK4_V11_FAST_说明.md": {
+      "blob": "87d7634763dcc1b1da04fdd39f2aea3b0cc1e6dc",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_V11_FAST_说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_V11_FAST_说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V11_FAST_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_V11_FAST_说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_V11_FAST_说明.md"
+        }
+      ],
+      "sha256": "863d4497f1bedea45df73959c24ebb187f97d5bb69fdd4cb382c33f959371355",
+      "bytes": 3207
+    },
+    "TASK4_V7_20261018_210218_实测与T28对照.md": {
+      "blob": "1261bef6b997220885c716aca6452e82cdddfe28",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "TASK4_V7_20261018_210218_实测与T28对照.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "TASK4_V7_20261018_210218_实测与T28对照.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V7_20261018_210218_实测与T28对照.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_V7_20261018_210218_实测与T28对照.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "TASK4_V7_20261018_210218_实测与T28对照.md"
+        }
+      ],
+      "sha256": "6b5800e548d6dbaa2ae86ab7185e31af5adccc0daa513dfa71ed2bccb02e6ab1",
+      "bytes": 5203
+    },
+    "records/task4/2026-10-18_v11_success.json": {
+      "blob": "fd3c232510bb02d78f65880e2f9c69d6e37ef1c2",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "records/task4/2026-10-18_v11_success.json"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "records/task4/2026-10-18_v11_success.json"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "records/task4/2026-10-18_v11_success.json"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "records/task4/2026-10-18_v11_success.json"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "records/task4/2026-10-18_v11_success.json"
+        }
+      ],
+      "sha256": "7a51249939d7dcb93bd65df69a17a920e2539947553d9ab1467af7cf9a276a03",
+      "bytes": 1721
+    },
+    "tools/PYOCD_采集说明.md": {
+      "blob": "fbaeb81302c4133695d1a8b6d00b2c56ccd91364",
+      "sources": [
+        {
+          "branch": "main",
+          "commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+          "path": "tools/PYOCD_采集说明.md"
+        },
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "tools/PYOCD_采集说明.md"
+        },
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "tools/PYOCD_采集说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "tools/PYOCD_采集说明.md"
+        },
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "tools/PYOCD_采集说明.md"
+        }
+      ],
+      "sha256": "d5e87b9a50dd7e9121673eefba52c316118f0023b992b4bf8f6ff9f287dcec85",
+      "bytes": 3250
+    },
+    "DEV_MAIN_TUNING.md": {
+      "blob": "b1e354b5424eb5f1343dc34afbf9ed0181e1cf87",
+      "sources": [
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "DEV_MAIN_TUNING.md"
+        }
+      ],
+      "sha256": "67213731f81174d107eea703268b1534952b82d55b49df68e4128d537e1246c6",
+      "bytes": 7251
+    },
+    "records/dev/2026-10-21_main_tuning.json": {
+      "blob": "87044a79cf9820a85b016dc42ddfdcc6aec6a41d",
+      "sources": [
+        {
+          "branch": "dev",
+          "commit": "3f912214a24595865e73545ab46f2a0aef028c2b",
+          "path": "records/dev/2026-10-21_main_tuning.json"
+        }
+      ],
+      "sha256": "9933186d829e7bf61f31471ed8e42802cf21591053a53c018c37841cf8064217",
+      "bytes": 2492
+    },
+    "TASK4_V12_B点少转3度_说明.md": {
+      "blob": "491e64746eca7543e4fc138a74aa668336dfa036",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V12_B点少转3度_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_V12_B点少转3度_说明.md"
+        }
+      ],
+      "sha256": "72a9ad4043dec94d971a8b0041db4ca252cae32b381b757dd8642d5f296517a4",
+      "bytes": 3036
+    },
+    "TASK4_V13_20261020_实测超时分析.md": {
+      "blob": "d97408b0e8380bd47940355794683c6c5382a4f6",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V13_20261020_实测超时分析.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_V13_20261020_实测超时分析.md"
+        }
+      ],
+      "sha256": "2cf671cb869e7e3bb18c7366bd5e6ca99b4e7a7b8825308d1215252d93e5ca0b",
+      "bytes": 3713
+    },
+    "TASK4_V13_入弧与提速_说明.md": {
+      "blob": "cf99b86a9891d58acf13891845dfad7d40eef067",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V13_入弧与提速_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_V13_入弧与提速_说明.md"
+        }
+      ],
+      "sha256": "7584d0e4b55d4ba9a212739e111bca43f22243ae23ac98782ad23cfd011f08a4",
+      "bytes": 6260
+    },
+    "TASK4_V14_任务四输出2200_说明.md": {
+      "blob": "1418745103052192864c99766dccced5d7aa150e",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V14_任务四输出2200_说明.md"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "TASK4_V14_任务四输出2200_说明.md"
+        }
+      ],
+      "sha256": "1d194b9b65487297fd67765e9eb577cd1e458bdae9fc0ea58cf6252b212ac187",
+      "bytes": 4430
+    },
+    "TASK4_V15_连续入弧_说明.md": {
+      "blob": "d281820caeeb23d9f1f88df90637fecce67d5f1e",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V15_连续入弧_说明.md"
+        }
+      ],
+      "sha256": "c4575419d40ea87c3d035196d19e7de0bc92c011421cd9f0ae00efc199f79d03",
+      "bytes": 4709
+    },
+    "TASK4_V16_全程连续双轮转向_说明.md": {
+      "blob": "a08a045c560fbfa2500666b59c43e18e46ed3e82",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V16_全程连续双轮转向_说明.md"
+        }
+      ],
+      "sha256": "a644740eca0a77907b9971537a4ead8711959b5edc1169bf254ed31c6ca60587",
+      "bytes": 4287
+    },
+    "TASK4_V17_C点转向积分衔接_说明.md": {
+      "blob": "cfc1082f9a5156b4deef564d6a3f0b564ece9480",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "TASK4_V17_C点转向积分衔接_说明.md"
+        }
+      ],
+      "sha256": "36ed7217cabff429884965c37c83d8c997405c1b21ba7ac66836f4d54fcef497",
+      "bytes": 4453
+    },
+    "records/task4/2026-10-19_v11_success.json": {
+      "blob": "bc19d33815e89a7750624c8c68159e06431396ea",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "records/task4/2026-10-19_v11_success.json"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "records/task4/2026-10-19_v11_success.json"
+        }
+      ],
+      "sha256": "cda956c80c8cc07543f0428ba5a8e703d72319b1318c6229395fd2e05a834386",
+      "bytes": 2458
+    },
+    "records/task4/2026-10-20_v13_timeout.json": {
+      "blob": "e833bce2e837aaec05e9662037e18d4d8e5e37ae",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "records/task4/2026-10-20_v13_timeout.json"
+        },
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "records/task4/2026-10-20_v13_timeout.json"
+        }
+      ],
+      "sha256": "7a9d062986fa0892c14581098f8e521681de56b97aa2c43c5d6db2d5bde8a525",
+      "bytes": 2024
+    },
+    "records/task4/2026-10-20_v16_c_turn_limit.json": {
+      "blob": "2417a06e4679f386e2f50f3b616f3ac7d97c5f82",
+      "sources": [
+        {
+          "branch": "codex/task4-arc-entry-v13",
+          "commit": "2057447fc6d60f44997a2fc63e11a12c4561f703",
+          "path": "records/task4/2026-10-20_v16_c_turn_limit.json"
+        }
+      ],
+      "sha256": "d68f6a5cb44807f83a0eddff3917975637158b4f3ab5d262e336f8d3877e17b6",
+      "bytes": 18094
+    },
+    "deliverables/task4-v14-pwm22/.gitattributes": {
+      "blob": "831032e325ec70a88272dbee1fe586838fdbd7d2",
+      "sources": [
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "deliverables/task4-v14-pwm22/.gitattributes"
+        }
+      ],
+      "sha256": "220d124a1084bc6e1d8ca6db1b9c55c2ae8dce7657df67a37e24fd58cd5b5609",
+      "bytes": 140
+    },
+    "deliverables/task4-v14-pwm22/README.md": {
+      "blob": "b0e733a3b6801ef9a2653b8080ece1949d1e8054",
+      "sources": [
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "deliverables/task4-v14-pwm22/README.md"
+        }
+      ],
+      "sha256": "ee58994ec3b798c0180151b8eea25e698789c24b1f2af677f3275240b42463e9",
+      "bytes": 2163
+    },
+    "deliverables/task4-v14-pwm22/firmware/Sunward_V14_PWM22.elf": {
+      "blob": "65285ffae096ac1fadd896316459b151807c0207",
+      "sources": [
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "deliverables/task4-v14-pwm22/firmware/Sunward_V14_PWM22.elf"
+        }
+      ],
+      "sha256": "d3b4d670e67ee5ed4f3b040e7522bfd49b12ad4ab37be576d66f6f46464c7a5c",
+      "bytes": 547772
+    },
+    "deliverables/task4-v14-pwm22/firmware/Sunward_V14_PWM22.hex": {
+      "blob": "6a9d32fed020448631aebed8365b560daa154a50",
+      "sources": [
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "deliverables/task4-v14-pwm22/firmware/Sunward_V14_PWM22.hex"
+        }
+      ],
+      "sha256": "1d611735fbfda5157de85a519d8876cdc4437102d9116e201202ebf1752bc8ae",
+      "bytes": 155234
+    },
+    "deliverables/task4-v14-pwm22/manifest.json": {
+      "blob": "a0c50ff6451a22ef37dfeb1ae2df9b562900c45b",
+      "sources": [
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "deliverables/task4-v14-pwm22/manifest.json"
+        }
+      ],
+      "sha256": "448c34074a4623778e79474a3315b7380deee8e79e7329ae935bbed9788f66d7",
+      "bytes": 1698
+    },
+    "deliverables/task4-v14-pwm22/validation/arm_build.log": {
+      "blob": "ab8905b71d61e6aa6c62d6ea53f11cc2d7943689",
+      "sources": [
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "deliverables/task4-v14-pwm22/validation/arm_build.log"
+        }
+      ],
+      "sha256": "e43a0ca5308702afd3021d138fa16fdaf5c5b9eb3b03aea67e0f7b8ac0702ad3",
+      "bytes": 5424
+    },
+    "deliverables/task4-v14-pwm22/validation/build_manifest.json": {
+      "blob": "964e0bcf6c0f14f0b90e732f6a2d9ea2f4f92e27",
+      "sources": [
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "deliverables/task4-v14-pwm22/validation/build_manifest.json"
+        }
+      ],
+      "sha256": "0c0efccb97b21e7cde8bfe1a0a34c3a360b1b906d7e6c7966c69db96647087e4",
+      "bytes": 599
+    },
+    "deliverables/task4-v14-pwm22/validation/host_tests.log": {
+      "blob": "9a2b7257c4978112eaf8d1b3b96614f2aa164881",
+      "sources": [
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "deliverables/task4-v14-pwm22/validation/host_tests.log"
+        }
+      ],
+      "sha256": "ab2592ad98001154d53435a565d64cf5b0bb8025e4981d48dd351cccd6a39faf",
+      "bytes": 9688
+    },
+    "deliverables/task4-v14-pwm22/validation/pyocd_layout.json": {
+      "blob": "8b11c7c613e74bc6008a5710629ebd1e02b46f66",
+      "sources": [
+        {
+          "branch": "codex/task4-v14-pwm22",
+          "commit": "0d175564ba36fa37a07188f51167c02938d0674e",
+          "path": "deliverables/task4-v14-pwm22/validation/pyocd_layout.json"
+        }
+      ],
+      "sha256": "68866d54cdf1b88c3fa2c8653f8dcda12d1bda953c21d727ffa1a4b775786571",
+      "bytes": 3361
+    },
+    "FREERTOS_LQR_PID_TESTING.md": {
+      "blob": "3d7285f4c82fba130ee6411e65ee06c74f907f22",
+      "sources": [
+        {
+          "branch": "codex/freertos-lqr-pid",
+          "commit": "992f7e94edf8dd7e6f9f132d008720a4edfc6f0f",
+          "path": "FREERTOS_LQR_PID_TESTING.md"
+        }
+      ],
+      "sha256": "07e13382c5a353b04ecbe706730c56dc201b6e55bd160eb99c6187709ff94b6f",
+      "bytes": 3244
+    }
+  },
+  "readme_snapshots": {
+    "main": {
+      "path": "branch_readmes/main.txt",
+      "blob": "0c1c89cec4b24675bc37d3a3d17b8d718eba398b"
+    },
+    "dev": {
+      "path": "branch_readmes/dev.txt",
+      "blob": "99c36a5bb3c2ad0d63deb3212d0b56dc015f4c02"
+    },
+    "codex/task4-arc-entry-v13": {
+      "path": "branch_readmes/codex__task4-arc-entry-v13.txt",
+      "blob": "0e91566c9c1a7eab6d2fb63205a32a7eabed5ae9"
+    },
+    "codex/task4-v14-pwm22": {
+      "path": "branch_readmes/codex__task4-v14-pwm22.txt",
+      "blob": "fc01244b5c3318b3ddf3dc72cd4354b2ae0acd36"
+    },
+    "codex/freertos-lqr-pid": {
+      "path": "branch_readmes/codex__freertos-lqr-pid.txt",
+      "blob": "e6fa673181730ed3a8cb5e8668151319fe7e606f"
+    }
+  }
+}

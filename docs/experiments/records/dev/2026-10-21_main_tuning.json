@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-21",
+  "branch": "dev",
+  "base_commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+  "development_scope": [
+    "speed_tracking",
+    "filtered_limited_line_pd",
+    "gyro_turn_damping",
+    "lf04_weight_selection",
+    "independent_ac_bd_settings"
+  ],
+  "defaults_preserve_main": true,
+  "default_motor_comparison": {
+    "events": 14684,
+    "main_hash": "4af157ec22504f00",
+    "dev_hash": "4af157ec22504f00",
+    "scope": "one Task3 lap and four Task4 laps; motor commands,targets,phases,signals,elapsed time; simulated HAL"
+  },
+  "host_tests": {
+    "sanitize": "ASan/UBSan",
+    "main_baseline_suites": 14,
+    "dev_default_suites": 16,
+    "enabled_profiles": 2,
+    "invalid_configuration_profiles": 4,
+    "total_dev_profiles": 22
+  },
+  "default_build": {
+    "base_commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+    "units_compiled": 50,
+    "task4_title": "TASK4 DEV MAIN",
+    "task4_max_cmd": 1800,
+    "diagonal_mmps": 250,
+    "arc_mmps": 220,
+    "line_kd": 0,
+    "turn_kd": 0,
+    "physical_weights": false,
+    "independent_diagonal_adjustments": "all zero",
+    "hex_sha256": "274056f0e22c92e1c0b06e235ea238240b5c989befa309608079e2580b11f3cc",
+    "elf_sha256": "faa1c8eecc9d1ba14fa959d721a5b9f789e7378c99c927376223f510b9373464",
+    "hex_checksum_eof_titles_valid": true,
+    "size": "   text\t   data\t    bss\t    dec\t    hex\tfilename\n  54296\t     92\t   5796\t  60184\t   eb18\tbuild/Debug/Sunward.elf\n",
+    "field_verified": false
+  },
+  "enabled_build": {
+    "units_compiled": 50,
+    "test_only": true,
+    "defines": [
+      "-DDPT_DEV_LINE_KD=0.5f",
+      "-DDPT_DEV_TURN_KD=0.5f",
+      "-DDPT_DEV_LINE_PHYSICAL_WEIGHTS=1U",
+      "-DDPT_DEV_TASK4_MAX_CMD=2200",
+      "-DDPT_DEV_TRACK_LOG_ENABLE=1U",
+      "-DDPT_DEV_AC_HEADING_DEG=2.0f",
+      "-DDPT_DEV_BD_ENTRY_DELTA_MM=-20.0f"
+    ],
+    "elf_sha256": "f64445851a216679bec3748b654f47ff35cbae8925e64adb2bd83661bdbf1bf8",
+    "size": "   text\t   data\t    bss\t    dec\t    hex\tfilename\n  55380\t     92\t   5796\t  61268\t   ef54\t/Users/mzh/STM32Cube/Sunward/build/dev_main_20261021/build/active_profile/Sunward.elf\n",
+    "default_firmware_unchanged": true
+  },
+  "instance_bytes": 936,
+  "hardware_flashed": false,
+  "field_verified": false,
+  "notes": [
+    "No V13-V17 or FreeRTOS changes merged.",
+    "New gains/weight selection/diagonal adjustments retain main default effect.",
+    "Physical measurements and field tuning have not been performed."
+  ]
+}

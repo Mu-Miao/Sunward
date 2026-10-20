@@ -1,0 +1,15 @@
+{
+  "units_compiled": 50,
+  "task4_title": "TASK 4 V14 PWM22",
+  "task3_title": "TASK 3 V3 GYRO",
+  "diagonal_mmps": 270,
+  "arc_mmps": 240,
+  "entry_mmps": 50,
+  "task4_max_cmd": 2200,
+  "other_closed_loop_max_cmd": 1800,
+  "hex_sha256": "1d611735fbfda5157de85a519d8876cdc4437102d9116e201202ebf1752bc8ae",
+  "elf_sha256": "d3b4d670e67ee5ed4f3b040e7522bfd49b12ad4ab37be576d66f6f46464c7a5c",
+  "hex_checksum_eof_titles_valid": true,
+  "size": "   text\t   data\t    bss\t    dec\t    hex\tfilename\n  55068\t     92\t   5764\t  60924\t   edfc\tbuild/Debug/Sunward.elf\n",
+  "field_verified": false
+}
