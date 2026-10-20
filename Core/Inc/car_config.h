@@ -89,7 +89,7 @@
 #define DPT_TASK3_APPROACH_MM 100.0f
 #define DPT_TASK3_MIN_MMPS 60.0f /* 捕获黑线阶段仍使用独立的 50 毫米/秒速度。 */
 #define DPT_TASK3_TURN_MMPS 80.0f
-/* A/B/C/D 均使用完整几何目标，不再叠加少转角度。 */
+/* 基础任务三使用完整几何目标；任务四 B 点微调见下方独立参数。 */
 #define DPT_TASK3_CAPTURE_MMPS 50.0f
 #define DPT_TASK3_TIMEOUT_MS 40000U
 #define DPT_TASK3_ENTRY_WINDOW_MM 120.0f
@@ -108,8 +108,17 @@
 #define DPT_TASK3_TURN_SLOW_DEG 15.0f
 #define DPT_TASK3_TURN_MIN_MMPS 35.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
-#define DPT_TASK4_DIAGONAL_MMPS 250.0f /* V11：仅任务四，240→250；终点降速与捕线限制保留。 */
-#define DPT_TASK4_ARC_MMPS 220.0f /* V11：正常巡线200→220；边缘仍限120，寻线不提速。 */
+#define DPT_TASK4_DIAGONAL_MMPS 270.0f /* V13：250→270，仅任务四正常直线；终点降速保留。 */
+#define DPT_TASK4_ARC_MMPS 240.0f /* V13：220→240，仅正常巡线；入弧50、边缘120，寻线不提速。 */
+#define DPT_TASK4_BD_TURN_RELIEF_DEG 3.0f /* V12：仅 B→BD 少左转3°，BD 直线保持同一目标。 */
+/* V13：捕线后先低速入弧；参数是软件验证初值，稳定性需真实场地确认。 */
+#define DPT_TASK4_ARC_ENTRY_MS 1500U
+#define DPT_TASK4_ARC_ENTRY_MIN_MS 200U
+#define DPT_TASK4_ARC_ENTRY_CONFIRM_MS 60U
+#define DPT_TASK4_ARC_ENTRY_MM 60.0f
+#define DPT_TASK4_ARC_ENTRY_DEG 25.0f
+#define DPT_TASK4_ARC_ENTRY_MMPS 50.0f
+#define DPT_TASK4_ARC_ENTRY_DIFF_MMPS 10.0f /* 40/60mm/s，对应160mm轮距下约400mm半径。 */
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。
  * 已授权的全白桥接使用下方 500 毫秒预算；恢复需连续有效 30 毫秒。

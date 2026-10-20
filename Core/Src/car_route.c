@@ -226,7 +226,8 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
         int enabled = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET;
         CarTask3Input input = CarTask3Port_Input(app, now, enabled, 0, 0);
         CarTask3Output output;
-        if (app->route.task3.phase == T3_ARC && !input.line_valid && !app->route.task3_trace.lost_seen) {
+        if ((app->route.task3.phase == T3_ARC || app->route.task3.phase == T3_ARC_ENTRY) &&
+            !input.line_valid && !app->route.task3_trace.lost_seen) {
             /* 在 HALT 清除 PI 和目标速度前锁存失线数据。
                车辆可能已被搬动，之后的 GPIO 读数不能作为当时失线的证据。 */
             app->route.task3_trace.lost_seen = 1U;
@@ -260,6 +261,9 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
             } else if (prior_phase == T3_CAPTURE) {
                 if (prior_duration >= t->config.capture_timeout_ms) limits |= T3_LOSS_TIME;
                 if (prior_travel > t->config.capture_limit_mm) limits |= T3_LOSS_DISTANCE;
+            } else if (prior_phase == T3_ARC_ENTRY) {
+                if (prior_duration >= t->config.arc_entry_ms) limits |= T3_LOSS_TIME;
+                if (prior_travel >= t->config.arc_entry_mm) limits |= T3_LOSS_DISTANCE;
             } else if (prior_phase == T3_DIAGONAL || prior_phase == T3_ARC) limits |= T3_LOSS_DISTANCE;
             app->route.edge_trace.seen = 1U;
             app->route.edge_trace.phase = (uint8_t)prior_phase;
@@ -293,9 +297,11 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
             app->signal.ms = now;
             CarSignal_Set(app, 1); /* 最终在 A 点停稳后触发一次声光提示。 */
         } else CarTask3Port_Apply(app, &output, now);
-        if (prior_phase != T3_ARC && app->route.task3.phase == T3_ARC)
+        if ((prior_phase != T3_ARC_ENTRY && app->route.task3.phase == T3_ARC_ENTRY) ||
+            (prior_phase != T3_ARC && app->route.task3.phase == T3_ARC))
             memset(&app->route.task3_trace, 0, sizeof app->route.task3_trace);
-        if (app->runtime.state == RUNNING && app->route.task3.phase == T3_ARC && input.line_valid &&
+        if (app->runtime.state == RUNNING &&
+            (app->route.task3.phase == T3_ARC || app->route.task3.phase == T3_ARC_ENTRY) && input.line_valid &&
             !app->route.task3.lost_seen) {
             if (app->route.task3_trace.valid_seen) {
                 memcpy(app->route.task3_trace.previous_raw, app->route.task3_trace.valid_raw, 4U);

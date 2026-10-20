@@ -12,9 +12,22 @@ static int positive(float a) { return isfinite(a) && a > 0.0f; }
 static int bounded_time(uint32_t t) { return t > 0U && t <= 80000U; }
 static int config_valid(const CarTask3Config *c)
 {
+    if (c->arc_entry_ms != 0U &&
+        (c->arc_entry_ms > 1500U || c->arc_entry_min_ms < 100U ||
+         c->arc_entry_min_ms >= c->arc_entry_ms || c->arc_entry_confirm_ms < 30U ||
+         c->arc_entry_confirm_ms > 100U || c->arc_entry_confirm_ms >= c->arc_entry_min_ms ||
+         !positive(c->arc_entry_mm) || c->arc_entry_mm > 60.0f || c->arc_entry_mm > c->capture_limit_mm ||
+         !positive(c->arc_entry_deg) || c->arc_entry_deg > 25.0f ||
+         !positive(c->arc_entry_mmps) || c->arc_entry_mmps > c->capture_mmps || c->arc_entry_mmps > 50.0f ||
+         !positive(c->arc_entry_diff_mmps) || c->arc_entry_diff_mmps > c->arc_entry_mmps * 0.4f ||
+         !positive(c->arc_entry_line_gain) || c->arc_entry_line_gain > c->arc_entry_mmps ||
+         c->lost_ms <= c->arc_entry_confirm_ms || !positive(c->white_seek_mm) || c->white_seek_mm > 20.0f ||
+         !positive(c->white_seek_deg) || c->white_seek_deg > 12.0f)) return 0;
     if (c->start_from_ab > 1U || c->bd_full_distance > 1U || c->b_full_align > 1U || c->d_full_align > 1U) return 0;
     if (c->b_full_align && (!positive(c->b_align_tolerance_deg) ||
         c->b_align_tolerance_deg > c->align_tolerance_deg)) return 0;
+    if (!isfinite(c->bd_turn_relief_deg) || c->bd_turn_relief_deg < 0.0f ||
+        c->bd_turn_relief_deg > 5.0f) return 0;
     if (c->d_full_align && (!positive(c->d_align_tolerance_deg) ||
         c->d_align_tolerance_deg > c->align_tolerance_deg)) return 0;
     if (c->da_outer_gap > 1U || c->history_gap > 1U || ((c->da_outer_gap || c->history_gap) &&
@@ -42,7 +55,7 @@ static int config_valid(const CarTask3Config *c)
     float diagonal = hypotf(c->span_mm, 2.0f * c->radius_mm);
     return isfinite(diagonal) && diagonal < 10000.0f &&
         c->entry_window_mm < diagonal * 0.5f && c->exit_window_mm < c->arc_mm * 0.5f &&
-        c->approach_mm < diagonal && c->diagonal_mmps <= 250.0f && c->arc_mmps <= 250.0f &&
+        c->approach_mm < diagonal && c->diagonal_mmps <= 280.0f && c->arc_mmps <= 250.0f &&
         c->start_mmps <= c->diagonal_mmps && c->start_mmps <= c->arc_mmps &&
         c->minimum_mmps <= c->diagonal_mmps && c->minimum_mmps <= c->arc_mmps && c->turn_mmps <= 100.0f && c->capture_mmps <= 100.0f &&
         c->diagonal_tolerance_deg <= 20.0f && c->arc_tolerance_deg <= 20.0f &&
@@ -62,6 +75,7 @@ static int input_valid(const CarTask3Config *c, const CarTask3Input *i)
         isfinite(i->left_mmps) && isfinite(i->right_mmps) && i->heading_ready &&
         i->sample_age_ms <= c->sample_max_age_ms && i->black_count <= 4U &&
         (!i->line_valid || (i->black_count > 0U && i->black_count < 4U)) &&
+        (!i->line_valid || (isfinite(i->line_error) && fabsf(i->line_error) <= 3.0f)) &&
         (!i->centered || (i->line_valid && i->black_count == 2U)) &&
         i->outermost <= 1U && (!i->outermost || (i->line_valid && i->black_count == 1U)) &&
         i->side_probe <= 1U && (!i->side_probe || (i->line_valid && i->black_count == 1U));
@@ -92,8 +106,10 @@ static int stable(CarTask3 *r, int matches, uint32_t now)
 }
 static float diagonal_heading(const CarTask3 *r)
 {
-    /* 以 AC 方向为起始参考；向 B 的方向为参考角加 alpha，BD 再加 180 度和 alpha。 */
-    return wrap(r->start_heading_deg + (r->leg == 2U ? 180.0f + 2.0f * r->diagonal_angle_deg : 0.0f));
+    /* 以 AC 为固定参考；仅 BD 减去 B 点少转量，后续直线不再追回旧目标。
+       C/D 切线仍由原几何计算，偏移不累计到下一圈。 */
+    return wrap(r->start_heading_deg + (r->leg == 2U ?
+        180.0f + 2.0f * r->diagonal_angle_deg - r->config.bd_turn_relief_deg : 0.0f));
 }
 static float tangent_heading(const CarTask3 *r, int end)
 {
@@ -207,6 +223,67 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             o->control = T3_HOLD_HEADING;
             o->heading_deg = target;
             o->base_mmps = speed(r, i, r->config.diagonal_mmps, r->diagonal_mm - progress, r->config.acceleration_mmps2);
+        }
+    } else if (r->phase == T3_ARC_ENTRY) {
+        /* 已经连续捕到线才会进入这里。先用弧向前馈和低速巡线建立入弧，
+           最外侧单探头不直接放行高速；全白仅在原失线预算内继续小弧前进。 */
+        float turn = wrap(i->yaw_deg - r->entry_yaw_deg);
+        if ((uint32_t)(i->now_ms - r->phase_ms) >= r->config.arc_entry_ms ||
+            phase_travel >= r->config.arc_entry_mm) fault(r, T3_EDGE);
+        else if (fabsf(turn) > r->config.arc_entry_deg) fault(r, T3_HEADING);
+        else {
+            if (!i->line_valid && !r->lost_seen) {
+                r->lost_seen = 1U; r->lost_start_ms = i->now_ms;
+                r->lost_start_mm = i->distance_mm; r->lost_yaw_deg = i->yaw_deg;
+                r->loss_seek = i->black_count == 0U && r->config.white_seek_ms != 0U;
+                r->gap_seek = r->loss_seek && r->arc_side_valid && r->config.history_gap;
+            }
+            if (!i->line_valid && i->black_count != 0U) r->loss_seek = r->gap_seek = 0U;
+            uint8_t limits = 0U;
+            if (r->lost_seen) {
+                uint32_t budget = r->loss_seek ? r->config.white_seek_ms : r->config.lost_ms;
+                if ((uint32_t)(i->now_ms - r->lost_start_ms) >= budget) limits |= T3_LOSS_TIME;
+                if (fabsf(i->distance_mm - r->lost_start_mm) >= (r->gap_seek ? r->config.da_gap_mm : r->config.white_seek_mm)) limits |= T3_LOSS_DISTANCE;
+                if (fabsf(wrap(i->yaw_deg - r->lost_yaw_deg)) > (r->gap_seek ? r->config.da_gap_deg : r->config.white_seek_deg)) limits |= T3_LOSS_ANGLE;
+            }
+            if (limits) {
+                r->loss_limits = limits;
+                r->loss_duration_ms = (uint32_t)(i->now_ms - r->lost_start_ms);
+                r->loss_distance_mm = i->distance_mm - r->lost_start_mm;
+                r->loss_turn_deg = wrap(i->yaw_deg - r->lost_yaw_deg);
+                fault(r, T3_LOST);
+            } else {
+                int recovered = !r->lost_seen;
+                if (i->line_valid && r->lost_seen) {
+                    if (!r->recovery_seen) { r->recovery_seen = 1U; r->recovery_start_ms = i->now_ms; }
+                    recovered = (uint32_t)(i->now_ms - r->recovery_start_ms) >= r->config.arc_entry_confirm_ms;
+                    if (recovered) r->lost_seen = r->recovery_seen = r->loss_seek = r->gap_seek = 0U;
+                } else if (!i->line_valid) r->recovery_seen = 0U;
+                int ready = stable(r, i->line_valid && !i->outermost, i->now_ms);
+                /* 入弧的确认时间独立于普通捕线去抖；毛刺不能延长原失线预算。 */
+                ready = ready && (uint32_t)(i->now_ms - r->edge_ms) >= r->config.arc_entry_confirm_ms;
+                if (recovered && ready &&
+                    (uint32_t)(i->now_ms - r->phase_ms) >= r->config.arc_entry_min_ms) {
+                    phase(r, T3_ARC, i, o);
+                    /* 保留入弧开始的里程，预转向走过的路也属于半圆。交接不停车。 */
+                    r->arc_valid_seen = 1U;
+                    r->arc_outer_valid = i->outermost; r->arc_side_valid = i->side_probe;
+                    o->reset_controllers = 0U;
+                    o->control = T3_FOLLOW_LINE; o->base_mmps = r->config.start_mmps;
+                } else if ((i->line_valid && recovered) || (!i->line_valid && r->loss_seek)) {
+                    if (i->line_valid) {
+                        float bias = (r->leg == 1U ? -1.0f : 1.0f) * r->config.arc_entry_diff_mmps;
+                        float limit = r->config.arc_entry_mmps * 0.4f;
+                        r->entry_diff_mmps = fmaxf(-limit, fminf(limit,
+                            bias + r->config.arc_entry_line_gain * i->line_error));
+                        r->arc_side_valid = i->side_probe;
+                    }
+                    o->control = T3_ENTER_ARC; o->base_mmps = r->config.arc_entry_mmps;
+                    /* 全白时冻结最后可信的差速，不能突然反向追随几何弧向。 */
+                    o->left_mmps = o->base_mmps + r->entry_diff_mmps;
+                    o->right_mmps = o->base_mmps - r->entry_diff_mmps;
+                } else o->reset_controllers = 1U;
+            }
         }
     } else if (r->phase == T3_ARC) {
         int end_white = progress >= r->config.arc_mm - r->config.exit_window_mm &&
@@ -407,7 +484,15 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         else if (stable(r, i->line_valid, i->now_ms)) {
             /* 连续一至三路黑线都可用于巡线反馈。
                如果只接受正中两路黑，车辆正在正常纠偏时也可能因捕获超时停车。 */
-            phase(r, T3_ARC, i, o);
+            phase(r, r->config.arc_entry_ms ? T3_ARC_ENTRY : T3_ARC, i, o);
+            r->entry_yaw_deg = i->yaw_deg;
+            if (r->config.arc_entry_ms) {
+                float bias = (r->leg == 1U ? -1.0f : 1.0f) * r->config.arc_entry_diff_mmps;
+                float limit = r->config.arc_entry_mmps * 0.4f;
+                r->entry_diff_mmps = fmaxf(-limit, fminf(limit,
+                    bias + r->config.arc_entry_line_gain * i->line_error));
+                r->arc_side_valid = i->side_probe;
+            }
             /* 从进入半圆时重新计算里程，排除顶点转向和捕获期间的移动。 */
             r->leg_start_mm = i->distance_mm;
         } else {

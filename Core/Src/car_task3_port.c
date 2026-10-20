@@ -10,6 +10,7 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
     i.sample_age_ms = (uint32_t)(now - app->line.sample_ms);
     i.distance_mm = (app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f;
     i.yaw_deg = app->heading.angle;
+    i.line_error = app->line.error;
     i.left_mmps = app->wheel.items[LEFT].velocity;
     i.right_mmps = app->wheel.items[RIGHT].velocity;
     i.heading_ready = app->heading.phase == Y_READY;
@@ -61,6 +62,19 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
                         fmaxf(floor, app->route.targets[w] * scale));
             app->route.base = (app->route.targets[LEFT] + app->route.targets[RIGHT]) * 0.5f;
         }
+    } else if (o->control == T3_ENTER_ARC) {
+        /* 仅任务四捕线后的受限入弧；保留轮速 PI，不使用固定 PWM。 */
+        const CarTask3 *t = &app->route.task3;
+        if (app->route.motion != MOVE_TASK4 || t->phase != T3_ARC_ENTRY ||
+            !t->config.arc_entry_ms || (!app->line.valid && (app->line.count || !t->loss_seek))) {
+            app->runtime.drive(0, 0); CarWheel_Clear(app); return;
+        }
+        float base = fminf(o->base_mmps, 50.0f);
+        float diff = (o->left_mmps - o->right_mmps) * 0.5f;
+        float limit = base * 0.4f;
+        diff = fmaxf(-limit, fminf(limit, diff));
+        app->route.targets[LEFT] = base + diff; app->route.targets[RIGHT] = base - diff;
+        app->route.base = base; app->line.diff = diff;
     } else if (o->control == T3_SEEK_LINE) {
         /* 仅核心已授权的弧段全白桥接；不调用正常巡线接口，也不伪造 valid。 */
         if (app->route.task3.phase != T3_ARC || !app->route.task3.loss_seek ||

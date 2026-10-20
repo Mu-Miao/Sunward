@@ -8,7 +8,7 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 V11 FAST")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 V13 ENTRY")==0);
 }
 static void task4_start(void)
 {
@@ -37,13 +37,13 @@ static uint32_t target_follow_four(int prior_profile)
  for(unsigned k=0;k<16500 && app()->runtime.state==RUNNING;k++) {
   CarTask3 *t=&app()->route.task3;float p=progress();
   if(t->phase==T3_DIAGONAL) {
-   app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+(t->leg==2U?180+2*t->diagonal_angle_deg:0));
+   app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+(t->leg==2U?180+2*t->diagonal_angle_deg-t->config.bd_turn_relief_deg:0));
    line_inputs=p>=t->diagonal_mm?9:15;
   } else if(t->phase==T3_ARC) {
    line_inputs=p>=t->config.arc_mm?15:9;
    app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+t->diagonal_angle_deg+
      (t->leg==1U?fminf(p/t->config.arc_mm,1)*180:180-fminf(p/t->config.arc_mm,1)*180));
-  } else if(t->phase==T3_CAPTURE) line_inputs=9;
+  } else if(t->phase==T3_CAPTURE || t->phase==T3_ARC_ENTRY) line_inputs=9;
   else if(t->phase==T3_VERTEX_SEEK) line_inputs=p>=t->diagonal_mm?9:15;
   else if(t->phase==T3_ALIGN || t->phase==T3_START_ALIGN)
    app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+(app()->route.targets[1]-app()->route.targets[0])*.01f/140*57.2957795131f);
@@ -78,13 +78,22 @@ static void robust_regression(void)
  CarTask3Config c=CarTask4_Config();
  assert(c.lost_ms==200U && c.recovery_ms==30U);
  assert(c.arc_acceleration_mmps2==100);
- assert(c.diagonal_mmps==250 && c.arc_mmps==220 && CarTask3_ConfigValid(&c));
+ assert(c.diagonal_mmps==270 && c.arc_mmps==240 && CarTask3_ConfigValid(&c));
+ c.diagonal_mmps=281;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();
  assert(CarRoute_Task3Config().lost_ms==100U && CarRoute_Task3Config().recovery_ms==30U);
  /* The faster inner-probe correction stays positive and below the 350mm/s guard;
     outer-probe slowdown is independently retained below. */
  robust_arc();line_inputs=11;step(10,177,176);
- assert(fabsf(app()->route.base-220)<.01f);
- assert(fabsf(app()->route.targets[0]-149.6f)<.01f && fabsf(app()->route.targets[1]-290.4f)<.01f);
+ assert(fabsf(app()->route.base-240)<.01f);
+ assert(fabsf(app()->route.targets[0]-163.2f)<.01f && fabsf(app()->route.targets[1]-316.8f)<.01f);
+ for(unsigned pattern=1;pattern<15;pattern++) {
+  robust_arc();line_inputs=pattern;step(10,177,176);
+  if(app()->line.valid) {
+   assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+   assert(app()->route.targets[0]<=336 && app()->route.targets[1]<=336);
+   if(fabsf(app()->line.error)>=2)assert(app()->route.base==120);
+  } else assert(app()->route.targets[0]==0 && app()->route.targets[1]==0);
+ }
  c.recovery_ms=29;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.recovery_ms=c.lost_ms;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.lost_ms=251;assert(!CarTask3_ConfigValid(&c));
@@ -181,6 +190,7 @@ int main(void)
    if(app()->route.task4.completed_laps>0) { ++a_joins;assert(a_joins==app()->route.task4.completed_laps && a==0 && b==0); }
   }
   assert(t->start_heading_deg==reference && app()->route.start_ms==started && app()->heading.samples==samples);
+  assert(t->config.bd_turn_relief_deg==3); /* Retained across all four lap starts. */
   assert(app()->route.task4.completed_laps<4);
   for(unsigned j=0;j<4;j++)assert(strlen(oled_lines[j])<=21);
   last=t->phase;step_route();

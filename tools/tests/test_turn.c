@@ -1,13 +1,13 @@
-/* Full geometric alignment: reject early field departures, retain settle and recovery guards. */
+/* B departure relief and fixed A/C/D headings; retain settle and recovery guards. */
 #define CAR_TASK3_TEST_MAIN legacy_task3_main
 #include "test_task3.c"
 #undef CAR_TASK3_TEST_MAIN
 
-static float nominal_heading(unsigned leg)
+static float configured_heading(unsigned leg)
 {
  CarTask3 *t=&app()->route.task3;
  return CarMath_WrapDegrees(t->start_heading_deg+
-  (leg==2?180+2*t->diagonal_angle_deg:t->diagonal_angle_deg+(leg==3?180:0)));
+  (leg==2?180+2*t->diagonal_angle_deg-t->config.bd_turn_relief_deg:t->diagonal_angle_deg+(leg==3?180:0)));
 }
 static void turn_start(unsigned mode)
 {
@@ -48,6 +48,40 @@ static void vertex_full_tangent(void)
   assert(o.control==T3_HOLD_HEADING && fabsf(CarMath_WrapDegrees(o.heading_deg-target))<.001f);
  }
 }
+static void b_relief_regression(void)
+{
+ /* Fixed expected headings for a zeroed CAL and either side of the yaw wrap.
+    Exercise ALIGN -> stop/debounce -> SETTLE -> BD, not just the formula. */
+ const float starts[]={0,179,-179};
+ const float expected[]={-144.34019f,34.65981f,36.65981f};
+ for(unsigned k=0;k<3;k++) {
+  CarTask3Config c=CarTask4_Config();CarTask3 t={0};CarTask3Output o;
+  CarTask3Input in={.heading_ready=1,.enabled=1,.yaw_deg=starts[k]};
+  assert(c.bd_turn_relief_deg==3 && CarTask3_Start(&t,&c,&in));
+  t.phase=T3_ALIGN;t.leg=2;t.pending_start_signal=0;
+  in.yaw_deg=CarMath_WrapDegrees(expected[k]-5);in.now_ms+=10;
+  CarTask3_Update(&t,&in,&o);
+  assert(t.phase==T3_ALIGN && o.control==T3_TURN_FORWARD);
+  assert(o.left_mmps==0 && o.right_mmps>0);
+  assert(fabsf(CarMath_WrapDegrees(o.heading_deg-expected[k]))<.001f);
+  in.yaw_deg=expected[k];
+  for(unsigned n=0;n<80 && t.phase!=T3_DIAGONAL;n++) {
+   in.now_ms+=10;CarTask3_Update(&t,&in,&o);assert(o.control==T3_HALT);
+  }
+  assert(t.phase==T3_DIAGONAL);
+  for(unsigned n=0;n<5;n++) {
+   in.now_ms+=10;CarTask3_Update(&t,&in,&o);
+   assert(o.control==T3_HOLD_HEADING);
+   assert(fabsf(CarMath_WrapDegrees(o.heading_deg-expected[k]))<.001f);
+  }
+ }
+ CarTask3Config c=CarTask4_Config();
+ const float invalid[]={-1,5.1f,NAN,INFINITY};
+ for(unsigned n=0;n<4;n++) {c.bd_turn_relief_deg=invalid[n];assert(!CarTask3_ConfigValid(&c));}
+ c.bd_turn_relief_deg=0;assert(CarTask3_ConfigValid(&c));
+ c.bd_turn_relief_deg=5;assert(CarTask3_ConfigValid(&c));
+ assert(CarRoute_Task3Config().bd_turn_relief_deg==0);
+}
 int main(void)
 {
  assert(CarTask3_ConfigValid(&(CarTask3Config){0})==0);
@@ -55,6 +89,7 @@ int main(void)
  assert(c.align_tolerance_deg==3);
  CarTask3Config unified=CarTask4_Config();
  assert(unified.align_tolerance_deg==3 && unified.b_align_tolerance_deg==3 && unified.d_align_tolerance_deg==3);
+ b_relief_regression();
  vertex_full_tangent();
  /* Both modes reject the reported early A departure and keep the original fixed AC reference. */
  for(unsigned mode=3;mode<=4;mode++) {
@@ -73,14 +108,14 @@ int main(void)
   assert(fabsf(CarMath_WrapDegrees(app()->heading.reference-ac))<.001f);
   assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
  }
- /* Every vertex uses the full geometric target, including the subsequent capture heading. */
+ /* Each vertex retains its configured target through settle and subsequent travel. */
  for(unsigned mode=3;mode<=4;mode++)for(unsigned leg=1;leg<=3;leg++) {
   turn_start(mode);float ac=app()->route.task3.start_heading_deg;
   for(unsigned n=0;n<3500 && !(app()->route.task3.leg==leg && app()->route.task3.phase==T3_ALIGN);n++) {
    assert(app()->runtime.state==RUNNING);step_route();
   }
   assert(app()->route.task3.leg==leg && app()->route.task3.phase==T3_ALIGN);
-  float nominal=nominal_heading(leg);
+  float nominal=configured_heading(leg);
   app()->heading.angle=CarMath_WrapDegrees(nominal+(leg==3?5:-5));
   for(unsigned n=0;n<5;n++) {
    step(10,0,0);assert(app()->route.task3.phase==T3_ALIGN);
@@ -102,6 +137,10 @@ int main(void)
    assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
    line_inputs=leg==1?13:11;
    for(unsigned n=0;n<4;n++)step(10,100,100);
+   if(mode==4) {
+    assert(app()->route.task3.phase==T3_ARC_ENTRY);
+    for(unsigned n=0;n<22;n++)step(10,100,100);
+   }
    assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC);
   }
  }
@@ -112,7 +151,7 @@ int main(void)
   assert(app()->runtime.state==RUNNING);step_route();
  }
  assert(app()->route.task4.completed_laps==1 && app()->route.task3.leg==1 && app()->route.task3.phase==T3_ALIGN);
- uint32_t cturn=app()->route.task3.phase_ms;float cgoal=nominal_heading(1);
+ uint32_t cturn=app()->route.task3.phase_ms;float cgoal=configured_heading(1);
  line_inputs=15;app()->heading.angle=-7.58f;
  for(unsigned n=0;n<5;n++) {
   step(10,0,0);assert(app()->route.task3.phase==T3_ALIGN);
@@ -134,7 +173,7 @@ int main(void)
   assert(app()->runtime.state==RUNNING);step_route();
  }
  assert(app()->route.task4.completed_laps==1 && app()->route.task3.leg==2 && app()->route.task3.phase==T3_ALIGN);
- float goal=nominal_heading(2),origin=app()->route.task3.leg_start_mm;
+ float goal=configured_heading(2),origin=app()->route.task3.leg_start_mm;
  app()->heading.angle=-149.16f;step(10,0,0);
  assert(app()->route.task3.phase==T3_ALIGN && app()->route.targets[0]==0 && app()->route.targets[1]>0);
  assert(fabsf(CarMath_WrapDegrees(app()->heading.reference-goal))<.001f);
@@ -149,11 +188,11 @@ int main(void)
  settle_at(goal,T3_ALIGN,T3_ALIGN_SETTLE);
  assert(app()->route.task3.phase==T3_DIAGONAL && fabsf(progress())<.01f);
  assert(fabsf(CarMath_WrapDegrees(goal-app()->heading.angle))<1.0f);
- /* Disabling the B-specific tolerance still keeps the full geometric heading. */
+ /* B-specific tolerance does not enable/disable the independent heading relief. */
  turn_start(4);
  for(unsigned n=0;n<3500 && !(app()->route.task3.leg==2 && app()->route.task3.phase==T3_ALIGN);n++)step_route();
  app()->route.task3.config.b_full_align=0;step(10,0,0);
- assert(fabsf(CarMath_WrapDegrees(app()->heading.reference-nominal_heading(2)))<.001f);
+ assert(fabsf(CarMath_WrapDegrees(app()->heading.reference-configured_heading(2)))<.001f);
  CarTask3Config bcfg=CarTask4_Config();assert(bcfg.b_full_align && bcfg.b_align_tolerance_deg==3 && CarTask3_ConfigValid(&bcfg));
  bcfg.b_align_tolerance_deg=0;assert(!CarTask3_ConfigValid(&bcfg));
  bcfg.b_align_tolerance_deg=NAN;assert(!CarTask3_ConfigValid(&bcfg));
@@ -164,7 +203,7 @@ int main(void)
  turn_start(4);
  for(unsigned n=0;n<4500 && !(app()->route.task3.leg==3 && app()->route.task3.phase==T3_ALIGN);n++)step_route();
  assert(app()->route.task3.leg==3 && app()->route.task3.phase==T3_ALIGN);
- float dgoal=nominal_heading(3),dorigin=app()->route.task3.leg_start_mm;
+ float dgoal=configured_heading(3),dorigin=app()->route.task3.leg_start_mm;
  assert(fabsf(CarMath_WrapDegrees(dgoal+180))<.01f);
  line_inputs=14;app()->heading.angle=-172.14f;
  for(unsigned n=0;n<5;n++) {
@@ -186,6 +225,8 @@ int main(void)
  assert(fabsf(CarMath_WrapDegrees(app()->heading.reference-dgoal))<.001f);
  /* Existing off-centre feedback/capture remains available after full alignment. */
  line_inputs=14;for(unsigned n=0;n<4;n++)step(10,0,0);
+ assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC_ENTRY);
+ line_inputs=13;for(unsigned n=0;n<22;n++)step(10,0,0);
  assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC);
  for(unsigned variant=0;variant<3;variant++) {
   turn_start(4);
@@ -193,7 +234,7 @@ int main(void)
   assert(app()->route.task3.leg==3 && app()->route.task3.phase==T3_ALIGN);
   if(variant==0) {
    app()->route.task3.config.d_full_align=0;step(10,0,0);
-   assert(fabsf(CarMath_WrapDegrees(app()->heading.reference-nominal_heading(3)))<.001f);
+   assert(fabsf(CarMath_WrapDegrees(app()->heading.reference-configured_heading(3)))<.001f);
   } else {
    if(variant==1)app()->route.task3.phase_ms=ms-app()->route.task3.config.align_timeout_ms;
    else app()->route.task3.phase_start_mm-=app()->route.task3.config.turn_travel_limit_mm+1;
@@ -207,6 +248,6 @@ int main(void)
  dcfg.d_align_tolerance_deg=4;assert(!CarTask3_ConfigValid(&dcfg));
  dcfg=CarTask4_Config();dcfg.d_full_align=2;assert(!CarTask3_ConfigValid(&dcfg));
  assert(!CarRoute_Task3Config().d_full_align);
- puts("PASS: full A/B/C/D and vertex-search headings, reported -30.95deg A / second-lap -7.58deg C rejection, unified 3-degree tolerance including B/D 2.8 acceptance and 3.2 rejection/drift, original turn budget, fixed references and off-centre capture. Software only.");
+ puts("PASS: Task4 B-only 3-degree relief through turn/settle/BD and yaw wrap; full A/C/D and vertex-search headings; unified 3-degree tolerance, original turn budgets, fixed references and off-centre capture. Software only.");
  return 0;
 }

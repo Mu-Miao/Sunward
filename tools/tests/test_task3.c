@@ -22,7 +22,7 @@ static float join_target(void)
 {
  CarTask3 *t=&app()->route.task3;
  return CarMath_WrapDegrees(t->start_heading_deg+t->diagonal_angle_deg+
-    (t->leg==2U ? 180.0f+t->diagonal_angle_deg : (t->leg==3U ? 180.0f : 0.0f)));
+    (t->leg==2U ? 180.0f+t->diagonal_angle_deg-t->config.bd_turn_relief_deg : (t->leg==3U ? 180.0f : 0.0f)));
 }
 static void step_route(void)
 {
@@ -30,7 +30,7 @@ static void step_route(void)
  float p=progress();int dl=0,dr=0;
  switch(t->phase) {
  case T3_DIAGONAL:
-  app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+(t->leg==2U?180+2*t->diagonal_angle_deg:0));
+  app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+(t->leg==2U?180+2*t->diagonal_angle_deg-t->config.bd_turn_relief_deg:0));
   line_inputs=p>=t->diagonal_mm?9:15;
   if(app()->route.targets[0]>0)dl=dr=610;
   break;
@@ -51,7 +51,7 @@ static void step_route(void)
   if(app()->route.targets[1]>0)dr=176;
   break;
  }
- case T3_CAPTURE: line_inputs=9;break;
+ case T3_CAPTURE: case T3_ARC_ENTRY: line_inputs=9;break;
  case T3_VERTEX_SEEK: line_inputs=p>=t->diagonal_mm?9:15;break;
  default: break;
  }
@@ -79,7 +79,7 @@ static uint32_t target_follow_lap(int prior_profile)
  for(unsigned k=0;k<4500 && app()->runtime.state==RUNNING;k++) {
   CarTask3 *t=&app()->route.task3;float p=progress();
   if(t->phase==T3_DIAGONAL) {
-   app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+(t->leg==2U?180+2*t->diagonal_angle_deg:0));
+   app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+(t->leg==2U?180+2*t->diagonal_angle_deg-t->config.bd_turn_relief_deg:0));
    line_inputs=p>=t->diagonal_mm?9:15;
   } else if(t->phase==T3_ARC) {
    line_inputs=p>=t->config.arc_mm?15:9;

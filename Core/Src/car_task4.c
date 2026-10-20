@@ -9,6 +9,15 @@ CarTask3Config CarTask4_Config(void)
     CarTask3Config config = CarRoute_Task3Config();
     config.diagonal_mmps = DPT_TASK4_DIAGONAL_MMPS;
     config.arc_mmps = DPT_TASK4_ARC_MMPS;
+    config.bd_turn_relief_deg = DPT_TASK4_BD_TURN_RELIEF_DEG;
+    config.arc_entry_ms = DPT_TASK4_ARC_ENTRY_MS;
+    config.arc_entry_min_ms = DPT_TASK4_ARC_ENTRY_MIN_MS;
+    config.arc_entry_confirm_ms = DPT_TASK4_ARC_ENTRY_CONFIRM_MS;
+    config.arc_entry_mm = DPT_TASK4_ARC_ENTRY_MM;
+    config.arc_entry_deg = DPT_TASK4_ARC_ENTRY_DEG;
+    config.arc_entry_mmps = DPT_TASK4_ARC_ENTRY_MMPS;
+    config.arc_entry_diff_mmps = DPT_TASK4_ARC_ENTRY_DIFF_MMPS;
+    config.arc_entry_line_gain = DPT_LINE_GAIN * config.arc_entry_mmps / DPT_LINE_CRUISE_MMPS;
     /* 外层统一执行四圈总计 160 秒的超时保护。
        不将任务三的 40 秒比赛时限单独施加到任务四每一圈。 */
     config.deadline_ms = DPT_TASK4_LAP_WATCHDOG_MS;
@@ -19,7 +28,7 @@ CarTask3Config CarTask4_Config(void)
        前置探头的碰线里程不等于车轴到 D 的几何长度；恢复原终点窗口内
        停车并连续确认有效线，不再越过候选线等待满里程。原上界/搜索预算保留。 */
     config.bd_full_distance = 0U;
-    /* 各点统一沿用基础 ±3 度对正容差，仍使用完整几何目标与停稳复核。 */
+    /* 各点统一 ±3 度停稳复核；B 的目标与 BD 行驶共同减去独立少转量。 */
     config.b_full_align = 1U;
     config.b_align_tolerance_deg = config.align_tolerance_deg;
     /* DA 入弧前不能在切线前约 8 度就交给边缘探头反馈；
@@ -68,7 +77,9 @@ void CarTask4_Update(CarTask4 *task, CarTask3 *lap,
     }
     CarTask3Phase previous_phase = lap->phase;
     CarTask3_Update(lap, input, output);
-    if (lap->phase == T3_ARC && previous_phase != T3_ARC) ++task->arc_number;
+    if ((lap->phase == T3_ARC_ENTRY && previous_phase != T3_ARC_ENTRY) ||
+        (lap->phase == T3_ARC && previous_phase != T3_ARC && previous_phase != T3_ARC_ENTRY))
+        ++task->arc_number;
     if (lap->phase == T3_FAULT) { task->active = 0U; return; }
     if (lap->phase == T3_ARC) {
         if (output->control == T3_HALT) {

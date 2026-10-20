@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-19",
+  "firmware": "V11 FAST",
+  "git_commit": "b484ed9e07100afb1dd661bd5a6f7f6f8ad37371",
+  "firmware_changes_this_session": false,
+  "start_ms": 749741,
+  "elapsed_ms": 152444,
+  "state": "DONE",
+  "phase": "DONE",
+  "fault": 0,
+  "completed_laps": 4,
+  "arc_number": 8,
+  "samples": 3007,
+  "sampled_faults": 0,
+  "sampled_dt_us_min": 9983,
+  "sampled_dt_us_max": 10017,
+  "sampled_battery_raw_min": 1241,
+  "vertex_confirmations": [
+    {
+      "point": 3,
+      "lap": 1,
+      "raw": [
+        1,
+        0,
+        1,
+        1
+      ],
+      "distance_mm": 1201.567138671875,
+      "yaw": -37.961490631103516,
+      "observed_elapsed_ms": 7821
+    },
+    {
+      "point": 4,
+      "lap": 1,
+      "raw": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "distance_mm": 1203.7958984375,
+      "yaw": -143.20901489257812,
+      "observed_elapsed_ms": 27201
+    },
+    {
+      "point": 3,
+      "lap": 2,
+      "raw": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "distance_mm": 1199.7001953125,
+      "yaw": -36.66718673706055,
+      "observed_elapsed_ms": 45261
+    },
+    {
+      "point": 4,
+      "lap": 2,
+      "raw": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "distance_mm": 1209.4326171875,
+      "yaw": -141.61668395996094,
+      "observed_elapsed_ms": 65971
+    },
+    {
+      "point": 3,
+      "lap": 3,
+      "raw": [
+        1,
+        0,
+        1,
+        1
+      ],
+      "distance_mm": 1198.203125,
+      "yaw": -38.894927978515625,
+      "observed_elapsed_ms": 84571
+    },
+    {
+      "point": 4,
+      "lap": 3,
+      "raw": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "distance_mm": 1202.916015625,
+      "yaw": -141.2848663330078,
+      "observed_elapsed_ms": 104261
+    },
+    {
+      "point": 3,
+      "lap": 4,
+      "raw": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "distance_mm": 1195.8330078125,
+      "yaw": -36.718650817871094,
+      "observed_elapsed_ms": 122311
+    },
+    {
+      "point": 4,
+      "lap": 4,
+      "raw": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "distance_mm": 1208.953125,
+      "yaw": -142.17901611328125,
+      "observed_elapsed_ms": 142171
+    }
+  ],
+  "sampling_note": "Asynchronous live RAM at nominal 20 Hz; not atomic and may miss brief sensor transitions.",
+  "note": "V11 同版复测成功；同日另有 BD 寻线失败，重复稳定性仍待优化。成绩不属于 V12。"
+}
