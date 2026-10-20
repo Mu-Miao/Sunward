@@ -170,7 +170,7 @@ int main(void)
  robust_regression();
  CarTask3Config c=CarTask4_Config();assert(CarTask3_ConfigValid(&c) && c.deadline_ms==80000U);
  assert(CarRoute_Task3Config().deadline_ms==40000U);
- task4_select();hold();assert(app()->button.selected_motion==MOVE_ROUTE);
+ task4_select();hold();assert(app()->button.selected_motion==MOVE_LOG);hold();assert(app()->button.selected_motion==MOVE_ROUTE);
  setup();queue(0,"TASK4!");step(10,0,0);assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  enable();press_key();assert(app()->runtime.state!=RUNNING); /* Cannot start without CAL. */
  task4_start();float reference=app()->route.task3.start_heading_deg;

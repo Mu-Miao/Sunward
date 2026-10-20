@@ -3,7 +3,7 @@
 #include <string.h>
 
 const char CarCommand_Banner[] =
-    "DPI KEY_U OFF:short=CAL,long=mode; READY+ON:start; busy:STOP; TASK4!/TASK3!/TASK2!/LF20!/GO100!/GO20!/GO!/RUN!/F!/B!/L!/R!/STOP!/CAL!/LOG!/LOGCLR! V/TIME\r\n";
+    "DPI KEY OFF:hold=mode,tap=CAL|LOGdump; ON:start; busy:STOP; TASK4!/TASK3!/TASK2!/LF20!/GO100!/GO20!/GO!/RUN!/F!/B!/L!/R!/STOP!/CAL!/LOG!/LOGCLR! V/TIME\r\n";
 
 static int unsigned_value(const char *text, unsigned *value)
 {

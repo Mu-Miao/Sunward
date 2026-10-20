@@ -45,5 +45,6 @@ void CarRunLog_Service(const CarAppContext *app);
 void CarRunLog_Clear(uint32_t now);
 int CarRunLog_IsFrozen(void);
 int CarRunLog_IsExported(void);
+int CarRunLog_IsDumping(void);
 
 #endif

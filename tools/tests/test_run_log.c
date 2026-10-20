@@ -64,13 +64,27 @@ int main(void)
     app.runtime.state = LINE_LOST;
     reject_once = 1;
     CarRunLog_RequestDump();
+    assert(CarRunLog_IsDumping());
     CarRunLog_Service(&app);
     assert(output_length == 0U && g_car_run_log.dump_stage == 1U);
     for (unsigned i = 0; i < 300U && !CarRunLog_IsExported(); ++i) CarRunLog_Service(&app);
     assert(CarRunLog_IsExported());
+    assert(!CarRunLog_IsDumping());
     assert(strstr(output, "RLOG BEGIN N=256 F=1 WHY=16 REC=24B") != NULL);
     assert(strstr(output, "RLOG,SEQ,MS,ST,M,PH,LEG,ARC,RAW,E2,TL,TR,VL,VR,Y10,FLAGS") != NULL);
     assert(strstr(output, "RLOG END") != NULL);
+
+    /* A normally completed run remains exportable until the next run begins. */
+    output_length = 0U;
+    CarRunLog_Clear(19000U);
+    app = context();
+    CarRunLog_BeginRun(&app, 19000U);
+    CarRunLog_OnStop(&app, DONE, 19050U);
+    assert(!g_car_run_log.frozen && g_car_run_log.count == 2U);
+    app.runtime.state = DONE;
+    CarRunLog_RequestDump();
+    for (unsigned i = 0; i < 20U && !CarRunLog_IsExported(); ++i) CarRunLog_Service(&app);
+    assert(CarRunLog_IsExported() && strstr(output, "RLOG BEGIN N=2 F=0 WHY=0") != NULL);
 
     /* 运行阶段双轮持续零速时自动冻结，即使异常逻辑也清零了目标。 */
     CarRunLog_Clear(20000U);

@@ -28,7 +28,8 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             state_text = wheel_state;
         }
         const char *title = "TASK 1 A->B";
-        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V11 FAST";
+        if (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LOG) title = "LOG EXPORT";
+        else if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V11 FAST";
         else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V4 SMOOTH";
         else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
@@ -321,7 +322,7 @@ void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
         char msg[96];
         int n = snprintf(msg, sizeof msg, "KEY EN=%u RAW=%u ARM=%u EVT=%lu ACT=%s %s\r\n",
             (unsigned)enabled, (unsigned)app->button.raw, (unsigned)app->button.armed,
-            (unsigned long)app->button.events, actions[app->button.action], app->button.selected_motion == MOVE_TASK4 ? "TASK=4" : (app->button.selected_motion == MOVE_TASK3 ? "TASK=3" : (app->button.selected_motion == MOVE_TASK2 ? "TASK=2" : (app->button.selected_motion == MOVE_LINE ? "TEST=HALF" : "TASK=1"))));
+            (unsigned long)app->button.events, actions[app->button.action], app->button.selected_motion == MOVE_LOG ? "MODE=LOG" : (app->button.selected_motion == MOVE_TASK4 ? "TASK=4" : (app->button.selected_motion == MOVE_TASK3 ? "TASK=3" : (app->button.selected_motion == MOVE_TASK2 ? "TASK=2" : (app->button.selected_motion == MOVE_LINE ? "TEST=HALF" : "TASK=1")))));
         app->ui.button_log_ms = now;
         if (n > 0 && n < (int)sizeof msg) {
             (void)LabUART_TryWrite(msg, (uint16_t)n);

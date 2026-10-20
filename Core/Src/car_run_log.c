@@ -127,6 +127,7 @@ void CarRunLog_Poll(const CarAppContext *app, uint32_t now)
 
 int CarRunLog_IsFrozen(void) { return g_car_run_log.frozen != 0U; }
 int CarRunLog_IsExported(void) { return g_car_run_log.exported != 0U; }
+int CarRunLog_IsDumping(void) { return g_car_run_log.dump_stage != 0U; }
 
 void CarRunLog_RequestDump(void)
 {

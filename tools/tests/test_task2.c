@@ -285,10 +285,10 @@ int main(void){
  assert(strcmp(oled_lines[0],"TASK 2 ONE LAP")==0&&strstr(oled_lines[2],"DONE DA T"));
  /* Repeated same-route request must not reset distance/timing while running. */
  task_start();uint32_t saved=CarApp_TestContext()->route.start_ms;cmd("TASK2!");assert(CarApp_TestContext()->route.start_ms==saved&&CarApp_TestContext()->route.leg==0);
- /* Modes cycle 1 -> half -> 2 -> 1; reboot is still task 1. */
+ /* Modes cycle 1 -> half -> 2 -> 3 -> 4 -> LOG -> 1; reboot is still task 1. */
  setup();hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_LINE);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK2);
  for(int i=0;i<200;i++)step(10,0,0);assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK2&&CarApp_TestContext()->heading.phase==Y_NONE);
- hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK3);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK4);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_ROUTE);setup();assert(CarApp_TestContext()->button.selected_motion==MOVE_ROUTE);
+ hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK3);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_TASK4);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_LOG);hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_ROUTE);setup();assert(CarApp_TestContext()->button.selected_motion==MOVE_ROUTE);
  /* Half-circle user's current tuned parameters and independent auto-stop survive. */
  setup();line_inputs=9;cmd("LF20!");calibrate();enable();press_key();
  assert(CarApp_TestContext()->route.motion==MOVE_LINE&&CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.goal==DPT_LINE_MM);
@@ -373,12 +373,17 @@ int main(void){
  assert(strlen(oled_lines[2])<=21);
  cmd("STOP!");assert(CarApp_TestContext()->route.elapsed_ms==300);
  assert(sizeof CarCommand_Banner-1<=160);
- /* The only software-readable PA0 key exports a frozen log on OFF long-hold. */
+ /* The only software-readable PA0 key selects LOG by long-hold, then one short press exports once. */
  setup();g_car_run_log.count=1;g_car_run_log.frozen=1;g_car_run_log.reason=LINE_LOST;
- release_key();key_input=1;for(int i=0;i<154;i++)step(10,0,0);release_key();
+ hold();hold();hold();hold();hold();
+ assert(CarApp_TestContext()->button.selected_motion==MOVE_LOG && g_car_run_log.frozen);
+ release_key();press_key();release_key();
  assert(CarApp_TestContext()->button.action==KEY_LOG && (g_car_run_log.dump_stage!=0 || g_car_run_log.exported));
+ for(int i=0;i<20&&!g_car_run_log.exported;i++)step(10,0,0);
+ assert(g_car_run_log.exported && g_car_run_log.frozen);
+ hold();assert(CarApp_TestContext()->button.selected_motion==MOVE_ROUTE && !g_car_run_log.frozen);
  (void)head;
- puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
+ puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; preserved half-circle settings and task1 regressions; task/LOG mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
  printf("TRACE hash=%016llx events=%llu\n",(unsigned long long)trace_hash,(unsigned long long)trace_events);
  return 0;
 }
