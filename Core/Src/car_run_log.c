@@ -1,5 +1,6 @@
 /* 双层运行日志：20Hz故障窗口 + 5Hz全程轨迹 + 稀疏关键事件。 */
 #include "car_run_log.h"
+#include "car_build.h"
 #include "car_math.h"
 #include "lab_uart_async.h"
 #include <math.h>
@@ -288,7 +289,9 @@ void CarRunLog_Service(const CarAppContext *app)
     int n;
     switch (g_car_run_log.dump_stage) {
     case 1U:
-        n = snprintf(line, sizeof line, "RLOG BEGIN J=%u E=%u H=%u F=%u WHY=%u RAM=%uB\r\n",
+        n = snprintf(line, sizeof line,
+            "RLOG BEGIN VER=%s GIT=%s CFG=%s MODE=%s J=%u E=%u H=%u F=%u WHY=%u RAM=%uB\r\n",
+            CAR_FIRMWARE_VERSION, CAR_BUILD_GIT, CAR_CONFIG_CRC, CAR_BUILD_MODE,
             (unsigned)g_car_run_log.journey_count, (unsigned)g_car_run_log.event_count,
             (unsigned)g_car_run_log.count, (unsigned)g_car_run_log.frozen,
             (unsigned)g_car_run_log.reason, (unsigned)sizeof(CarRunLogStore));

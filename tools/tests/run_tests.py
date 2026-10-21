@@ -23,6 +23,10 @@ flags = [os.environ.get('CC', 'cc'), '-std=c11', '-Wall', '-Wextra', '-Werror',
 if args.sanitize:
     flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
 with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
+    result = subprocess.run([os.environ.get('PYTHON', 'python3'),
+                             str(tests / 'test_log_analyzer.py')],
+                            capture_output=True, text=True, check=True)
+    print('log_analyzer: ' + result.stdout.strip())
     hybrid = str(Path(folder) / 'hybrid')
     subprocess.run(flags + [str(tests / 'test_hybrid.c'),
                             str(root / 'Core/Src/car_hybrid.c'),
@@ -47,6 +51,13 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                             '-lm', '-o', observer], check=True)
     result = subprocess.run([observer], capture_output=True, text=True, check=True)
     print('arc_observer: ' + result.stdout.strip())
+    properties = str(Path(folder) / 'control_properties')
+    subprocess.run(flags + [str(tests / 'test_control_properties.c'),
+                            str(root / 'Core/Src/car_hybrid.c'),
+                            str(root / 'Core/Src/car_task3.c'),
+                            '-lm', '-o', properties], check=True)
+    result = subprocess.run([properties], capture_output=True, text=True, check=True)
+    print('control_properties: ' + result.stdout.strip())
     for suite in ['motion', 'task2', 'task3', 'task4', 'seek', 'turn', 'heading']:
         for public in [False, True]:
             name = suite + ('_car_app' if public else '_legacy_api')
@@ -64,4 +75,4 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                 print(result.stdout + result.stderr, flush=True)
                 result.check_returncode()
             print(name + ': ' + result.stdout.strip())
-print('PASS: hybrid, arc-observer, SysTick and run-log units; motion/task2/task3/task4/seek/turn/heading regressions; CarApp and compatibility APIs; separate module linkage.')
+print('PASS: log analysis, hybrid, arc-observer, randomized properties, SysTick and run-log units; motion/task2/task3/task4/seek/turn/heading regressions; CarApp and compatibility APIs; separate module linkage.')

@@ -1,5 +1,6 @@
 /* OLED文本和串口诊断。保留原日志格式及刷新周期，满发送队列不阻塞运动。 */
 #include "car_internal.h"
+#include "car_build.h"
 #include "task_oled.h"
 #include <stdio.h>
 
@@ -29,8 +30,8 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         }
         const char *title = "TASK 1 A->B";
         if (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LOG) title = "LOG EXPORT";
-        else if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V11 FAST";
-        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V4 SMOOTH";
+        else if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 " CAR_FIRMWARE_VERSION;
+        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 " CAR_FIRMWARE_VERSION;
         else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
         else if (app->route.motion == MOVE_DISTANCE) title = "TEST GO20";

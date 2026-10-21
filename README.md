@@ -21,10 +21,10 @@
 
 ## 当前版本
 
-当前固件使用静态CAL后的陀螺积分、完整角度对正及任务四探头间隙找回；在线航向融合修正暂时关闭：
+当前实验固件版本为 `ARC12`，使用静态CAL后的陀螺积分、完整角度对正、弧线软检查点、动态控制置信度及任务四探头间隙找回；旧的在线零偏学习仍关闭：
 
-- 任务三屏幕标题：`TASK 3 V4 SMOOTH`。
-- 任务四屏幕标题：`TASK 4 V11 FAST`。
+- 任务三屏幕标题：`TASK 3 ARC12`。
+- 任务四屏幕标题：`TASK 4 ARC12`。
 - 仅任务四正常直线240→250mm/s、正常巡线200→220mm/s；任务一至三不提速。转向、捕线、寻线、边缘降速和终点降速规则保留。
 - 删除原来固定少转5°偏移，仍以完整几何切线为参考；转向从单一方向首次进入±3°容差窗口即制动，通常形成约3°的可控少转容错，并保留停稳复核。
 - `DPT_HEADING_FUSION_ENABLE=0`：任务三、四均不学习或扣除在线零偏，转向与直线使用同一份静态CAL后的陀螺积分。保留160mm轮距和融合内核用于后续分析，FUS诊断输出`EN=0`；正常重新CAL后Y/G接近一致、B=0。
@@ -34,13 +34,14 @@
 - 四圈实际入弧计数1～8，恢复不重复计数；保存最近两帧可信探头图样，失线时按侧向线索、图样变化和CB/DA方向确定并冻结寻找方向，输出独立HIST诊断帧。
 - 保留 STOP / OFF、串口接收故障、低压、ADC / MPU 异常、节拍、超速、反转、堵转和路线边界等停车保护，并提供停车快照及非阻塞遥测。
 
-主机模拟验证与实际场地验收分别记录。当前 V11 FAST 的具体修改和验证边界见 [任务四小幅提速说明](TASK4_V11_FAST_说明.md)，不能把软件回归通过当作四圈实车验收通过。
+主机模拟验证与实际场地验收分别记录。V11 FAST 是当前分支的实车回退基线；ARC12 尚未完成实车验收，不能把软件回归通过当作四圈实车验收通过。
 
 ## 工程结构
 
 | 路径 | 内容 |
 | --- | --- |
 | `Core/Inc/car_config.h` | 轮速 PI、编码器、轮距、航向融合和路线参数 |
+| `Core/Inc/car_build.h` | `ARC12`版本及构建脚本注入的Git/配置指纹接口 |
 | `Core/Inc/car_state.h` | 整车模块状态 |
 | `Core/Src/car_app.c` | 前台调度、初始化、统一停车与保护 |
 | `Core/Src/car_wheel.c` / `car_pi.c` | 编码器反馈和轮速闭环 |
@@ -56,6 +57,7 @@
 | `.eide/` / `Sunward.code-workspace` | EIDE 构建配置与 VS Code 工作区 |
 | `STM32F103RCTX_FLASH.ld` | 链接脚本 |
 | `tools/tests/` | 使用模拟 HAL 的主机回归，不访问硬件 |
+| `tools/analyze_run_log.py` | 将串口三层日志转换为CSV、JSON摘要和SVG曲线 |
 
 更多接口与调度说明见 [MODULES.md](MODULES.md)。参数包含当前小车的标定值，换硬件后需重新核对。
 
@@ -64,7 +66,7 @@
 1. 初次克隆执行 `git submodule update --init`，取得仓库锁定的 FreeRTOS Kernel。
 2. 安装 VS Code、Embedded IDE（`cl.eide`）及 Arm GNU 工具链。
 3. 打开 `Sunward.code-workspace`，在 EIDE 中配置工具链路径并选择 **Debug**。
-4. 执行 **Rebuild**，或在终端运行 `python3 tools/build_firmware.py`，同时产生 `Sunward-rtos.elf` 和 `Sunward-baremetal.elf`。
+4. 执行 **Rebuild**，或在终端运行 `python3 tools/build_firmware.py`，同时产生RTOS/裸机的 ELF、HEX及 `firmware-manifest.json`。清单包含Git提交、脏工作区标志、配置CRC32、资源占用和SHA-256。正式实车建议使用脚本生成的HEX；IDE直接构建无法注入Git信息，日志会明确显示 `GIT=LOCAL/CFG=00000000/MODE=LOCAL`。
 5. 如需下载，在 EIDE 中配置对应调试器；当前 Debug 使用 pyOCD / CMSIS-DAP / SWD，目标为 `stm32f103rc`、速度 4 MHz。
 
 固件从 `Core/` 和 `Drivers/` 构建；`tools/tests/` 的模拟 HAL 仅用于主机测试，不应加入固件包含路径。`build/` 为本地产物，不提交到 Git。
@@ -98,6 +100,14 @@ USB / 蓝牙调试命令以 `!` 或换行结束：
 
 任务未完成时，如果两轮实际速度连续300 ms均接近0，日志立即冻结；即使异常逻辑同时把目标轮速清为0也能保留。任何 STOP/OFF、失线、堵转、反转、超时或传感器故障同样冻结；仅任务顶点制动、转向停稳和换段刹车等明确的计划内停车阶段不会误判。导出依次包含 `JLOG` 全程层、`ELOG` 事件层和 `RLOG` 高频层，直到看到 `RLOG END` 才算完成，可直接保存为CSV文本分析。
 
+日志首行包含 `VER/GIT/CFG/MODE`，可核对固件版本、Git提交、`car_config.h` CRC32和RTOS/裸机模式。将串口终端从 `RLOG BEGIN` 到 `RLOG END` 的内容保存为文本后运行：
+
+```sh
+python3 tools/analyze_run_log.py capture.txt
+```
+
+脚本不需要第三方Python库，会生成 `journey.csv`、`events.csv`、`high_rate.csv`、`summary.json` 和可直接浏览的 `report.svg`。输入里夹有普通遥测或串口前缀也可以解析；缺少 `RLOG END` 时拒绝生成不完整报告。
+
 ## 软件回归
 
 需要 Python 3 和主机 C 编译器（Clang / GCC）；脚本仅使用 Python 标准库，无需安装 Python 依赖。
@@ -107,7 +117,7 @@ python3 tools/tests/run_tests.py
 python3 tools/tests/run_tests.py --sanitize
 ```
 
-首先运行混合控制器、弧线软检查点/置信度观测器、SysTick和双层日志单元测试，再将 7 类场景分别经过 `CarApp` 和旧兼容 API 两套入口，共 **14 组回归**。`--sanitize` 需要编译器支持 AddressSanitizer 和 UndefinedBehaviorSanitizer。
+首先运行日志分析器、混合控制器、弧线软检查点/置信度观测器、7万组确定性随机边界、SysTick和双层日志单元测试，再将 7 类场景分别经过 `CarApp` 和旧兼容 API 两套入口，共 **14 组回归**。`--sanitize` 需要编译器支持 AddressSanitizer 和 UndefinedBehaviorSanitizer。
 
 ## 调试记录
 
@@ -130,7 +140,7 @@ python3 tools/tests/run_tests.py --sanitize
 - [任务四起步与恢复斜坡记录](TASK4_RAMP_V1_调试说明.md)
 - [任务四 T29 诊断记录](TASK4_T29_D1_调试说明.md)
 
-旧记录保留各自版本的参数和验证结果；当前行为以源码和 V11 FAST 说明为准。记录中的本地日志、备份和构建产物路径不属于仓库交付内容。
+旧记录保留各自版本的参数和验证结果；当前行为以源码、`ARC12`日志指纹和总体设计文档为准，V11 FAST说明只代表实车回退基线。记录中的本地日志、备份和构建产物路径不属于仓库交付内容。
 
 ## 仓库文件
 

@@ -83,7 +83,7 @@ int main(void)
     for (unsigned i = 0; i < 500U && !CarRunLog_IsExported(); ++i) CarRunLog_Service(&app);
     assert(CarRunLog_IsExported());
     assert(!CarRunLog_IsDumping());
-    assert(strstr(output, "RLOG BEGIN J=") != NULL);
+    assert(strstr(output, "RLOG BEGIN VER=ARC12 GIT=LOCAL CFG=00000000 MODE=LOCAL J=") != NULL);
     assert(strstr(output, "H=160 F=1 WHY=16") != NULL);
     assert(strstr(output, "JLOG,MS,PROG,Y10,VL,VR,E2,PH,META,CONF") != NULL);
     assert(strstr(output, "ELOG,EV,CP,MS,PH,LEG,RAW,E2,Y10,EY10,ET10,HE2,CONF,TL,TR,VL,VR") != NULL);

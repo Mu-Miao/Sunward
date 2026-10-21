@@ -2,9 +2,13 @@
 """Build and verify the RTOS and/or bare-metal STM32F103 firmware."""
 from pathlib import Path
 import argparse
+import hashlib
+import json
+import re
 import shutil
 import subprocess
 import tempfile
+import zlib
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--mode', choices=['all', 'rtos', 'baremetal'], default='all')
@@ -46,6 +50,25 @@ output_dir = args.output_dir if args.output_dir.is_absolute() else root / args.o
 output_dir.mkdir(parents=True, exist_ok=True)
 
 
+def command_text(command, fallback: str) -> str:
+    try:
+        return subprocess.run(command, cwd=root, check=True, capture_output=True,
+                              text=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return fallback
+
+
+git_commit = command_text(['git', 'rev-parse', '--short=8', 'HEAD'], 'UNKNOWN')
+git_dirty = bool(command_text(['git', 'status', '--porcelain'], 'DIRTY'))
+build_git = git_commit + ('D' if git_dirty else '')
+config_crc = f'{zlib.crc32((root / "Core/Inc/car_config.h").read_bytes()) & 0xffffffff:08X}'
+build_header = (root / 'Core/Inc/car_build.h').read_text(encoding='utf-8')
+version_match = re.search(r'#define\s+CAR_FIRMWARE_VERSION\s+"([^"]+)"', build_header)
+if version_match is None:
+    raise SystemExit('CAR_FIRMWARE_VERSION missing from car_build.h')
+firmware_version = version_match.group(1)
+
+
 def build(mode: str) -> Path:
     use_rtos = mode == 'rtos'
     includes = list(base_includes)
@@ -59,6 +82,9 @@ def build(mode: str) -> Path:
         '-Wno-unused-variable', '-ffunction-sections', '-fdata-sections',
         '-DUSE_HAL_DRIVER', '-DSTM32F103xE',
         '-DCAR_USE_FREERTOS=' + ('1' if use_rtos else '0'),
+        f'-DCAR_BUILD_GIT="{build_git}"',
+        f'-DCAR_CONFIG_CRC="{config_crc}"',
+        f'-DCAR_BUILD_MODE="{mode.upper()}"',
     ] + ['-I' + str(path) for path in includes]
     output = output_dir / ('Sunward-rtos.elf' if use_rtos else 'Sunward-baremetal.elf')
     with tempfile.TemporaryDirectory(prefix='sunward-arm-' + mode + '-') as folder:
@@ -80,6 +106,17 @@ def build(mode: str) -> Path:
 size = Path(compiler).with_name('arm-none-eabi-size')
 nm = Path(compiler).with_name('arm-none-eabi-nm')
 objdump = Path(compiler).with_name('arm-none-eabi-objdump')
+objcopy = Path(compiler).with_name('arm-none-eabi-objcopy')
+manifest = {
+    'schema': 1,
+    'firmware_version': firmware_version,
+    'git_commit': git_commit,
+    'git_dirty': git_dirty,
+    'build_id': build_git,
+    'config_crc32': config_crc,
+    'toolchain': command_text([compiler, '--version'], 'unknown').splitlines()[0],
+    'images': [],
+}
 for selected in modes:
     elf = build(selected)
     size_result = subprocess.run([str(size), str(elf)], check=True,
@@ -129,4 +166,26 @@ for selected in modes:
         raise SystemExit('baremetal: SysTick unexpectedly references the kernel')
     else:
         print('PASS: bare-metal SysTick contains only the HAL time-base path')
+    hex_path = elf.with_suffix('.hex')
+    subprocess.run([str(objcopy), '-O', 'ihex', str(elf), str(hex_path)], check=True)
+    elf_sha256 = hashlib.sha256(elf.read_bytes()).hexdigest()
+    hex_sha256 = hashlib.sha256(hex_path.read_bytes()).hexdigest()
+    manifest['images'].append({
+        'mode': selected,
+        'elf': elf.name,
+        'hex': hex_path.name,
+        'flash_bytes': flash_bytes,
+        'flash_capacity_bytes': 262144,
+        'ram_bytes': ram_bytes,
+        'ram_capacity_bytes': 49152,
+        'elf_sha256': elf_sha256,
+        'hex_sha256': hex_sha256,
+    })
     print('PASS: ' + selected + ' firmware linked at ' + str(elf))
+    print('PASS: ' + selected + ' flash image at ' + str(hex_path) +
+          ' SHA256=' + hex_sha256)
+
+manifest_path = output_dir / 'firmware-manifest.json'
+manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n',
+                         encoding='utf-8')
+print('PASS: firmware manifest at ' + str(manifest_path))
