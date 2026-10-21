@@ -10,6 +10,8 @@ static float update(CarHybridState *state, float line, float yaw, float desired,
         .line_error = line,
         .yaw_rate_dps = yaw,
         .desired_yaw_rate_dps = desired,
+        .line_confidence = 1.0f,
+        .heading_confidence = 1.0f,
         .base_mmps = base,
         .seconds = 0.010f,
         .max_diff_mmps = limit
@@ -32,6 +34,14 @@ int main(void)
     CarHybrid_Reset(&state);
     float curve_left = update(&state, 0.0f, 0.0f, 28.6479f, 200.0f, 80.0f);
     assert(curve_left < 0.0f); /* 期望左转时右轮目标更快。 */
+
+    CarHybrid_Reset(&state);
+    CarHybridInput gated = {.line_error=3.0f, .line_confidence=0.0f,
+        .heading_confidence=0.0f, .base_mmps=200.0f, .seconds=0.010f,
+        .max_diff_mmps=80.0f};
+    assert(fabsf(CarHybrid_Update(&state, &gated)) < 0.001f);
+    gated.heading_confidence = 1.0f; gated.heading_error_deg = 5.0f;
+    assert(CarHybrid_Update(&state, &gated) < 0.0f);
 
     CarHybrid_Reset(&state);
     float saturated = update(&state, 3.0f, 200.0f, 0.0f, 200.0f, 40.0f);

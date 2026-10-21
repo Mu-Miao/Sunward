@@ -9,6 +9,9 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
     i.now_ms = now;
     i.sample_age_ms = (uint32_t)(now - app->line.sample_ms);
     i.distance_mm = (app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f;
+    i.left_distance_mm = app->route.distance_mm[LEFT];
+    i.right_distance_mm = app->route.distance_mm[RIGHT];
+    i.line_error = app->line.error;
     i.yaw_deg = app->heading.angle;
     i.left_mmps = app->wheel.items[LEFT].velocity;
     i.right_mmps = app->wheel.items[RIGHT].velocity;

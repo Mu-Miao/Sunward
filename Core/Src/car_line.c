@@ -12,7 +12,10 @@ static float desired_yaw_rate(const CarAppContext *app, float base)
         sign = app->route.task3.leg == 1U ? 1.0f : -1.0f;
     /* MOVE_LINE 没有路线方向信息，只用横向误差状态，不强行拉回零角速度。 */
     if (sign == 0.0f || radius <= 0.0f) return app->heading.previous_rate;
-    return sign * base * 57.2957795131f / radius;
+    float rate = sign * base * 57.2957795131f / radius;
+    if (CarMotion_IsFigureEight(app->route.motion) && app->route.task3.phase == T3_ARC)
+        rate += app->route.task3.checkpoint_bias_dps;
+    return rate;
 }
 
 void CarLine_Read(CarAppContext *app)
@@ -78,10 +81,19 @@ void CarLine_SetTargets(CarAppContext *app, uint32_t now, float base)
     if (DPT_HYBRID_ENABLE) {
         float seconds = (float)app->runtime.dt_us / 1000000.0f;
         if (seconds < 0.005f || seconds > 0.020f) seconds = 0.010f;
+        float line_confidence = 1.0f, heading_confidence = 1.0f, heading_error = 0.0f;
+        if (CarMotion_IsFigureEight(app->route.motion) && app->route.task3.phase == T3_ARC) {
+            line_confidence = app->route.task3.line_confidence;
+            heading_confidence = app->route.task3.heading_confidence;
+            heading_error = app->route.task3.heading_error_deg;
+        }
         CarHybridInput input = {
             .line_error = app->line.error,
             .yaw_rate_dps = app->heading.previous_rate,
             .desired_yaw_rate_dps = desired_yaw_rate(app, base),
+            .heading_error_deg = heading_error,
+            .line_confidence = line_confidence,
+            .heading_confidence = heading_confidence,
             .base_mmps = base,
             .seconds = seconds,
             .max_diff_mmps = limit

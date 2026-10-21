@@ -40,8 +40,19 @@ static CarAppContext context(void)
 int main(void)
 {
     assert(sizeof(CarRunLogRecord) == 24U);
-    assert(sizeof(CarRunLogStore) < 6200U);
+    assert(sizeof(CarRunLogJourneyRecord) == 16U);
+    assert(sizeof(CarRunLogEventRecord) == 32U);
+    assert(sizeof(CarRunLogStore) < 22000U);
     CarAppContext app = context();
+    /* 任务四160秒上限可完整保存起点、5Hz全程样本和终点，不覆盖开头。 */
+    CarRunLog_Init(0U);
+    CarRunLog_BeginRun(&app, 0U);
+    for (uint32_t ms = 10U; ms <= 160000U; ms += 10U) CarRunLog_Poll(&app, ms);
+    CarRunLog_OnStop(&app, DONE, 160010U);
+    assert(g_car_run_log.journey_count == 802U);
+    assert(g_car_run_log.journey_count < CAR_RUN_LOG_JOURNEY_CAPACITY);
+    assert(g_car_run_log.journey[0].ms == 0U);
+
     CarRunLog_Init(0U);
     CarRunLog_BeginRun(&app, 0U);
     assert(g_car_run_log.count == 1U && !g_car_run_log.frozen);
@@ -52,6 +63,8 @@ int main(void)
         CarRunLog_Poll(&app, ms);
     }
     assert(g_car_run_log.count == CAR_RUN_LOG_CAPACITY);
+    assert(g_car_run_log.journey_count >= 75U);
+    assert(g_car_run_log.event_count == 1U);
     uint16_t before = g_car_run_log.sequence;
     CarRunLog_OnStop(&app, LINE_LOST, 15010U);
     assert(g_car_run_log.frozen && g_car_run_log.reason == LINE_LOST);
@@ -67,10 +80,13 @@ int main(void)
     assert(CarRunLog_IsDumping());
     CarRunLog_Service(&app);
     assert(output_length == 0U && g_car_run_log.dump_stage == 1U);
-    for (unsigned i = 0; i < 300U && !CarRunLog_IsExported(); ++i) CarRunLog_Service(&app);
+    for (unsigned i = 0; i < 500U && !CarRunLog_IsExported(); ++i) CarRunLog_Service(&app);
     assert(CarRunLog_IsExported());
     assert(!CarRunLog_IsDumping());
-    assert(strstr(output, "RLOG BEGIN N=256 F=1 WHY=16 REC=24B") != NULL);
+    assert(strstr(output, "RLOG BEGIN J=") != NULL);
+    assert(strstr(output, "H=160 F=1 WHY=16") != NULL);
+    assert(strstr(output, "JLOG,MS,PROG,Y10,VL,VR,E2,PH,META,CONF") != NULL);
+    assert(strstr(output, "ELOG,EV,CP,MS,PH,LEG,RAW,E2,Y10,EY10,ET10,HE2,CONF,TL,TR,VL,VR") != NULL);
     assert(strstr(output, "RLOG,SEQ,MS,ST,M,PH,LEG,ARC,RAW,E2,TL,TR,VL,VR,Y10,FLAGS") != NULL);
     assert(strstr(output, "RLOG END") != NULL);
 
@@ -84,7 +100,7 @@ int main(void)
     app.runtime.state = DONE;
     CarRunLog_RequestDump();
     for (unsigned i = 0; i < 20U && !CarRunLog_IsExported(); ++i) CarRunLog_Service(&app);
-    assert(CarRunLog_IsExported() && strstr(output, "RLOG BEGIN N=2 F=0 WHY=0") != NULL);
+    assert(CarRunLog_IsExported() && strstr(output, "H=2 F=0 WHY=0") != NULL);
 
     /* 运行阶段双轮持续零速时自动冻结，即使异常逻辑也清零了目标。 */
     CarRunLog_Clear(20000U);
@@ -106,6 +122,21 @@ int main(void)
     CarRunLog_BeginRun(&app, 23000U);
     for (uint32_t ms = 23010U; ms <= 23310U; ms += 10U) CarRunLog_Poll(&app, ms);
     assert(g_car_run_log.frozen && g_car_run_log.reason == 0x80U);
-    puts("PASS: 24-byte/20Hz circular run log, normal overwrite, fault retention, zero-speed freeze, intentional halt exclusion and retryable CSV dump.");
+
+    /* 阶段、检查点、丢线和连续重获分别留下稀疏事件。 */
+    CarRunLog_Clear(24000U);
+    app = context();
+    CarRunLog_BeginRun(&app, 24000U);
+    app.route.task3.checkpoint_index = app.route.task3.checkpoint_event = 1U;
+    CarRunLog_Poll(&app, 24010U);
+    app.route.task3.checkpoint_event = 0U;
+    app.route.task3.lost_seen = 1U;
+    CarRunLog_Poll(&app, 24020U);
+    app.route.task3.lost_seen = 0U;
+    CarRunLog_Poll(&app, 24030U);
+    app.route.task3.phase = T3_VERTEX_BRAKE;
+    CarRunLog_Poll(&app, 24040U);
+    assert(g_car_run_log.event_count == 5U);
+    puts("PASS: 20Hz fault window, 5Hz full-run journey, sparse events, fault retention, zero-speed freeze and retryable CSV dump.");
     return 0;
 }

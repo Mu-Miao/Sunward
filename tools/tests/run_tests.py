@@ -41,6 +41,12 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                             '-lm', '-o', run_log], check=True)
     result = subprocess.run([run_log], capture_output=True, text=True, check=True)
     print('run_log: ' + result.stdout.strip())
+    observer = str(Path(folder) / 'arc_observer')
+    subprocess.run(flags + [str(tests / 'test_arc_observer.c'),
+                            str(root / 'Core/Src/car_task3.c'),
+                            '-lm', '-o', observer], check=True)
+    result = subprocess.run([observer], capture_output=True, text=True, check=True)
+    print('arc_observer: ' + result.stdout.strip())
     for suite in ['motion', 'task2', 'task3', 'task4', 'seek', 'turn', 'heading']:
         for public in [False, True]:
             name = suite + ('_car_app' if public else '_legacy_api')
@@ -58,4 +64,4 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                 print(result.stdout + result.stderr, flush=True)
                 result.check_returncode()
             print(name + ': ' + result.stdout.strip())
-print('PASS: hybrid, SysTick and run-log units; motion/task2/task3/task4/seek/turn/heading regressions; CarApp and compatibility APIs; separate module linkage.')
+print('PASS: hybrid, arc-observer, SysTick and run-log units; motion/task2/task3/task4/seek/turn/heading regressions; CarApp and compatibility APIs; separate module linkage.')

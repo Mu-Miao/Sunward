@@ -84,6 +84,15 @@
 #define DPT_HYBRID_LQR_WEIGHT 0.65f
 #define DPT_HYBRID_RATE_FILTER 0.25f
 #define DPT_HYBRID_INTEGRAL_LIMIT 1.0f
+#define DPT_HYBRID_HEADING_K 0.35f
+/* 弧线软检查点：每 1/4 弧长只小幅修正后续目标角速度，运行中不停车。 */
+#define DPT_ARC_SOFT_CHECKPOINT_ENABLE 1U
+#define DPT_ARC_CHECKPOINT_GAIN 0.12f
+#define DPT_ARC_CHECKPOINT_STEP_DPS 0.75f
+#define DPT_ARC_CHECKPOINT_MAX_BIAS_DPS 2.0f
+#define DPT_ARC_CONFIDENCE_FILTER 0.15f
+#define DPT_ARC_ENCODER_GOOD_DEG 3.0f
+#define DPT_ARC_ENCODER_BAD_DEG 15.0f
 /* 任务二路线：AB 直线、BC 半圆、CD 直线、DA 半圆；正常运行无需遥控。 */
 #define DPT_TASK2_STRAIGHT_MM 1000.0f
 #define DPT_TASK2_ARC_MM 1256.0f /* 实测 BC 半圆全白出口对应平均编码器里程约 1256 毫米，独立半圆测试参数保持原值。 */
@@ -97,6 +106,7 @@
 #define DPT_TASK3_START_FROM_AB 1U /* 约定的初始摆放方向：A 点朝 B。 */
 #define DPT_TASK3_SPAN_MM 1000.0f
 #define DPT_TASK3_RADIUS_MM 400.0f
+#define DPT_TASK3_TRACK_WIDTH_MM DPT_TRACK_WIDTH_MM
 #define DPT_TASK3_ARC_MM 1256.0f
 #define DPT_TASK3_DIAGONAL_MMPS 240.0f
 #define DPT_TASK3_ARC_MMPS 200.0f

@@ -16,7 +16,7 @@ typedef enum { T3_NO_POINT, T3_POINT_A, T3_POINT_B,
 enum { T3_LOSS_TIME = 1U, T3_LOSS_DISTANCE = 2U, T3_LOSS_ANGLE = 4U };
 
 typedef struct {
-    float span_mm, radius_mm, arc_mm;
+    float span_mm, radius_mm, arc_mm, track_width_mm;
     uint8_t start_from_ab; /* 1 表示初始 A 朝 B，需要自动转向；0 表示已朝 AC。 */
     uint8_t bd_full_distance; /* 1：BD 达到完整名义斜线里程后才确认 D；C 点规则不变。 */
     uint8_t b_full_align; /* 1：B 点完整对正使用独立的停稳角度容差。 */
@@ -37,11 +37,15 @@ typedef struct {
     uint8_t history_gap; /* CB/DA：可信内/外侧单探头交接，方向由上层历史快照确定。 */
     float da_gap_mm, da_gap_deg;
     uint32_t recovery_ms; /* 0 保留旧的逐帧恢复；非零时需连续有效，原失线预算不重置。 */
+    uint8_t soft_checkpoints;
+    float checkpoint_gain, checkpoint_step_dps, checkpoint_max_bias_dps;
+    float confidence_filter, encoder_good_deg, encoder_bad_deg;
 } CarTask3Config;
 
 typedef struct {
     uint32_t now_ms, sample_age_ms;
     float distance_mm; /* 左右编码器的有符号平均里程，包含转向对正期间的移动。 */
+    float left_distance_mm, right_distance_mm, line_error;
     float yaw_deg, left_mmps, right_mmps;
     uint8_t heading_ready, line_valid, black_count, centered;
     uint8_t outermost; /* 当前有效图样为最左或最右单探头。 */
@@ -76,6 +80,12 @@ typedef struct {
     float loss_distance_mm, loss_turn_deg; /* F7 触发时锁存，区别于首次失线快照。 */
     float diagonal_mm, diagonal_angle_deg, start_heading_deg;
     float leg_start_mm, phase_start_mm;
+    /* 弧段观测器：陀螺为主，编码器只评估一致性；巡线置信度独立保留。 */
+    uint8_t observer_ready, checkpoint_index, checkpoint_event;
+    float observer_left_mm, observer_right_mm, observer_last_yaw_deg;
+    float gyro_turn_deg, encoder_turn_deg;
+    float expected_yaw_deg, heading_error_deg;
+    float line_confidence, heading_confidence, checkpoint_bias_dps;
 } CarTask3;
 
 int CarTask3_ConfigValid(const CarTask3Config *config);

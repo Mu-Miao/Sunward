@@ -9,6 +9,7 @@ CarTask3Config CarRoute_Task3Config(void)
     CarTask3Config c = CarTask3_DefaultConfig();
     c.start_from_ab = DPT_TASK3_START_FROM_AB;
     c.span_mm = DPT_TASK3_SPAN_MM; c.radius_mm = DPT_TASK3_RADIUS_MM;
+    c.track_width_mm = DPT_TASK3_TRACK_WIDTH_MM;
     c.arc_mm = DPT_TASK3_ARC_MM;
     c.diagonal_mmps = DPT_TASK3_DIAGONAL_MMPS; c.arc_mmps = DPT_TASK3_ARC_MMPS;
     c.start_mmps = DPT_TASK3_START_MMPS; c.acceleration_mmps2 = DPT_TASK3_ACCEL_MMPS2;
@@ -29,6 +30,13 @@ CarTask3Config CarRoute_Task3Config(void)
     c.da_gap_mm = DPT_TASK3_GAP_MM; c.da_gap_deg = DPT_TASK3_GAP_DEG;
     c.vertex_seek_ms = DPT_TASK3_VERTEX_SEEK_MS; c.vertex_seek_mm = DPT_TASK3_VERTEX_SEEK_MM;
     c.recovery_ms = 30U;
+    c.soft_checkpoints = DPT_ARC_SOFT_CHECKPOINT_ENABLE;
+    c.checkpoint_gain = DPT_ARC_CHECKPOINT_GAIN;
+    c.checkpoint_step_dps = DPT_ARC_CHECKPOINT_STEP_DPS;
+    c.checkpoint_max_bias_dps = DPT_ARC_CHECKPOINT_MAX_BIAS_DPS;
+    c.confidence_filter = DPT_ARC_CONFIDENCE_FILTER;
+    c.encoder_good_deg = DPT_ARC_ENCODER_GOOD_DEG;
+    c.encoder_bad_deg = DPT_ARC_ENCODER_BAD_DEG;
     c.settle_ms = DPT_DISTANCE_SETTLE_MS; c.brake_timeout_ms = DPT_DISTANCE_BRAKE_TIMEOUT_MS;
     return c;
 }

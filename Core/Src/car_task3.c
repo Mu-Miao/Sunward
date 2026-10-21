@@ -9,10 +9,15 @@ static float wrap(float a)
     return a - 180.0f;
 }
 static int positive(float a) { return isfinite(a) && a > 0.0f; }
+static float clampf(float value, float low, float high)
+{
+    return value < low ? low : (value > high ? high : value);
+}
 static int bounded_time(uint32_t t) { return t > 0U && t <= 80000U; }
 static int config_valid(const CarTask3Config *c)
 {
-    if (c->start_from_ab > 1U || c->bd_full_distance > 1U || c->b_full_align > 1U || c->d_full_align > 1U) return 0;
+    if (c->start_from_ab > 1U || c->bd_full_distance > 1U || c->b_full_align > 1U ||
+        c->d_full_align > 1U || c->soft_checkpoints > 1U) return 0;
     if (c->b_full_align && (!positive(c->b_align_tolerance_deg) ||
         c->b_align_tolerance_deg > c->align_tolerance_deg)) return 0;
     if (c->d_full_align && (!positive(c->d_align_tolerance_deg) ||
@@ -30,6 +35,7 @@ static int config_valid(const CarTask3Config *c)
          c->vertex_seek_mm > 80.0f || c->vertex_seek_mm > c->entry_window_mm ||
          !positive(c->seek_mmps) || c->seek_mmps > 50.0f)) return 0;
     if (!positive(c->span_mm) || !positive(c->radius_mm) || !positive(c->arc_mm) ||
+        !positive(c->track_width_mm) ||
         !positive(c->diagonal_mmps) || !positive(c->arc_mmps) ||
         !positive(c->start_mmps) || !positive(c->acceleration_mmps2) ||
         !positive(c->arc_acceleration_mmps2) ||
@@ -38,10 +44,15 @@ static int config_valid(const CarTask3Config *c)
         !positive(c->turn_travel_limit_mm) || !positive(c->capture_limit_mm) ||
         !positive(c->approach_mm) || !positive(c->minimum_mmps) ||
         !positive(c->diagonal_tolerance_deg) || !positive(c->arc_tolerance_deg) ||
-        !positive(c->align_tolerance_deg)) return 0;
+        !positive(c->align_tolerance_deg) || !positive(c->confidence_filter) ||
+        c->confidence_filter > 1.0f || !positive(c->encoder_good_deg) ||
+        !positive(c->encoder_bad_deg) || c->encoder_bad_deg <= c->encoder_good_deg ||
+        !positive(c->checkpoint_gain) || !positive(c->checkpoint_step_dps) ||
+        !positive(c->checkpoint_max_bias_dps) ||
+        c->checkpoint_step_dps > c->checkpoint_max_bias_dps) return 0;
     float diagonal = hypotf(c->span_mm, 2.0f * c->radius_mm);
     return isfinite(diagonal) && diagonal < 10000.0f &&
-        c->entry_window_mm < diagonal * 0.5f && c->exit_window_mm < c->arc_mm * 0.5f &&
+        c->track_width_mm < 1000.0f && c->entry_window_mm < diagonal * 0.5f && c->exit_window_mm < c->arc_mm * 0.5f &&
         c->approach_mm < diagonal && c->diagonal_mmps <= 250.0f && c->arc_mmps <= 250.0f &&
         c->start_mmps <= c->diagonal_mmps && c->start_mmps <= c->arc_mmps &&
         c->minimum_mmps <= c->diagonal_mmps && c->minimum_mmps <= c->arc_mmps && c->turn_mmps <= 100.0f && c->capture_mmps <= 100.0f &&
@@ -59,6 +70,8 @@ static int config_valid(const CarTask3Config *c)
 static int input_valid(const CarTask3Config *c, const CarTask3Input *i)
 {
     return isfinite(i->distance_mm) && isfinite(i->yaw_deg) &&
+        isfinite(i->left_distance_mm) && isfinite(i->right_distance_mm) &&
+        isfinite(i->line_error) &&
         isfinite(i->left_mmps) && isfinite(i->right_mmps) && i->heading_ready &&
         i->sample_age_ms <= c->sample_max_age_ms && i->black_count <= 4U &&
         (!i->line_valid || (i->black_count > 0U && i->black_count < 4U)) &&
@@ -81,6 +94,10 @@ static void phase(CarTask3 *r, CarTask3Phase p, const CarTask3Input *i, CarTask3
     r->arc_valid_seen = r->loss_seek = r->seek_aligned = r->resume_active = 0U;
     r->arc_outer_valid = r->gap_seek = 0U;
     r->arc_side_valid = 0U;
+    r->observer_ready = r->checkpoint_index = r->checkpoint_event = 0U;
+    r->gyro_turn_deg = r->encoder_turn_deg = r->checkpoint_bias_dps = 0.0f;
+    r->expected_yaw_deg = r->heading_error_deg = 0.0f;
+    r->line_confidence = r->heading_confidence = 0.0f;
     o->control = T3_HALT;
     o->reset_controllers = 1U;
 }
@@ -123,6 +140,67 @@ static float speed(const CarTask3 *r, const CarTask3Input *i, float cruise, floa
     return fminf(v, ramp);
 }
 
+static float line_confidence_target(const CarTask3Input *i)
+{
+    if (!i->line_valid) return 0.0f;
+    float confidence = i->centered ? 1.0f : (i->black_count == 1U ? 0.78f : 0.88f);
+    if (i->outermost) confidence = 0.65f;
+    confidence -= 0.04f * fminf(fabsf(i->line_error), 3.0f);
+    /* 线仍有效时不把循线权重降得过低，避免“越偏越不修”的正反馈。 */
+    return clampf(confidence, 0.45f, 1.0f);
+}
+
+static void update_arc_observer(CarTask3 *r, const CarTask3Input *i, float progress)
+{
+    float sign = r->leg == 1U ? 1.0f : -1.0f;
+    float line_target = line_confidence_target(i);
+    if (!r->observer_ready) {
+        r->observer_ready = 1U;
+        r->observer_left_mm = i->left_distance_mm;
+        r->observer_right_mm = i->right_distance_mm;
+        r->observer_last_yaw_deg = i->yaw_deg;
+        r->line_confidence = line_target;
+        r->heading_confidence = 1.0f;
+    } else {
+        float dl = i->left_distance_mm - r->observer_left_mm;
+        float dr = i->right_distance_mm - r->observer_right_mm;
+        float dyaw = wrap(i->yaw_deg - r->observer_last_yaw_deg);
+        r->observer_left_mm = i->left_distance_mm;
+        r->observer_right_mm = i->right_distance_mm;
+        r->observer_last_yaw_deg = i->yaw_deg;
+        r->gyro_turn_deg += dyaw;
+        float heading_target = 0.1f;
+        if (fabsf(dl) <= 25.0f && fabsf(dr) <= 25.0f) {
+            r->encoder_turn_deg += (dr - dl) / r->config.track_width_mm * 57.2957795131f;
+            float disagreement = fabsf(r->gyro_turn_deg - r->encoder_turn_deg);
+            if (disagreement <= r->config.encoder_good_deg) heading_target = 1.0f;
+            else if (disagreement < r->config.encoder_bad_deg)
+                heading_target = 1.0f - 0.8f *
+                    (disagreement - r->config.encoder_good_deg) /
+                    (r->config.encoder_bad_deg - r->config.encoder_good_deg);
+            else heading_target = 0.2f;
+        }
+        float a = r->config.confidence_filter;
+        r->line_confidence += a * (line_target - r->line_confidence);
+        r->heading_confidence += a * (heading_target - r->heading_confidence);
+    }
+    r->expected_yaw_deg = wrap(tangent_heading(r, 0) +
+        sign * fmaxf(progress, 0.0f) / r->config.radius_mm * 57.2957795131f);
+    r->heading_error_deg = wrap(r->expected_yaw_deg - i->yaw_deg);
+
+    while (r->checkpoint_index < 4U &&
+           progress >= r->config.arc_mm * (float)(r->checkpoint_index + 1U) * 0.25f) {
+        ++r->checkpoint_index;
+        r->checkpoint_event = r->checkpoint_index;
+        if (r->config.soft_checkpoints && r->heading_confidence >= 0.35f) {
+            float step = clampf(r->config.checkpoint_gain * r->heading_error_deg,
+                -r->config.checkpoint_step_dps, r->config.checkpoint_step_dps);
+            r->checkpoint_bias_dps = clampf(r->checkpoint_bias_dps + step,
+                -r->config.checkpoint_max_bias_dps, r->config.checkpoint_max_bias_dps);
+        }
+    }
+}
+
 static void seek_line(const CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
 {
     float travel = fmaxf(i->distance_mm - r->lost_start_mm, 0.0f);
@@ -137,7 +215,7 @@ int CarTask3_ConfigValid(const CarTask3Config *c) { return c && config_valid(c);
 CarTask3Config CarTask3_DefaultConfig(void)
 {
     CarTask3Config c = {
-        .span_mm=1000.0f, .radius_mm=400.0f, .arc_mm=1256.0f, .start_from_ab=1U,
+        .span_mm=1000.0f, .radius_mm=400.0f, .arc_mm=1256.0f, .track_width_mm=160.0f, .start_from_ab=1U,
         .diagonal_mmps=200.0f, .arc_mmps=200.0f, .start_mmps=50.0f,
         .acceleration_mmps2=100.0f, .arc_acceleration_mmps2=100.0f, .turn_mmps=60.0f, .capture_mmps=50.0f,
         .entry_window_mm=120.0f, .exit_window_mm=200.0f,
@@ -146,7 +224,10 @@ CarTask3Config CarTask3_DefaultConfig(void)
         .diagonal_tolerance_deg=20.0f, .arc_tolerance_deg=20.0f, .align_tolerance_deg=3.0f,
         .deadline_ms=40000U, .settle_ms=200U, .brake_timeout_ms=1500U,
         .align_timeout_ms=4000U, .capture_timeout_ms=2000U,
-        .debounce_ms=30U, .lost_ms=100U, .sample_max_age_ms=15U
+        .debounce_ms=30U, .lost_ms=100U, .sample_max_age_ms=15U,
+        .soft_checkpoints=1U, .checkpoint_gain=0.12f,
+        .checkpoint_step_dps=0.75f, .checkpoint_max_bias_dps=2.0f,
+        .confidence_filter=0.15f, .encoder_good_deg=3.0f, .encoder_bad_deg=15.0f
     };
     return c;
 }
@@ -180,6 +261,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
     if (!o) return;
     memset(o, 0, sizeof *o); /* 每次更新先设置为停止，避免沿用上次的轮速目标。 */
     if (!r || !i || r->phase == T3_IDLE || r->phase == T3_DONE || r->phase == T3_FAULT) return;
+    r->checkpoint_event = 0U;
     r->elapsed_ms = (uint32_t)(i->now_ms - r->start_ms);
     if (!i->enabled || i->stop_requested || i->protection_fault) fault(r, T3_ABORT);
     else if (!input_valid(&r->config, i) || (uint32_t)(i->now_ms - r->previous_ms) > 20U) fault(r, T3_SENSOR);
@@ -218,6 +300,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             o->base_mmps = speed(r, i, r->config.diagonal_mmps, r->diagonal_mm - progress, r->config.acceleration_mmps2);
         }
     } else if (r->phase == T3_ARC) {
+        update_arc_observer(r, i, progress);
         int end_white = progress >= r->config.arc_mm - r->config.exit_window_mm &&
             progress <= r->config.arc_mm + r->config.exit_window_mm && i->black_count == 0U &&
             fabsf(wrap(tangent_heading(r, 1) - i->yaw_deg)) <= r->config.arc_tolerance_deg;

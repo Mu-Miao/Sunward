@@ -14,6 +14,9 @@ typedef struct {
     float line_error;
     float yaw_rate_dps;
     float desired_yaw_rate_dps;
+    float heading_error_deg;
+    float line_confidence;
+    float heading_confidence;
     float base_mmps;
     float seconds;
     float max_diff_mmps;
