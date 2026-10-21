@@ -27,6 +27,10 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                              str(tests / 'test_log_analyzer.py')],
                             capture_output=True, text=True, check=True)
     print('log_analyzer: ' + result.stdout.strip())
+    result = subprocess.run([os.environ.get('PYTHON', 'python3'),
+                             str(tests / 'test_capture_run_log.py')],
+                            capture_output=True, text=True, check=True)
+    print('log_capture: ' + result.stdout.strip())
     hybrid = str(Path(folder) / 'hybrid')
     subprocess.run(flags + [str(tests / 'test_hybrid.c'),
                             str(root / 'Core/Src/car_hybrid.c'),

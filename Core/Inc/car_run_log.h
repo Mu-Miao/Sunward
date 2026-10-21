@@ -60,7 +60,7 @@ typedef struct {
     uint16_t head, count, sequence, dump_index, dump_remaining;
     uint16_t journey_head, journey_count, journey_dump_index, journey_dump_remaining;
     uint8_t event_head, event_count, event_dump_index, event_dump_remaining;
-    uint8_t frozen, reason, zero_seen, dump_stage, exported;
+    uint8_t frozen, reason, zero_seen, dump_stage, exported, dump_port;
     uint8_t last_phase, last_leg, last_checkpoint, last_lost, last_seek;
 } CarRunLogStore;
 
@@ -71,6 +71,9 @@ void CarRunLog_BeginRun(const CarAppContext *app, uint32_t now);
 void CarRunLog_Poll(const CarAppContext *app, uint32_t now);
 void CarRunLog_OnStop(const CarAppContext *app, TestState why, uint32_t now);
 void CarRunLog_RequestDump(void);
+void CarRunLog_RequestDumpPort(LabUART_Port port);
+void CarRunLog_AbortDump(void);
+void CarRunLog_SendStatusPort(LabUART_Port port);
 void CarRunLog_Service(const CarAppContext *app);
 void CarRunLog_Clear(uint32_t now);
 int CarRunLog_IsFrozen(void);

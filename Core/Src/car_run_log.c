@@ -260,6 +260,12 @@ int CarRunLog_IsDumping(void) { return g_car_run_log.dump_stage != 0U; }
 
 void CarRunLog_RequestDump(void)
 {
+    CarRunLog_RequestDumpPort(LAB_UART_USB);
+}
+
+void CarRunLog_RequestDumpPort(LabUART_Port port)
+{
+    if ((unsigned)port >= LAB_UART_COUNT) return;
     if (g_car_run_log.count == 0U && g_car_run_log.journey_count == 0U &&
         g_car_run_log.event_count == 0U) return;
     g_car_run_log.dump_index = (uint16_t)((g_car_run_log.head + CAR_RUN_LOG_CAPACITY -
@@ -271,14 +277,39 @@ void CarRunLog_RequestDump(void)
     g_car_run_log.event_dump_index = (uint8_t)((g_car_run_log.event_head +
         CAR_RUN_LOG_EVENT_CAPACITY - g_car_run_log.event_count) % CAR_RUN_LOG_EVENT_CAPACITY);
     g_car_run_log.event_dump_remaining = g_car_run_log.event_count;
+    g_car_run_log.dump_port = (uint8_t)port;
     g_car_run_log.dump_stage = 1U;
     g_car_run_log.exported = 0U;
 }
 
+void CarRunLog_AbortDump(void)
+{
+    g_car_run_log.dump_stage = 0U;
+}
+
+void CarRunLog_SendStatusPort(LabUART_Port port)
+{
+    if ((unsigned)port >= LAB_UART_COUNT) return;
+    char line[LAB_UART_FRAME_MAX];
+    int n = snprintf(line, sizeof line,
+        "LSTAT VER=%s GIT=%s CFG=%s MODE=%s J=%u E=%u H=%u F=%u WHY=%u D=%u P=%u JR=%u ER=%u HR=%u\r\n",
+        CAR_FIRMWARE_VERSION, CAR_BUILD_GIT, CAR_CONFIG_CRC, CAR_BUILD_MODE,
+        (unsigned)g_car_run_log.journey_count, (unsigned)g_car_run_log.event_count,
+        (unsigned)g_car_run_log.count, (unsigned)g_car_run_log.frozen,
+        (unsigned)g_car_run_log.reason, (unsigned)g_car_run_log.dump_stage,
+        (unsigned)g_car_run_log.dump_port,
+        (unsigned)g_car_run_log.journey_dump_remaining,
+        (unsigned)g_car_run_log.event_dump_remaining,
+        (unsigned)g_car_run_log.dump_remaining);
+    if (n > 0 && n < (int)sizeof line)
+        (void)LabUART_TryWritePort(port, line, (uint16_t)n);
+}
+
 static int send_text(const char *text, int length)
 {
-    return length > 0 && length <= (int)LAB_UART_FRAME_MAX &&
-        LabUART_TryWrite(text, (uint16_t)length);
+    /* snprintf返回值等于缓冲区长度时已截断，不发送带NUL的伪完整帧。 */
+    return length > 0 && length < (int)LAB_UART_FRAME_MAX &&
+        LabUART_TryWritePort((LabUART_Port)g_car_run_log.dump_port, text, (uint16_t)length);
 }
 
 void CarRunLog_Service(const CarAppContext *app)
@@ -299,7 +330,7 @@ void CarRunLog_Service(const CarAppContext *app)
         break;
     case 2U: {
         static const char header[] = "JLOG,MS,PROG,Y10,VL,VR,E2,PH,META,CONF\r\n";
-        if (LabUART_TryWrite(header, sizeof header - 1U)) g_car_run_log.dump_stage = 3U;
+        if (send_text(header, sizeof header - 1U)) g_car_run_log.dump_stage = 3U;
         break;
     }
     case 3U:
@@ -319,7 +350,7 @@ void CarRunLog_Service(const CarAppContext *app)
         break;
     case 4U: {
         static const char header[] = "ELOG,EV,CP,MS,PH,LEG,RAW,E2,Y10,EY10,ET10,HE2,CONF,TL,TR,VL,VR\r\n";
-        if (LabUART_TryWrite(header, sizeof header - 1U)) g_car_run_log.dump_stage = 5U;
+        if (send_text(header, sizeof header - 1U)) g_car_run_log.dump_stage = 5U;
         break;
     }
     case 5U:
@@ -343,7 +374,7 @@ void CarRunLog_Service(const CarAppContext *app)
         break;
     case 6U: {
         static const char header[] = "RLOG,SEQ,MS,ST,M,PH,LEG,ARC,RAW,E2,TL,TR,VL,VR,Y10,FLAGS\r\n";
-        if (LabUART_TryWrite(header, sizeof header - 1U)) g_car_run_log.dump_stage = 7U;
+        if (send_text(header, sizeof header - 1U)) g_car_run_log.dump_stage = 7U;
         break;
     }
     case 7U:
@@ -366,7 +397,7 @@ void CarRunLog_Service(const CarAppContext *app)
         break;
     case 8U: {
         static const char end[] = "RLOG END\r\n";
-        if (LabUART_TryWrite(end, sizeof end - 1U)) {
+        if (send_text(end, sizeof end - 1U)) {
             g_car_run_log.dump_stage = 0U;
             g_car_run_log.exported = 1U;
         }

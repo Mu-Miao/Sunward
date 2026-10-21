@@ -6,15 +6,22 @@
 static char output[40000];
 static size_t output_length;
 static int reject_once;
+static LabUART_Port output_port;
 
-int LabUART_TryWrite(const char *data, uint16_t length)
+int LabUART_TryWritePort(LabUART_Port port, const char *data, uint16_t length)
 {
     if (reject_once) { reject_once = 0; return 0; }
+    output_port = port;
     assert(output_length + length < sizeof output);
     memcpy(output + output_length, data, length);
     output_length += length;
     output[output_length] = '\0';
     return 1;
+}
+
+int LabUART_TryWrite(const char *data, uint16_t length)
+{
+    return LabUART_TryWritePort(LAB_UART_USB, data, length);
 }
 
 static CarAppContext context(void)
@@ -76,19 +83,26 @@ int main(void)
     /* CSV dump retries a full frame when the non-blocking UART queue is full. */
     app.runtime.state = LINE_LOST;
     reject_once = 1;
-    CarRunLog_RequestDump();
+    CarRunLog_RequestDumpPort(LAB_UART_BT);
     assert(CarRunLog_IsDumping());
     CarRunLog_Service(&app);
     assert(output_length == 0U && g_car_run_log.dump_stage == 1U);
     for (unsigned i = 0; i < 500U && !CarRunLog_IsExported(); ++i) CarRunLog_Service(&app);
     assert(CarRunLog_IsExported());
     assert(!CarRunLog_IsDumping());
-    assert(strstr(output, "RLOG BEGIN VER=ARC12 GIT=LOCAL CFG=00000000 MODE=LOCAL J=") != NULL);
+    assert(output_port == LAB_UART_BT);
+    assert(strstr(output, "RLOG BEGIN VER=ARC13 GIT=LOCAL CFG=00000000 MODE=LOCAL J=") != NULL);
     assert(strstr(output, "H=160 F=1 WHY=16") != NULL);
     assert(strstr(output, "JLOG,MS,PROG,Y10,VL,VR,E2,PH,META,CONF") != NULL);
     assert(strstr(output, "ELOG,EV,CP,MS,PH,LEG,RAW,E2,Y10,EY10,ET10,HE2,CONF,TL,TR,VL,VR") != NULL);
     assert(strstr(output, "RLOG,SEQ,MS,ST,M,PH,LEG,ARC,RAW,E2,TL,TR,VL,VR,Y10,FLAGS") != NULL);
     assert(strstr(output, "RLOG END") != NULL);
+
+    output_length = 0U;
+    CarRunLog_SendStatusPort(LAB_UART_BT);
+    assert(output_port == LAB_UART_BT);
+    assert(strstr(output, "LSTAT VER=ARC13") != NULL);
+    assert(strstr(output, "D=0 P=1 JR=0 ER=0 HR=0") != NULL);
 
     /* A normally completed run remains exportable until the next run begins. */
     output_length = 0U;
