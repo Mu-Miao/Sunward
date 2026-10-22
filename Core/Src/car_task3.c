@@ -91,6 +91,7 @@ static void phase(CarTask3 *r, CarTask3Phase p, const CarTask3Input *i, CarTask3
     r->phase_ms = i->now_ms;
     r->phase_start_mm = i->distance_mm;
     r->edge_seen = r->settled_seen = r->lost_seen = r->recovery_seen = 0U;
+    r->diagonal_armed = r->departure_seen = 0U;
     r->arc_valid_seen = r->loss_seek = r->seek_aligned = r->resume_active = 0U;
     r->arc_outer_valid = r->gap_seek = 0U;
     r->arc_side_valid = 0U;
@@ -106,6 +107,43 @@ static int stable(CarTask3 *r, int matches, uint32_t now)
     if (!matches) { r->edge_seen = 0U; return 0; }
     if (!r->edge_seen) { r->edge_seen = 1U; r->edge_ms = now; }
     return (uint32_t)(now - r->edge_ms) >= r->config.debounce_ms;
+}
+
+/* AC/BD 不再以预计毫米数作为正常换段门槛。只有先稳定离开 A/B
+   起点黑线，才会把下一次稳定见线解释为 C/D，避免起步时直接误换段。 */
+static int diagonal_endpoint_seen(CarTask3 *r, const CarTask3Input *i,
+    CarTask3Output *o)
+{
+    if (!r->diagonal_armed) {
+        stable(r, 0, i->now_ms);
+        if (i->black_count != 0U) {
+            r->departure_seen = 0U;
+            return 0;
+        }
+        if (!r->departure_seen) {
+            r->departure_seen = 1U;
+            r->departure_ms = i->now_ms;
+        }
+        if ((uint32_t)(i->now_ms - r->departure_ms) >= r->config.debounce_ms) {
+            r->diagonal_armed = 1U;
+            r->departure_seen = 0U;
+        }
+        return 0;
+    }
+    if (!i->line_valid) {
+        stable(r, 0, i->now_ms);
+        return 0;
+    }
+    /* 顶点候选期先刹停，连续确认后由唯一换段函数进入刹停段。 */
+    o->reset_controllers = 1U;
+    return stable(r, 1, i->now_ms);
+}
+
+static void leave_diagonal(CarTask3 *r, const CarTask3Input *i,
+    CarTask3Output *o)
+{
+    o->signal_point = r->leg == 0U ? T3_POINT_C : T3_POINT_D;
+    phase(r, T3_VERTEX_BRAKE, i, o);
 }
 static float diagonal_heading(const CarTask3 *r)
 {
@@ -278,26 +316,20 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
     if (progress < -5.0f || phase_travel < -5.0f) fault(r, T3_DISTANCE);
     else if (r->phase == T3_DIAGONAL) {
         float target = diagonal_heading(r);
-        float early = r->leg == 2U && r->config.bd_full_distance ? 0.0f : r->config.entry_window_mm;
+        float safety_limit = r->diagonal_mm + r->config.entry_window_mm;
         if (fabsf(wrap(target - i->yaw_deg)) > r->config.diagonal_tolerance_deg) fault(r, T3_HEADING);
-        else if (progress > r->diagonal_mm + r->config.entry_window_mm) fault(r, T3_EDGE);
-        else if (progress >= r->diagonal_mm - early && i->line_valid) {
-            /* 检测到候选顶点时先停止，再静止去抖确认。 */
-            o->reset_controllers = 1U;
-            if (stable(r, 1, i->now_ms)) {
-                o->signal_point = r->leg == 0U ? T3_POINT_C : T3_POINT_D;
-                phase(r, T3_VERTEX_BRAKE, i, o);
+        else if (diagonal_endpoint_seen(r, i, o)) {
+            leave_diagonal(r, i, o);
+        } else if (!r->edge_seen && progress > safety_limit) fault(r, T3_EDGE);
+        else {
+            /* 见线去抖期保持零输出；其余时间沿对角线前进。降速点只服务于
+               超程保护，不再把理论对角线长度当成 C/D 切换点。 */
+            if (!r->edge_seen) {
+                o->control = T3_HOLD_HEADING;
+                o->heading_deg = target;
+                o->base_mmps = speed(r, i, r->config.diagonal_mmps,
+                    safety_limit - progress, r->config.acceleration_mmps2);
             }
-        } else if (r->config.vertex_seek_ms != 0U && progress >= r->diagonal_mm &&
-                   i->black_count == 0U) {
-            /* 预计已到 C/D 附近但探头仍全白：保留原顶点距离窗，先停再向弧线切线接近。
-               此时不报告经过顶点，也不假定已经在线上。 */
-            phase(r, T3_VERTEX_SEEK, i, o);
-        } else {
-            stable(r, 0, i->now_ms);
-            o->control = T3_HOLD_HEADING;
-            o->heading_deg = target;
-            o->base_mmps = speed(r, i, r->config.diagonal_mmps, r->diagonal_mm - progress, r->config.acceleration_mmps2);
         }
     } else if (r->phase == T3_ARC) {
         update_arc_observer(r, i, progress);

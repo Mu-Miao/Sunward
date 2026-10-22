@@ -102,9 +102,12 @@ static void vertex_diagnostics_regression(void)
  task3_start();
  for(unsigned n=0;n<3500 && !(app()->route.task3.leg==2 && app()->route.task3.phase==T3_DIAGONAL);n++)step_route();
  assert(app()->route.task3.leg==2 && app()->route.task3.phase==T3_DIAGONAL);
- /* Deliberately inject early black at 1165mm, inside the existing 120mm
-    window, to verify the diagnostic captures recognition rather than claiming
-    the vehicle has physically reached the nominal 1280.6mm vertex. */
+ /* First prove the vehicle has left B, then inject black at 1165mm. Endpoint
+    recognition is line-event driven and the diagnostic records recognition,
+    not a claim that nominal 1280.6mm was physically reached. */
+ line_inputs=15;
+ for(unsigned n=0;n<4;n++)step(10,0,0);
+ assert(app()->route.task3.diagonal_armed);
  app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+1165;
  app()->heading.angle=join_target();app()->heading.gyro_angle=88;app()->heading.bias_rate=.2f;
  line_inputs=14;
@@ -203,66 +206,49 @@ static void bd_distance_regression(void)
  for(unsigned task=3;task<=4;task++)for(unsigned leg=0;leg<=2;leg+=2) {
   CarTask3Config cfg=task==4?CarTask4_Config():CarRoute_Task3Config();
   assert(cfg.bd_full_distance==0);
-  /* Retain coverage of the optional historical full-distance gate. */
-  cfg.bd_full_distance=task==4;cfg.start_from_ab=0;
+  cfg.start_from_ab=0;
   CarTask3 t={0};CarTask3Output out;
   CarTask3Input in={.now_ms=1000,.heading_ready=1,.enabled=1};
   assert(CarTask3_Start(&t,&cfg,&in));t.leg=leg;t.pending_start_signal=0;
   in.yaw_deg=CarMath_WrapDegrees(t.start_heading_deg+(leg==2?180+2*t.diagonal_angle_deg:0));
-  in.distance_mm=1165;in.line_valid=1;in.black_count=1;
+  /* Remaining on the A/B start line cannot pre-arm or trigger C/D. */
+  in.distance_mm=25;in.line_valid=1;in.black_count=1;
   unsigned signals_seen=0;
-  for(unsigned k=0;k<4;k++) {in.now_ms+=10;CarTask3_Update(&t,&in,&out);signals_seen+=out.signal_point!=T3_NO_POINT;}
-  if(task==4 && leg==2) {
-   assert(t.phase==T3_DIAGONAL && !t.edge_seen && signals_seen==0);
-   assert(out.control==T3_HOLD_HEADING && out.base_mmps>0 && !out.reset_controllers);
-   /* All valid patterns remain ordinary early observations; none can start
-      D debounce, stop the diagonal, or pre-fill its 30ms confirmation. */
-   for(unsigned count=1;count<=3;count++) {
-    in.black_count=count;in.distance_mm=t.diagonal_mm-.25f;
-    for(unsigned k=0;k<5;k++) {
-     in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-     assert(t.phase==T3_DIAGONAL && !t.edge_seen && out.signal_point==T3_NO_POINT);
-     assert(out.control==T3_HOLD_HEADING && !out.reset_controllers);
-    }
-   }
-   in.distance_mm=t.diagonal_mm;
-   for(unsigned k=0;k<3;k++) {
-    in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-    assert(t.phase==T3_DIAGONAL && out.control==T3_HALT && out.signal_point==T3_NO_POINT);
-   }
-   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-   assert(t.phase==T3_VERTEX_BRAKE && out.signal_point==T3_POINT_D);
-  } else assert(t.phase==T3_VERTEX_BRAKE && signals_seen==1); /* Task3/C unchanged. */
+  for(unsigned k=0;k<8;k++) {in.now_ms+=10;CarTask3_Update(&t,&in,&out);signals_seen+=out.signal_point!=T3_NO_POINT;}
+  assert(t.phase==T3_DIAGONAL && !t.diagonal_armed && !t.edge_seen && signals_seen==0);
+  assert(out.control==T3_HOLD_HEADING && out.base_mmps>0 && !out.reset_controllers);
+  /* Stable all-white departure arms the next-line detector. */
+  in.line_valid=0;in.black_count=0;
+  for(unsigned k=0;k<4;k++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);}
+  assert(t.diagonal_armed && t.phase==T3_DIAGONAL);
+  /* The line may occur well before the nominal diagonal distance. */
+  in.distance_mm=400;in.line_valid=1;in.black_count=1;
+  for(unsigned k=0;k<4;k++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);signals_seen+=out.signal_point!=T3_NO_POINT;}
+  assert(t.phase==T3_VERTEX_BRAKE && signals_seen==1);
  }
- for(unsigned limit=0;limit<3;limit++) {
+ /* Distance remains only a runaway guard; nominal distance itself is not a transition. */
+ for(unsigned limit=0;limit<2;limit++) {
   CarTask3Config cfg=CarTask4_Config();cfg.start_from_ab=0;
   CarTask3 t={0};CarTask3Output out;
   CarTask3Input in={.now_ms=1000,.heading_ready=1,.enabled=1};
   assert(CarTask3_Start(&t,&cfg,&in));t.leg=2;t.pending_start_signal=0;
   in.yaw_deg=CarMath_WrapDegrees(t.start_heading_deg+180+2*t.diagonal_angle_deg);
-  in.distance_mm=t.diagonal_mm;in.now_ms+=10;
-  CarTask3_Update(&t,&in,&out);
-  assert(t.phase==T3_VERTEX_SEEK && out.signal_point==T3_NO_POINT);
-  if(limit==0) {
-   for(unsigned n=0;n<cfg.vertex_seek_ms/10U-1U;n++) {
-    in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(t.phase==T3_VERTEX_SEEK);
-   }
-   in.now_ms+=10;
-  }
-  else if(limit==1)in.distance_mm+=cfg.vertex_seek_mm;
-  else {t.phase=T3_DIAGONAL;in.distance_mm=t.diagonal_mm+cfg.entry_window_mm+1;in.line_valid=1;in.black_count=2;}
-  CarTask3_Update(&t,&in,&out);
-  assert(t.phase==T3_FAULT && t.fault==T3_EDGE && out.control==T3_HALT && out.signal_point==T3_NO_POINT);
+  in.black_count=0;in.distance_mm=t.diagonal_mm;
+  for(unsigned n=0;n<4;n++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);}
+  assert(t.phase==T3_DIAGONAL && t.diagonal_armed && out.control==T3_HOLD_HEADING);
+  if(limit==0)in.distance_mm=t.diagonal_mm+cfg.entry_window_mm+1;
+  else in.yaw_deg+=cfg.diagonal_tolerance_deg+1;
+  in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+  assert(t.phase==T3_FAULT && out.control==T3_HALT && out.signal_point==T3_NO_POINT);
  }
  CarTask3Config cfg=CarTask4_Config();cfg.bd_full_distance=2;assert(!CarTask3_ConfigValid(&cfg));
- puts("PASS: optional historical full-distance gate, bounded missing-line search and unchanged upper distance limit.");
+ puts("PASS: AC/BD handoff requires stable departure then stable line, independent of nominal distance; runaway distance and heading guards retained.");
 }
 
 static void bd_probe_window_regression(void)
 {
- /* The reported 1196..1253mm observations precede nominal 1280.6mm.
-    A candidate within the original window must stop travel immediately,
-    then remain valid for 30ms; outside-window hits and glitches cannot signal D. */
+ /* Any valid C/D line position is accepted after departure. A short glitch
+    cannot switch phases and the starting black line can never arm itself. */
  for(unsigned count=1;count<=3;count++) {
   CarTask3Config cfg=CarTask4_Config();cfg.start_from_ab=0;
   assert(!cfg.bd_full_distance && cfg.b_full_align && cfg.b_align_tolerance_deg==3);
@@ -270,27 +256,29 @@ static void bd_probe_window_regression(void)
   CarTask3Input in={.now_ms=1000,.heading_ready=1,.enabled=1};
   assert(CarTask3_Start(&t,&cfg,&in));t.leg=2;t.pending_start_signal=0;
   in.yaw_deg=CarMath_WrapDegrees(t.start_heading_deg+180+2*t.diagonal_angle_deg);
-  in.distance_mm=t.diagonal_mm-cfg.entry_window_mm-.25f;
+  in.distance_mm=20;
   in.line_valid=1;in.black_count=count;
   for(unsigned n=0;n<5;n++) {
    in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-   assert(t.phase==T3_DIAGONAL && !t.edge_seen && out.control==T3_HOLD_HEADING && out.signal_point==T3_NO_POINT);
+   assert(t.phase==T3_DIAGONAL && !t.diagonal_armed && !t.edge_seen && out.control==T3_HOLD_HEADING && out.signal_point==T3_NO_POINT);
   }
-  in.distance_mm=1196;
-  in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-  assert(t.edge_seen && out.control==T3_HALT && out.reset_controllers && out.signal_point==T3_NO_POINT);
-  in.now_ms+=10;CarTask3_Update(&t,&in,&out);
   in.line_valid=0;in.black_count=0;
-  in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-  assert(t.phase==T3_DIAGONAL && !t.edge_seen && out.signal_point==T3_NO_POINT);
-  in.distance_mm=1253;in.line_valid=1;in.black_count=count;
+  for(unsigned n=0;n<4;n++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);}
+  assert(t.diagonal_armed && !t.edge_seen);
+  /* Two valid frames followed by white are a rejected glitch. */
+  in.distance_mm=300;in.line_valid=1;in.black_count=count;
+  for(unsigned n=0;n<2;n++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(t.edge_seen && out.control==T3_HALT);}
+  in.line_valid=0;in.black_count=0;in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+  assert(t.phase==T3_DIAGONAL && !t.edge_seen && out.control==T3_HOLD_HEADING);
+  in.distance_mm=count==3?t.diagonal_mm+cfg.entry_window_mm+50:400;
+  in.line_valid=1;in.black_count=count;
   for(unsigned n=0;n<3;n++) {
    in.now_ms+=10;CarTask3_Update(&t,&in,&out);
    assert(t.phase==T3_DIAGONAL && out.control==T3_HALT && out.reset_controllers && out.signal_point==T3_NO_POINT);
   }
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
   assert(t.phase==T3_VERTEX_BRAKE && out.signal_point==T3_POINT_D);
-  assert(in.distance_mm<t.diagonal_mm);
+  if(count<3)assert(in.distance_mm<t.diagonal_mm-cfg.entry_window_mm);
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(out.signal_point==T3_NO_POINT);
  }
  /* Actual foreground scheduler, GPIO decoding, stop output and D snapshot. */
@@ -300,9 +288,11 @@ static void bd_probe_window_regression(void)
  }
  assert(app()->route.task3.leg==2 && app()->route.task3.phase==T3_DIAGONAL);
  CarTask3 *t=&app()->route.task3;
- app()->route.distance_mm[0]=app()->route.distance_mm[1]=t->leg_start_mm+1230;
+ app()->route.distance_mm[0]=app()->route.distance_mm[1]=t->leg_start_mm+400;
  app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+180+2*t->diagonal_angle_deg);
- line_inputs=15;step(10,0,0);assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+ line_inputs=15;
+ for(unsigned n=0;n<4;n++)step(10,0,0);
+ assert(t->diagonal_armed && app()->route.targets[0]>0 && app()->route.targets[1]>0);
  int before=signals;line_inputs=9;
  for(unsigned n=0;n<3;n++) {
   step(10,0,0);assert(a==0 && b==0 && signals==before && t->phase==T3_DIAGONAL);
@@ -310,8 +300,8 @@ static void bd_probe_window_regression(void)
  step(10,0,0);
  assert(t->phase==T3_VERTEX_BRAKE && signals==before+1 && a==0 && b==0);
  assert(app()->route.vertex_trace.seen && app()->route.vertex_trace.point==T3_POINT_D);
- assert(fabsf(app()->route.vertex_trace.distance_mm-1230)<.1f);
- puts("PASS: default Task4 BD stops for 1/2/3-probe candidates inside endpoint window before nominal length, fresh 30ms debounce after glitches, no out-of-window D, actual GPIO scheduler zero output and D snapshot; B full alignment retained.");
+ assert(fabsf(app()->route.vertex_trace.distance_mm-400)<.1f);
+ puts("PASS: event-driven BD rejects its starting line and short glitches, accepts stable 1/2/3-probe endpoints at arbitrary distance, and actual GPIO scheduler halts with a D snapshot.");
 }
 
 int main(void)

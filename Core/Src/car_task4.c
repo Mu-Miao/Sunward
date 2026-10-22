@@ -15,9 +15,8 @@ CarTask3Config CarTask4_Config(void)
     config.lost_ms = DPT_TASK4_LOST_MS;
     config.white_seek_ms = DPT_TASK4_WHITE_SEEK_MS;
     config.recovery_ms = DPT_TASK4_RECOVERY_MS;
-    /* 2026-10-18：BD 末段已有有效探头观测，满名义距离后却全白搜索超时。
-       前置探头的碰线里程不等于车轴到 D 的几何长度；恢复原终点窗口内
-       停车并连续确认有效线，不再越过候选线等待满里程。原上界/搜索预算保留。 */
+    /* 保留字段用于旧配置兼容；ARC14 的 AC/BD 换段已统一改为
+       “稳定离开起点线后再稳定见线”，不再读取此标志作为里程门槛。 */
     config.bd_full_distance = 0U;
     /* 各点统一沿用基础 ±3 度对正容差，仍使用完整几何目标与停稳复核。 */
     config.b_full_align = 1U;

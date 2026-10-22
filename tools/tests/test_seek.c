@@ -26,7 +26,7 @@ static void seek_d(void)
  assert(app()->route.task3.phase==T3_DIAGONAL && app()->route.task3.leg==2);
  app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+1281;
  line_inputs=15;step(10,0,0);
- assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_VERTEX_SEEK && a==0 && b==0);
+ assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_DIAGONAL && a>0 && b<0);
 }
 static void da_dropout(void)
 {
@@ -329,32 +329,23 @@ int main(void)
   assert(signals==(task==3?5:17));
   if(task==4)assert(app()->route.task4.completed_laps==4);
  }
- /* The reported D-side miss now enters bounded search, never fabricates a D signal. */
+ /* Passing the theoretical diagonal length no longer invents D or turns toward
+    the arc. Stable departure followed by a stable line event owns the handoff. */
  seek_d();int before=signals;
- step(10,0,0);assert(app()->route.targets[0]>0 && app()->route.targets[1]==0 && signals==before);
+ for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_DIAGONAL && a>0 && b<0);}
+ assert(app()->route.task3.diagonal_armed && signals==before);
  line_inputs=11;
- for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_VERTEX_SEEK && a==0 && b==0 && signals==before);}
+ for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_DIAGONAL && a==0 && b==0 && signals==before);}
  step(10,0,0);assert(app()->route.task3.phase==T3_VERTEX_BRAKE && signals==before+1);
  for(unsigned n=0;n<500 && app()->route.task3.phase!=T3_ARC;n++)step_route();
  assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC && app()->route.task3.leg==3);
- /* Search is terminated by original global vertex window, local time/distance and yaw. */
- for(unsigned limit=0;limit<4;limit++) {
+ /* The diagonal still has independent runaway-distance and heading guards. */
+ for(unsigned limit=0;limit<2;limit++) {
   seek_d();before=signals;
-  switch(limit) {
-   case 0:app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+1401;break;
-   case 1:app()->route.task3.phase_ms=ms-3000;break;
-   case 2:app()->route.task3.phase_start_mm-=80;break;
-   case 3:app()->heading.angle+=60;break;
-  }
+  if(limit==0)app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+1401;
+  else app()->heading.angle+=60;
   step(10,0,0);assert(app()->runtime.state!=RUNNING && a==0 && b==0 && signals==before);
  }
- /* White vertex search aligns and settles before advancing, never reverses. */
- seek_d();
- /* Use production tangent formula directly for D (initial AB reference +180 degrees). */
- app()->heading.angle=CarMath_WrapDegrees(app()->route.task3.start_heading_deg+app()->route.task3.diagonal_angle_deg+180);
- for(unsigned n=0;n<21;n++){step(10,0,0);assert(a==0 && b==0);}
- assert(app()->route.task3.seek_aligned);step(10,0,0);
- assert(a>0 && b<0 && app()->route.targets[0]>0 && app()->route.targets[1]>0);
  /* Both turns must remain halted while wheels still move or yaw leaves tolerance. */
  seek_start(3);reach_phase(T3_ALIGN_SETTLE);uint32_t turn_start=app()->route.task3.phase_ms;
  for(unsigned n=0;n<10;n++){step(10,177,176);assert(app()->route.task3.phase==T3_ALIGN_SETTLE && a==0 && b==0);}

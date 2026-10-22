@@ -67,7 +67,9 @@ typedef struct {
     CarTask3Fault fault;
     uint8_t leg; /* 当前路线段：0 为 AC，1 为 CB，2 为 BD，3 为 DA。 */
     uint8_t edge_seen, settled_seen, lost_seen, pending_start_signal;
-    uint32_t start_ms, phase_ms, edge_ms, settled_ms, lost_start_ms;
+    /* 对角线端点检测必须先连续离开起点黑线，再接受下一条稳定黑线。 */
+    uint8_t diagonal_armed, departure_seen;
+    uint32_t start_ms, phase_ms, edge_ms, settled_ms, lost_start_ms, departure_ms;
     uint32_t previous_ms, elapsed_ms, start_settle_ms;
     uint8_t recovery_seen, arc_valid_seen, loss_seek, seek_aligned, resume_active;
     uint8_t arc_outer_valid, gap_seek;
