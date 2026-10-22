@@ -8,8 +8,8 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 ARC19")==0);
- assert(strcmp(oled_lines[3],"TC 1022-2032 ARC19")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 ARC20")==0);
+ assert(strcmp(oled_lines[3],"TC 1022-2037 ARC20")==0);
 }
 static void task4_start(void)
 {
@@ -140,8 +140,8 @@ static void robust_regression(void)
  /* Heading-dependent turn speed; zero inner target and no reversed wheel. */
  task4_start();CarTask3Output o={.control=T3_TURN_FORWARD,.heading_deg=0,.left_mmps=80};
  app()->heading.angle=30;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==80 && app()->route.targets[1]==0);
- app()->heading.angle=7.5f;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==40 && app()->route.targets[1]==0);
- app()->heading.angle=4;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==35 && app()->route.targets[1]==0);
+ app()->heading.angle=7.5f;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==50 && app()->route.targets[1]==0);
+ app()->heading.angle=4;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==40 && app()->route.targets[1]==0);
  /* Protection overrides the recovery wait; no automatic restart. */
  for(unsigned fault=0;fault<6;fault++) {
   robust_arc();line_inputs=15;step(10,0,0);

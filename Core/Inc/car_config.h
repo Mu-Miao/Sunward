@@ -117,7 +117,7 @@
 #define DPT_TASK3_ARC_ACCEL_MMPS2 100.0f /* 半圆入弧沿用 T17 调速前的加速斜坡。 */
 #define DPT_TASK3_APPROACH_MM 220.0f /* 410mm/s 只用于斜线中段，终点前提前降速。 */
 #define DPT_TASK3_MIN_MMPS 60.0f /* 捕获黑线阶段仍使用独立的 50 毫米/秒速度。 */
-#define DPT_TASK3_TURN_MMPS 80.0f
+#define DPT_TASK3_TURN_MMPS 100.0f
 /* 车身投影只需覆盖黑线；转向从单一方向逼近时，首次进入 3 度窗口即停，
  * 通常会比完整几何角少转约 3 度，为探头/车身投影留容错。 */
 #define DPT_TASK3_ALIGN_TOLERANCE_DEG 3.0f
@@ -139,8 +139,8 @@
 #define DPT_TASK3_GAP_DEG 18.0f
 #define DPT_TASK3_VERTEX_SEEK_MS 3000U
 #define DPT_TASK3_VERTEX_SEEK_MM 80.0f
-#define DPT_TASK3_TURN_SLOW_DEG 15.0f
-#define DPT_TASK3_TURN_MIN_MMPS 35.0f
+#define DPT_TASK3_TURN_SLOW_DEG 12.0f
+#define DPT_TASK3_TURN_MIN_MMPS 40.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
 #define DPT_TASK4_DIAGONAL_MMPS 410.0f /* ARC19：斜线中段高速，1/4外侧探头提前触发；弧线保持220。 */
 #define DPT_TASK4_ARC_MMPS 220.0f /* V11：正常巡线200→220；边缘仍限120，寻线不提速。 */
@@ -167,8 +167,8 @@
 #define DPT_TASK4_RESUME_MMPS 50.0f
 #define DPT_TASK4_RESUME_ACCEL_MMPS2 100.0f
 #define DPT_TASK4_EDGE_MMPS 120.0f
-#define DPT_TASK4_TURN_SLOW_DEG 15.0f
-#define DPT_TASK4_TURN_MIN_MMPS 35.0f
+#define DPT_TASK4_TURN_SLOW_DEG 12.0f
+#define DPT_TASK4_TURN_MIN_MMPS 40.0f
 #define DPT_TASK4_LAPS 4U
 #define DPT_TASK4_TIMEOUT_MS 160000U
 #endif
