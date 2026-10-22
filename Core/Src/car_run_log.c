@@ -292,8 +292,8 @@ void CarRunLog_SendStatusPort(LabUART_Port port)
     if ((unsigned)port >= LAB_UART_COUNT) return;
     char line[LAB_UART_FRAME_MAX];
     int n = snprintf(line, sizeof line,
-        "LSTAT VER=%s GIT=%s CFG=%s MODE=%s J=%u E=%u H=%u F=%u WHY=%u D=%u P=%u JR=%u ER=%u HR=%u\r\n",
-        CAR_FIRMWARE_VERSION, CAR_BUILD_GIT, CAR_CONFIG_CRC, CAR_BUILD_MODE,
+        "LSTAT VER=%s TC=%s GIT=%s CFG=%s MODE=%s J=%u E=%u H=%u F=%u WHY=%u D=%u P=%u JR=%u ER=%u HR=%u\r\n",
+        CAR_FIRMWARE_VERSION, CAR_FIRMWARE_TC, CAR_BUILD_GIT, CAR_CONFIG_CRC, CAR_BUILD_MODE,
         (unsigned)g_car_run_log.journey_count, (unsigned)g_car_run_log.event_count,
         (unsigned)g_car_run_log.count, (unsigned)g_car_run_log.frozen,
         (unsigned)g_car_run_log.reason, (unsigned)g_car_run_log.dump_stage,
@@ -321,8 +321,8 @@ void CarRunLog_Service(const CarAppContext *app)
     switch (g_car_run_log.dump_stage) {
     case 1U:
         n = snprintf(line, sizeof line,
-            "RLOG BEGIN VER=%s GIT=%s CFG=%s MODE=%s J=%u E=%u H=%u F=%u WHY=%u RAM=%uB\r\n",
-            CAR_FIRMWARE_VERSION, CAR_BUILD_GIT, CAR_CONFIG_CRC, CAR_BUILD_MODE,
+            "RLOG BEGIN VER=%s TC=%s GIT=%s CFG=%s MODE=%s J=%u E=%u H=%u F=%u WHY=%u RAM=%uB\r\n",
+            CAR_FIRMWARE_VERSION, CAR_FIRMWARE_TC, CAR_BUILD_GIT, CAR_CONFIG_CRC, CAR_BUILD_MODE,
             (unsigned)g_car_run_log.journey_count, (unsigned)g_car_run_log.event_count,
             (unsigned)g_car_run_log.count, (unsigned)g_car_run_log.frozen,
             (unsigned)g_car_run_log.reason, (unsigned)sizeof(CarRunLogStore));

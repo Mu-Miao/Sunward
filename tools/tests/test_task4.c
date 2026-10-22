@@ -8,7 +8,8 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 ARC17")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 ARC18")==0);
+ assert(strcmp(oled_lines[3],"TC 1022-2008 ARC18")==0);
 }
 static void task4_start(void)
 {

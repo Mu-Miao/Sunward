@@ -150,6 +150,10 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         else if (app->route.motion == MOVE_NONE)
             (void)snprintf(progress, sizeof progress, "S 0/1000mm");
         else (void)snprintf(progress, sizeof progress, "V %dmm/s", app->runtime.state == RUNNING ? CarMath_Round(app->route.targets[LEFT]) : 0);
+        /* 待机和正常完成时在最底行显示固件时间码。运行及故障时
+           保留实时/快照数据，避免覆盖定位信息。 */
+        if (app->runtime.state == IDLE || app->runtime.state == DONE)
+            (void)snprintf(progress, sizeof progress, "TC %s %s", CAR_FIRMWARE_TC, CAR_FIRMWARE_VERSION);
         const char *lines[4] = {title, cal, run, progress};
         (void)TaskOLED_SetLines(lines);
         app->ui.render_ms = now; /* 屏幕上一帧尚未完成时，等下次刷新周期再尝试。 */

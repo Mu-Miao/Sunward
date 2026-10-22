@@ -142,7 +142,7 @@
 #define DPT_TASK3_TURN_SLOW_DEG 15.0f
 #define DPT_TASK3_TURN_MIN_MMPS 35.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
-#define DPT_TASK4_DIAGONAL_MMPS 450.0f /* ARC17：斜线中段高速，1/4外侧探头提前触发；弧线保持220。 */
+#define DPT_TASK4_DIAGONAL_MMPS 450.0f /* ARC18：斜线中段高速，1/4外侧探头提前触发；弧线保持220。 */
 #define DPT_TASK4_ARC_MMPS 220.0f /* V11：正常巡线200→220；边缘仍限120，寻线不提速。 */
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。
