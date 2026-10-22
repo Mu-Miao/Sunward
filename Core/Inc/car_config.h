@@ -21,7 +21,7 @@
 #define DPT_MANUAL_MMPS 120U
 #define DPT_MANUAL_MAX_MMPS 300U
 #define DPT_MANUAL_MAX_CMD 3000
-#define DPT_FIGURE8_MAX_MMPS 550.0f /* 450mm/s高速斜线的独立超速保护，其他模式仍使用350。 */
+#define DPT_FIGURE8_MAX_MMPS 550.0f /* 410mm/s高速斜线的独立超速保护，其他模式仍使用350。 */
 #define DPT_FIGURE8_MAX_CMD 3000 /* 仅任务三/四；不放宽实验和普通定距模式。 */
 #define DPT_MANUAL_DURATION_MS 10000U
 #define DPT_SWITCH_BRAKE_MS 200U
@@ -110,12 +110,12 @@
 #define DPT_TASK3_RADIUS_MM 400.0f
 #define DPT_TASK3_TRACK_WIDTH_MM DPT_TRACK_WIDTH_MM
 #define DPT_TASK3_ARC_MM 1256.0f
-#define DPT_TASK3_DIAGONAL_MMPS 450.0f
+#define DPT_TASK3_DIAGONAL_MMPS 410.0f
 #define DPT_TASK3_ARC_MMPS 200.0f
 #define DPT_TASK3_START_MMPS 50.0f
 #define DPT_TASK3_ACCEL_MMPS2 300.0f /* 0.3m/s²目标斜坡；仅用于 AC、BD 斜线中段。 */
 #define DPT_TASK3_ARC_ACCEL_MMPS2 100.0f /* 半圆入弧沿用 T17 调速前的加速斜坡。 */
-#define DPT_TASK3_APPROACH_MM 220.0f /* 450mm/s 只用于斜线中段，终点前提前降速。 */
+#define DPT_TASK3_APPROACH_MM 220.0f /* 410mm/s 只用于斜线中段，终点前提前降速。 */
 #define DPT_TASK3_MIN_MMPS 60.0f /* 捕获黑线阶段仍使用独立的 50 毫米/秒速度。 */
 #define DPT_TASK3_TURN_MMPS 80.0f
 /* 车身投影只需覆盖黑线；转向从单一方向逼近时，首次进入 3 度窗口即停，
@@ -142,7 +142,7 @@
 #define DPT_TASK3_TURN_SLOW_DEG 15.0f
 #define DPT_TASK3_TURN_MIN_MMPS 35.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
-#define DPT_TASK4_DIAGONAL_MMPS 450.0f /* ARC18：斜线中段高速，1/4外侧探头提前触发；弧线保持220。 */
+#define DPT_TASK4_DIAGONAL_MMPS 410.0f /* ARC19：斜线中段高速，1/4外侧探头提前触发；弧线保持220。 */
 #define DPT_TASK4_ARC_MMPS 220.0f /* V11：正常巡线200→220；边缘仍限120，寻线不提速。 */
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。

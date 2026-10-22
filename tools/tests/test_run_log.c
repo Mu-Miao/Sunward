@@ -91,7 +91,7 @@ int main(void)
     assert(CarRunLog_IsExported());
     assert(!CarRunLog_IsDumping());
     assert(output_port == LAB_UART_BT);
-    assert(strstr(output, "RLOG BEGIN VER=ARC18 TC=1022-2008 GIT=LOCAL CFG=00000000 MODE=LOCAL J=") != NULL);
+    assert(strstr(output, "RLOG BEGIN VER=ARC19 TC=1022-2032 GIT=LOCAL CFG=00000000 MODE=LOCAL J=") != NULL);
     assert(strstr(output, "H=160 F=1 WHY=16") != NULL);
     assert(strstr(output, "JLOG,MS,PROG,Y10,VL,VR,E2,PH,META,CONF") != NULL);
     assert(strstr(output, "ELOG,EV,CP,MS,PH,LEG,RAW,E2,Y10,EY10,ET10,HE2,CONF,TL,TR,VL,VR") != NULL);
@@ -101,7 +101,7 @@ int main(void)
     output_length = 0U;
     CarRunLog_SendStatusPort(LAB_UART_BT);
     assert(output_port == LAB_UART_BT);
-    assert(strstr(output, "LSTAT VER=ARC18 TC=1022-2008") != NULL);
+    assert(strstr(output, "LSTAT VER=ARC19 TC=1022-2032") != NULL);
     assert(strstr(output, "D=0 P=1 JR=0 ER=0 HR=0") != NULL);
 
     /* A normally completed run remains exportable until the next run begins. */

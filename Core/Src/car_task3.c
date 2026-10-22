@@ -53,7 +53,7 @@ static int config_valid(const CarTask3Config *c)
     float diagonal = hypotf(c->span_mm, 2.0f * c->radius_mm);
     return isfinite(diagonal) && diagonal < 10000.0f &&
         c->track_width_mm < 1000.0f && c->entry_window_mm < diagonal * 0.5f && c->exit_window_mm < c->arc_mm * 0.5f &&
-        c->approach_mm < diagonal && c->diagonal_mmps <= 450.0f && c->arc_mmps <= 250.0f &&
+        c->approach_mm < diagonal && c->diagonal_mmps <= 410.0f && c->arc_mmps <= 250.0f &&
         c->start_mmps <= c->diagonal_mmps && c->start_mmps <= c->arc_mmps &&
         c->minimum_mmps <= c->diagonal_mmps && c->minimum_mmps <= c->arc_mmps && c->turn_mmps <= 100.0f && c->capture_mmps <= 100.0f &&
         c->diagonal_tolerance_deg <= 20.0f && c->arc_tolerance_deg <= 20.0f &&

@@ -3,10 +3,10 @@
 
 /* 可读版本名固定描述控制方案；Git/配置指纹由tools/build_firmware.py注入。
  * IDE直接编译时使用LOCAL占位，避免把未知版本伪装成正式构建。 */
-#define CAR_FIRMWARE_VERSION "ARC18"
+#define CAR_FIRMWARE_VERSION "ARC19"
 /* TC = time code. Keep this fixed for one published firmware revision so an
  * OLED photo can identify the exact source package even after a later rebuild. */
-#define CAR_FIRMWARE_TC "1022-2008"
+#define CAR_FIRMWARE_TC "1022-2032"
 
 #ifndef CAR_BUILD_GIT
 #define CAR_BUILD_GIT "LOCAL"
