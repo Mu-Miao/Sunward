@@ -9,7 +9,7 @@ typedef enum { T3_IDLE, T3_DIAGONAL, T3_VERTEX_BRAKE, T3_ALIGN,
 typedef enum { T3_OK, T3_CONFIG, T3_ABORT, T3_SENSOR, T3_TIMEOUT,
     T3_HEADING, T3_EDGE, T3_LOST, T3_TURN, T3_SETTLE, T3_DISTANCE } CarTask3Fault;
 typedef enum { T3_HALT, T3_HOLD_HEADING, T3_TURN_FORWARD,
-    T3_FOLLOW_LINE, T3_SEEK_LINE, T3_ENTER_ARC } CarTask3Control;
+    T3_FOLLOW_LINE, T3_SEEK_LINE, T3_ENTER_ARC, T3_EDGE_FOLLOW } CarTask3Control;
 typedef enum { T3_NO_POINT, T3_POINT_A, T3_POINT_B,
     T3_POINT_C, T3_POINT_D } CarTask3Point;
 /* 失线预算触发位，仅作停车诊断；可同时触发多个限制。 */
@@ -44,6 +44,9 @@ typedef struct {
     uint8_t rolling_entry; /* C/D连续低速换段，省去入弧前两次停稳；默认0保留任务三流程。 */
     uint8_t continuous_motion; /* 所有正常换段均滚动通过，最后一圈仍停稳完成。 */
     float turn_inner_mmps; /* continuous_motion下转向内轮也保持正目标。 */
+    uint8_t edge_follow; /* 任务四确认捕线后先低速巡线，内侧稳定才提速。 */
+    float edge_follow_mmps, edge_follow_diff_mmps, edge_follow_mm, edge_follow_deg;
+    uint32_t edge_follow_ms;
 } CarTask3Config;
 
 typedef struct {
@@ -87,6 +90,8 @@ typedef struct {
     float diagonal_mm, diagonal_angle_deg, start_heading_deg;
     float leg_start_mm, phase_start_mm;
     float entry_yaw_deg, entry_diff_mmps;
+    uint8_t edge_follow_active;
+    float resume_start_mmps; /* 正常失线恢复用start；低速接管提速从当前基速起。 */
 } CarTask3;
 
 int CarTask3_ConfigValid(const CarTask3Config *config);

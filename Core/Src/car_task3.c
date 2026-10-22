@@ -12,7 +12,18 @@ static int positive(float a) { return isfinite(a) && a > 0.0f; }
 static int bounded_time(uint32_t t) { return t > 0U && t <= 80000U; }
 static int config_valid(const CarTask3Config *c)
 {
-    if (c->rolling_entry > 1U || c->continuous_motion > 1U) return 0;
+    if (c->rolling_entry > 1U || c->continuous_motion > 1U || c->edge_follow > 1U) return 0;
+    if (c->edge_follow &&
+        (!positive(c->edge_follow_mmps) || c->edge_follow_mmps > 80.0f ||
+         c->edge_follow_mmps < c->capture_mmps ||
+         !positive(c->turn_inner_mmps) || c->turn_inner_mmps < 10.0f ||
+         !positive(c->edge_follow_diff_mmps) || c->edge_follow_diff_mmps > 60.0f ||
+         c->edge_follow_diff_mmps > c->edge_follow_mmps - c->turn_inner_mmps ||
+         !positive(c->edge_follow_mm) || c->edge_follow_mm > 150.0f ||
+         c->edge_follow_mm < c->arc_entry_mm ||
+         !positive(c->edge_follow_deg) || c->edge_follow_deg > 60.0f ||
+         c->edge_follow_deg < c->arc_entry_deg ||
+         c->edge_follow_ms < c->arc_entry_ms || c->edge_follow_ms > 3000U)) return 0;
     if (c->continuous_motion && (!c->rolling_entry || !positive(c->turn_inner_mmps) ||
         c->turn_inner_mmps > 30.0f || c->turn_mmps < c->turn_inner_mmps + 35.0f ||
         c->turn_travel_limit_mm > 120.0f)) return 0;
@@ -99,6 +110,8 @@ static void phase(CarTask3 *r, CarTask3Phase p, const CarTask3Input *i, CarTask3
     r->arc_valid_seen = r->loss_seek = r->seek_aligned = r->resume_active = 0U;
     r->arc_outer_valid = r->gap_seek = 0U;
     r->arc_side_valid = 0U;
+    r->edge_follow_active = 0U;
+    r->resume_start_mmps = 0.0f;
     o->control = T3_HALT;
     o->reset_controllers = 1U;
     o->retarget_integrals = r->config.continuous_motion;
@@ -160,6 +173,23 @@ static void rolling_align(const CarTask3 *r, const CarTask3Input *i,
         o->left_mmps = error < 0.0f ? r->config.turn_mmps : inner;
         o->right_mmps = error > 0.0f ? r->config.turn_mmps : inner;
     }
+}
+
+/* 已确认捕线后的低速巡线。全白/未确认恢复时冻结最后可信方向，
+   降为捕线速度；不续期原失线预算。 */
+static void edge_follow_output(CarTask3 *r, const CarTask3Input *i,
+    CarTask3Output *o, int trusted)
+{
+    float base = r->lost_seen ? r->config.capture_mmps : r->config.edge_follow_mmps;
+    float limit = fminf(r->config.edge_follow_diff_mmps, base - r->config.turn_inner_mmps);
+    if (i->line_valid && trusted) {
+        float diff = i->outermost ? copysignf(r->config.edge_follow_diff_mmps, i->line_error) :
+            r->config.arc_entry_line_gain * i->line_error * base / r->config.arc_entry_mmps;
+        r->entry_diff_mmps = fmaxf(-limit, fminf(limit, diff));
+    }
+    float diff = fmaxf(-limit, fminf(limit, r->entry_diff_mmps));
+    o->control = T3_EDGE_FOLLOW; o->reset_controllers = 0U;
+    o->base_mmps = base; o->left_mmps = base + diff; o->right_mmps = base - diff;
 }
 
 int CarTask3_ConfigValid(const CarTask3Config *c) { return c && config_valid(c); }
@@ -349,10 +379,15 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             }
         }
     } else if (r->phase == T3_ARC) {
-        int end_white = progress >= r->config.arc_mm - r->config.exit_window_mm &&
+        int edge_follow = r->edge_follow_active;
+        int end_white = !edge_follow && progress >= r->config.arc_mm - r->config.exit_window_mm &&
             progress <= r->config.arc_mm + r->config.exit_window_mm && i->black_count == 0U &&
             fabsf(wrap(tangent_heading(r, 1) - i->yaw_deg)) <= r->config.arc_tolerance_deg;
-        if (progress > r->config.arc_mm + r->config.exit_window_mm) fault(r, T3_EDGE);
+        if (edge_follow && ((uint32_t)(i->now_ms - r->phase_ms) >= r->config.edge_follow_ms ||
+            phase_travel >= r->config.edge_follow_mm)) fault(r, T3_EDGE);
+        else if (edge_follow && fabsf(wrap(i->yaw_deg - r->entry_yaw_deg)) > r->config.edge_follow_deg)
+            fault(r, T3_HEADING);
+        else if (progress > r->config.arc_mm + r->config.exit_window_mm) fault(r, T3_EDGE);
         else if (end_white) {
             r->lost_seen = 0U;
             if (r->config.continuous_motion) {
@@ -373,7 +408,8 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                 }
             }
         } else {
-            stable(r, 0, i->now_ms);
+            if (!edge_follow || !i->line_valid || i->outermost || r->lost_seen)
+                stable(r, 0, i->now_ms);
             if (!i->line_valid && !r->lost_seen) {
                 r->lost_seen = 1U; r->lost_start_ms = i->now_ms;
                 r->lost_start_mm = i->distance_mm; r->lost_yaw_deg = i->yaw_deg;
@@ -412,6 +448,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                     o->base_mmps = r->config.seek_mmps;
                     o->heading_deg = wrap(r->lost_yaw_deg + (r->leg == 1U ? 1.0f : -1.0f) *
                         fmaxf(loss_travel, 0.0f) / r->config.radius_mm * 57.2957795131f);
+                    if (edge_follow) edge_follow_output(r, i, o, 0);
                 } else o->reset_controllers = 1U;
             } else {
                 int recovered = !r->lost_seen || r->config.recovery_ms == 0U;
@@ -424,21 +461,39 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                         o->control = T3_SEEK_LINE; o->base_mmps = r->config.seek_mmps;
                         o->heading_deg = wrap(r->lost_yaw_deg + (r->leg == 1U ? 1.0f : -1.0f) *
                             fmaxf(loss_travel, 0.0f) / r->config.radius_mm * 57.2957795131f);
+                        if (edge_follow) edge_follow_output(r, i, o, 0);
                     } else o->reset_controllers = 1U;
                 }
                 else {
-                    if (r->lost_seen) { r->resume_active = 1U; r->resume_ms = i->now_ms; }
+                    if (r->lost_seen) {
+                        r->resume_active = 1U; r->resume_ms = i->now_ms;
+                        r->resume_start_mmps = r->config.start_mmps;
+                    }
                     r->lost_seen = r->recovery_seen = r->loss_seek = r->gap_seek = 0U;
                     r->arc_valid_seen = 1U;
                     r->arc_outer_valid = i->outermost;
                     r->arc_side_valid = i->side_probe;
-                    o->control = T3_FOLLOW_LINE;
-                    o->base_mmps = speed(r, i, r->config.arc_mmps, r->config.arc_mm - progress, r->config.arc_acceleration_mmps2);
-                    if (r->resume_active) {
-                        float ramp = r->config.start_mmps + r->config.arc_acceleration_mmps2 *
-                            (float)(uint32_t)(i->now_ms - r->resume_ms) / 1000.0f;
-                        o->base_mmps = fminf(o->base_mmps, ramp);
-                        if (ramp >= r->config.arc_mmps) r->resume_active = 0U;
+                    if (edge_follow) {
+                        int ready = stable(r, !i->outermost, i->now_ms) &&
+                            (uint32_t)(i->now_ms - r->edge_ms) >= r->config.arc_entry_confirm_ms;
+                        if (ready && (uint32_t)(i->now_ms - r->phase_ms) >= r->config.arc_entry_min_ms) {
+                            r->edge_follow_active = 0U; edge_follow = 0;
+                            r->edge_seen = 0U;
+                            r->resume_active = 1U; r->resume_ms = i->now_ms;
+                            r->resume_start_mmps = r->config.edge_follow_mmps;
+                        }
+                    }
+                    if (edge_follow) edge_follow_output(r, i, o, 1);
+                    else {
+                        o->control = T3_FOLLOW_LINE;
+                        o->base_mmps = speed(r, i, r->config.arc_mmps, r->config.arc_mm - progress, r->config.arc_acceleration_mmps2);
+                        if (r->resume_active) {
+                            float ramp = fmaxf(r->config.start_mmps, r->resume_start_mmps) +
+                                r->config.arc_acceleration_mmps2 *
+                                (float)(uint32_t)(i->now_ms - r->resume_ms) / 1000.0f;
+                            o->base_mmps = fminf(o->base_mmps, ramp);
+                            if (ramp >= r->config.arc_mmps) r->resume_active = 0U;
+                        }
                     }
                 }
             }
@@ -590,7 +645,8 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         else if (stable(r, i->line_valid, i->now_ms)) {
             /* 连续一至三路黑线都可用于巡线反馈。
                如果只接受正中两路黑，车辆正在正常纠偏时也可能因捕获超时停车。 */
-            phase(r, r->config.arc_entry_ms ? T3_ARC_ENTRY : T3_ARC, i, o);
+            int edge_follow = r->config.edge_follow && r->config.continuous_motion && r->config.arc_entry_ms;
+            phase(r, r->config.arc_entry_ms && !edge_follow ? T3_ARC_ENTRY : T3_ARC, i, o);
             r->entry_yaw_deg = i->yaw_deg;
             if (r->config.arc_entry_ms) {
                 float bias = (r->leg == 1U ? -1.0f : 1.0f) * r->config.arc_entry_diff_mmps;
@@ -605,6 +661,11 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                 o->base_mmps = r->config.arc_entry_ms ? r->config.arc_entry_mmps : r->config.capture_mmps;
                 o->left_mmps = o->base_mmps + r->entry_diff_mmps;
                 o->right_mmps = o->base_mmps - r->entry_diff_mmps;
+            }
+            if (edge_follow) {
+                r->edge_follow_active = r->arc_valid_seen = 1U;
+                r->arc_outer_valid = i->outermost; r->arc_side_valid = i->side_probe;
+                edge_follow_output(r, i, o, 1);
             }
             /* 从进入半圆时重新计算里程，排除顶点转向和捕获期间的移动。 */
             r->leg_start_mm = i->distance_mm;

@@ -264,6 +264,9 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
             } else if (prior_phase == T3_ARC_ENTRY) {
                 if (prior_duration >= t->config.arc_entry_ms) limits |= T3_LOSS_TIME;
                 if (prior_travel >= t->config.arc_entry_mm) limits |= T3_LOSS_DISTANCE;
+            } else if (prior_phase == T3_ARC && t->edge_follow_active) {
+                if (prior_duration >= t->config.edge_follow_ms) limits |= T3_LOSS_TIME;
+                if (prior_travel >= t->config.edge_follow_mm) limits |= T3_LOSS_DISTANCE;
             } else if (prior_phase == T3_DIAGONAL || prior_phase == T3_ARC) limits |= T3_LOSS_DISTANCE;
             app->route.edge_trace.seen = 1U;
             app->route.edge_trace.phase = (uint8_t)prior_phase;

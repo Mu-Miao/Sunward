@@ -28,7 +28,7 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             state_text = wheel_state;
         }
         const char *title = "TASK 1 A->B";
-        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V18 FLOW";
+        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V19 EDGE";
         else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V3 GYRO";
         else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
@@ -55,8 +55,9 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
                 (app->route.task3.phase == T3_START_SETTLE ? "WAIT A" :
                  (app->route.task3.phase == T3_ALIGN_SETTLE ? "WAIT" :
                   (app->route.task3.phase == T3_VERTEX_SEEK ? (app->route.task3.leg == 0U ? "SEEK C" : "SEEK D") :
+                   (app->route.task3.edge_follow_active ? "EDGE" :
                    (app->route.task3.phase == T3_ARC_ENTRY ? "ENTRY" :
-                    (app->route.task3.loss_seek ? "SEEK" : CarTask3_LegName(&app->route.task3))))));
+                    (app->route.task3.loss_seek ? "SEEK" : CarTask3_LegName(&app->route.task3)))))));
             if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) {
                 unsigned lap = app->route.task4.completed_laps + 1U;
                 if (lap > DPT_TASK4_LAPS) lap = DPT_TASK4_LAPS;
@@ -81,7 +82,8 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
                 const char *source = app->route.edge_trace.phase == T3_VERTEX_SEEK ? "SEEK" :
                     (app->route.edge_trace.phase == T3_CAPTURE ? "CAP" :
                      (app->route.edge_trace.phase == T3_ARC_ENTRY ? "ENTRY" :
-                      (app->route.edge_trace.phase == T3_DIAGONAL ? "DIAG" : "ARC")));
+                      (app->route.edge_trace.phase == T3_DIAGONAL ? "DIAG" :
+                       (app->route.task3.edge_follow_active ? "EDGE" : "ARC"))));
                 const char *limit = app->route.edge_trace.limits == T3_LOSS_TIME ? "TIME" :
                     (app->route.edge_trace.limits == T3_LOSS_DISTANCE ? "DIST" : "MULTI");
                 (void)snprintf(cal, sizeof cal, "%s %s %s", CarTask3_LegName(&app->route.task3), source, limit);

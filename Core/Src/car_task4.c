@@ -18,6 +18,12 @@ CarTask3Config CarTask4_Config(void)
     config.arc_entry_mmps = DPT_TASK4_ARC_ENTRY_MMPS;
     config.arc_entry_diff_mmps = DPT_TASK4_ARC_ENTRY_DIFF_MMPS;
     config.arc_entry_line_gain = DPT_LINE_GAIN * config.arc_entry_mmps / DPT_LINE_CRUISE_MMPS;
+    config.edge_follow = DPT_TASK4_EDGE_FOLLOW;
+    config.edge_follow_mmps = DPT_TASK4_EDGE_FOLLOW_MMPS;
+    config.edge_follow_diff_mmps = DPT_TASK4_EDGE_FOLLOW_DIFF_MMPS;
+    config.edge_follow_mm = DPT_TASK4_EDGE_FOLLOW_MM;
+    config.edge_follow_ms = DPT_TASK4_EDGE_FOLLOW_MS;
+    config.edge_follow_deg = DPT_TASK4_EDGE_FOLLOW_DEG;
     config.rolling_entry = DPT_TASK4_ROLLING_ENTRY;
     config.continuous_motion = DPT_TASK4_CONTINUOUS;
     config.turn_mmps = DPT_TASK4_TURN_MMPS;

@@ -82,6 +82,20 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         diff = fmaxf(-limit, fminf(limit, diff));
         app->route.targets[LEFT] = base + diff; app->route.targets[RIGHT] = base - diff;
         app->route.base = base; app->line.diff = diff;
+    } else if (o->control == T3_EDGE_FOLLOW) {
+        const CarTask3 *t = &app->route.task3;
+        if (app->route.motion != MOVE_TASK4 || t->phase != T3_ARC ||
+            !t->config.edge_follow || !t->edge_follow_active || !t->arc_valid_seen ||
+            (!app->line.valid && (app->line.count || !t->loss_seek)) ||
+            (t->lost_seen && !t->loss_seek)) {
+            app->runtime.drive(0, 0); CarWheel_Clear(app); return;
+        }
+        float base = fminf(o->base_mmps, t->config.edge_follow_mmps);
+        if (t->lost_seen) base = fminf(base, t->config.capture_mmps);
+        float limit = fminf(t->config.edge_follow_diff_mmps, fmaxf(0.0f, base - t->config.turn_inner_mmps));
+        float diff = fmaxf(-limit, fminf(limit, (o->left_mmps - o->right_mmps) * 0.5f));
+        app->route.targets[LEFT] = base + diff; app->route.targets[RIGHT] = base - diff;
+        app->route.base = base; app->line.diff = diff;
     } else if (o->control == T3_SEEK_LINE) {
         /* 仅核心已授权的弧段桥接及移动恢复确认；不伪造 valid，不续期预算。 */
         if (app->route.task3.phase != T3_ARC || !app->route.task3.loss_seek ||

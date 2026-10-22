@@ -113,16 +113,18 @@ def main():
         elif kind==1: eof+=1; assert n==len(rows)-1
     assert eof==1 and min(memory)==0x08000000 and max(memory)<0x08040000
     image=bytes(memory.get(a,255) for a in range(min(memory),max(memory)+1))
-    assert b'TASK 4 V18 FLOW' in image and b'TASK 3 V3 GYRO' in image
+    assert b'TASK 4 V19 EDGE' in image and b'TASK 3 V3 GYRO' in image
     assert 0x20000000 < int.from_bytes(image[:4], 'little') <= 0x2000C000
     reset=int.from_bytes(image[4:8], 'little')
     assert reset & 1 and 0x08000000 <= (reset & ~1) < 0x08040000
-    manifest={'base_branch':'codex/task4-v14-pwm22',
-        'base_commit':'242b647ed1a8470ea77b5fc2576e4198fb08c912',
-        'task4_title':'TASK 4 V18 FLOW', 'units_compiled':len(SOURCES),
+    manifest={'base_branch':'codex/task4-v14-rolling',
+        'base_commit':'f2802b6bf4152c0142424c0d71640e7091490cd5',
+        'task4_title':'TASK 4 V19 EDGE', 'units_compiled':len(SOURCES),
         'diagonal_mmps':270, 'arc_mmps':240, 'entry_mmps':50, 'task4_max_cmd':2200,
         'preview':'first valid C/D candidate inside original window; 30ms point confirmation',
-        'continuous_motion':True, 'turn_inner_mmps':20, 'turn_outer_mmps':100,
+        'edge_follow':True, 'edge_follow_mmps':70, 'edge_follow_diff_mmps':50,
+        'edge_follow_mm':120, 'edge_follow_ms':2500, 'edge_follow_deg':45,
+        'white_seek_ms':500, 'continuous_motion':True, 'turn_inner_mmps':20, 'turn_outer_mmps':100,
         'turn_limit_mm':120, 'turn_limit_ms':4000,
         'hex_checksum_eof_titles_vectors_valid':True, 'size':size,
         'field_verified':False, 'flashed':False,

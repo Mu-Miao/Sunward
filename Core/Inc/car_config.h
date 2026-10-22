@@ -109,6 +109,13 @@
 #define DPT_TASK3_TURN_MIN_MMPS 35.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
 #define DPT_TASK4_MAX_CMD 2200 /* V14：仅任务四1800→2200；轮速/堵转/反向等保护阈值保留。 */
+/* V19：独立的低速边缘巡线预算；失线500ms/位移/角度预算不变。 */
+#define DPT_TASK4_EDGE_FOLLOW 1U
+#define DPT_TASK4_EDGE_FOLLOW_MMPS 70.0f
+#define DPT_TASK4_EDGE_FOLLOW_DIFF_MMPS 50.0f /* 最外单探头20/120；两轮仍前进。 */
+#define DPT_TASK4_EDGE_FOLLOW_MM 120.0f
+#define DPT_TASK4_EDGE_FOLLOW_MS 2500U
+#define DPT_TASK4_EDGE_FOLLOW_DEG 45.0f
 #define DPT_TASK4_ROLLING_ENTRY 1U /* V18：C/D原窗口见线即低速预转，连续确认后计点；对正后直接捕线。 */
 #define DPT_TASK4_CONTINUOUS 1U /* V18：A/B/C/D正常换段连续运动，第四圈终点或故障停车。 */
 #define DPT_TASK4_TURN_MMPS 100.0f /* 两轮前进时恢复足够差速；接近目标角仍降速。 */

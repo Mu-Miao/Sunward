@@ -1,21 +1,23 @@
-# Sunward / V18 FLOW：V14 基础连续转弯
+# Sunward / V19 EDGE：低速边缘巡线接管
 
-基于 `codex/task4-v14-pwm22`（`242b647`），修改分支为 `codex/task4-v14-rolling`。任务四 C/D 在原点位窗口首次见线时开始低速预转；正常换段与前三圈 A 点接续连续运动，第四圈终点停稳完成。标题为 `TASK 4 V18 FLOW`。
+基于V18（`f2802b6`），分支 `codex/task4-v19-edge`。捕线确认后最外侧单探头即可进入受限低速巡线，内侧稳定后才平顺提速。保留连续换段和前三圈A点接续，第四圈终点停稳。屏幕标题 `TASK 4 V19 EDGE`；低速接管期间显示 `EDGE`。
 
-- [V18 HEX/ELF及验证记录](deliverables/task4-v18-flow/README.md)
-- [改动、参数与验证说明](TASK4_V18_FLOW_说明.md)
+- [V19 HEX/ELF、日志和布局](deliverables/task4-v19-edge/README.md)
+- [修改与验证说明](TASK4_V19_EDGE_说明.md)
+- [V18现场故障依据](records/task4/2026-10-22_v18_entry_faults.json)
 - [模块接口](MODULES.md)
-- 原 V14 固件继续保留在 `deliverables/task4-v14-pwm22/`，不作为本版下载文件。
 
-## 构建
+V14、V18原分支及各自归档保留。当前下载应选择V19文件；历史固件在 `deliverables/task4-v14-pwm22/` 和 `deliverables/task4-v18-flow/`。
+
+## 构建与使用
 
 ```sh
 python3 tools/tests/run_tests.py --sanitize
 python3 tools/build_firmware.py
 ```
 
-构建脚本优先使用已安装的 STM32CubeIDE GCC，也支持 `--cc /path/to/arm-none-eabi-gcc`。仅使用 Python 标准库。输出为 `build/Debug/Sunward.hex`、`Sunward.elf`，构建日志和校验清单在同目录。也可用现有 EIDE/CubeIDE 工程重新构建。
+主机回归使用模拟HAL，不访问硬件。构建优先使用STM32CubeIDE GCC，也支持 `--cc /path/to/arm-none-eabi-gcc`。只需Python标准库。输出在 `build/Debug/`。
 
-OFF 且停车时短按 PA0 静态 CAL；READY 后 ON 并按键启动。当前起始摆放方向仍为 A 朝 B。运行中按键、OFF 或 `STOP!` 均可停车。
+原启动方式保留：A朝B摆放；OFF且停车时短按PA0静态CAL，READY后ON并按键启动。运行中按键、实体OFF或 `STOP!` 可停车。
 
-20 组 ASan/UBSan 软件回归、50 个 ARM 编译单元及 HEX 校验通过；本版未烧录、未实车验证。下载时明确选择 V18 FLOW 文件并核对屏幕标题。
+22组ASan/UBSan、50个ARM单元和HEX/向量/版本检查通过；V19未烧录、未实车验证。pyOCD当前关闭；下次采集必须用匹配V19的ELF，944字节instance不可与V18的912字节混用。

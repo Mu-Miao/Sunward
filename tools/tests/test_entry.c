@@ -11,6 +11,7 @@ static void entry_start(unsigned leg)
   assert(app()->runtime.state==RUNNING);step_route();
  }
  assert(app()->route.task3.phase==T3_CAPTURE && app()->route.task3.leg==leg);
+ app()->route.task3.config.edge_follow=0;
  line_inputs=leg==1?7:14;
  for(unsigned n=0;n<4;n++)step(10,0,0);
  assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC_ENTRY);
@@ -199,7 +200,7 @@ static void rolling_regression(void)
  assert(CarTask4_Config().rolling_entry && !CarRoute_Task3Config().rolling_entry);
  CarTask3Config bad=CarTask4_Config();bad.rolling_entry=2;assert(!CarTask3_ConfigValid(&bad));
  for(unsigned diagonal=0;diagonal<=2;diagonal+=2) {
-  CarTask3Config c=CarTask4_Config();c.start_from_ab=0;
+  CarTask3Config c=CarTask4_Config();c.start_from_ab=0;c.edge_follow=0;
   CarTask3 t={0};CarTask3Output out;
   CarTask3Input in={.enabled=1,.heading_ready=1,.now_ms=1000};
   assert(CarTask3_Start(&t,&c,&in));t.leg=diagonal;t.pending_start_signal=0;
