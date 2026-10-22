@@ -1,7 +1,8 @@
 # Sunward / V18 FLOW：V14 基础连续转弯
 
-基于 `codex/task4-v14-pwm22`（`242b647`），本地修改分支为 `codex/task4-v14-rolling`。任务四 C/D 在原点位窗口首次见线时开始低速预转；正常换段与前三圈 A 点接续连续运动，第四圈终点停稳完成。标题为 `TASK 4 V18 FLOW`。
+基于 `codex/task4-v14-pwm22`（`242b647`），修改分支为 `codex/task4-v14-rolling`。任务四 C/D 在原点位窗口首次见线时开始低速预转；正常换段与前三圈 A 点接续连续运动，第四圈终点停稳完成。标题为 `TASK 4 V18 FLOW`。
 
+- [V18 HEX/ELF及验证记录](deliverables/task4-v18-flow/README.md)
 - [改动、参数与验证说明](TASK4_V18_FLOW_说明.md)
 - [模块接口](MODULES.md)
 - 原 V14 固件继续保留在 `deliverables/task4-v14-pwm22/`，不作为本版下载文件。

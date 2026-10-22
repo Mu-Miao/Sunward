@@ -1,6 +1,6 @@
 # V18 FLOW：基于 V14 的提前转向和连续换段
 
-日期：2026-10-22。基线为用户指定分支 `codex/task4-v14-pwm22`，提交 `242b647ed1a8470ea77b5fc2576e4198fb08c912`；本地新分支 `codex/task4-v14-rolling`。原工作目录 dev 及 `.eide/eide.yml` 的未提交改动保持原状。未推送、未烧录。
+日期：2026-10-22。基线为用户指定分支 `codex/task4-v14-pwm22`，提交 `242b647ed1a8470ea77b5fc2576e4198fb08c912`；新分支 `codex/task4-v14-rolling`。原工作目录 dev 及 `.eide/eide.yml` 的未提交改动保持原状。未烧录、未实车验证。
 
 ## 原因与修改
 
