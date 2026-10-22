@@ -9,6 +9,7 @@ static void seek_start(unsigned task)
  else {
   setup();line_inputs=15;hold();hold();hold();hold();calibrate();enable();press_key();
   assert(app()->route.motion==MOVE_TASK4 && app()->runtime.state==RUNNING);
+  app()->route.task3.config.continuous_motion=0; /* Retained stationary recovery profile. */
   assert(app()->route.task3.config.white_seek_ms==500 && app()->route.task3.config.vertex_seek_ms==3000);
  }
 }

@@ -48,7 +48,8 @@ static void handoff_regression(void)
   /* Inner single probes can complete entry; a centred pair is not mandatory. */
   line_inputs=leg==1?13:11;
   for(unsigned n=0;n<6;n++) {
-   enter_for(1);assert(a==0 && b==0 && app()->route.task3.lost_start_ms==loss);
+   enter_for(1);assert(a>0 && b<0 && app()->route.task3.lost_start_ms==loss);
+   assert(app()->route.task3.lost_seen); /* Moving confirmation cannot renew the budget. */
   }
   step(10,0,0);
   assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC);
@@ -71,13 +72,18 @@ static void bounds_regression(void)
  entry_start(1);line_inputs=15;enter_for(1);
  uint32_t loss=app()->route.task3.lost_start_ms;
  for(unsigned n=0;n<49;n++) {
-  line_inputs=n%2?15:9;enter_for(1);
+  line_inputs=n%2?15:9;step(10,30,30);
+  assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC_ENTRY);
   assert(app()->route.task3.lost_start_ms==loss);
  }
  line_inputs=9;step(10,0,0);
  assert(app()->runtime.state==LINE_LOST && app()->route.task3.loss_limits&T3_LOSS_TIME && a==0 && b==0);
  /* Recovery on the exact deadline cannot outrank the timeout. */
- entry_start(1);line_inputs=15;enter_for(44);line_inputs=9;enter_for(6);step(10,0,0);
+ entry_start(1);line_inputs=15;
+ for(unsigned n=0;n<44;n++) {
+  step(10,30,30);assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC_ENTRY);
+ }
+ line_inputs=9;enter_for(6);step(10,0,0);
  assert(app()->runtime.state==LINE_LOST && a==0 && b==0);
  /* Wrong/noncontiguous patterns stop immediately; subsequent white stays stopped. */
  for(unsigned pattern=0;pattern<2;pattern++) {
@@ -176,6 +182,100 @@ static void protection_regression(void)
  assert(t.phase==T3_ARC && out.control==T3_FOLLOW_LINE);
 }
 
+static unsigned flow_zero_requests;
+static void (*flow_motor)(int,int);
+static void monitor_flow_motor(int a_cmd,int b_cmd)
+{
+ CarTask3 *t=&app()->route.task3;
+ if(app()->runtime.state==RUNNING && (t->leg&1U) &&
+    (t->phase==T3_ALIGN || t->phase==T3_CAPTURE || t->phase==T3_ARC_ENTRY) &&
+    app()->route.targets[0]+app()->route.targets[1]==0 && a_cmd==0 && b_cmd==0)
+  ++flow_zero_requests; /* Distinguish explicit HALT from PI coasting above target speed. */
+ flow_motor(a_cmd,b_cmd);
+}
+
+static void rolling_regression(void)
+{
+ assert(CarTask4_Config().rolling_entry && !CarRoute_Task3Config().rolling_entry);
+ CarTask3Config bad=CarTask4_Config();bad.rolling_entry=2;assert(!CarTask3_ConfigValid(&bad));
+ for(unsigned diagonal=0;diagonal<=2;diagonal+=2) {
+  CarTask3Config c=CarTask4_Config();c.start_from_ab=0;
+  CarTask3 t={0};CarTask3Output out;
+  CarTask3Input in={.enabled=1,.heading_ready=1,.now_ms=1000};
+  assert(CarTask3_Start(&t,&c,&in));t.leg=diagonal;t.pending_start_signal=0;
+  in.distance_mm=t.diagonal_mm-40;
+  in.yaw_deg=CarMath_WrapDegrees(t.start_heading_deg+(diagonal?180+2*t.diagonal_angle_deg-c.bd_turn_relief_deg:0));
+  in.left_mmps=in.right_mmps=50;in.line_valid=1;in.black_count=2;in.centered=1;
+  for(unsigned n=0;n<4;n++) {
+   in.now_ms+=10;in.distance_mm+=.5f;CarTask3_Update(&t,&in,&out);
+   assert(out.control!=T3_HALT && !out.reset_controllers);
+   if(n<3)assert(t.phase==T3_DIAGONAL && out.control==T3_TURN_FORWARD && out.left_mmps>0 && out.right_mmps>0);
+  }
+  assert(t.phase==T3_ALIGN && t.leg==diagonal+1 &&
+   out.signal_point==(diagonal?T3_POINT_D:T3_POINT_C));
+  float tangent=CarMath_WrapDegrees(t.start_heading_deg+t.diagonal_angle_deg+(diagonal?180:0));
+  uint32_t turn_start=t.phase_ms;
+  /* Moving angle confirmation still rejects an excursion outside3deg,
+     resets only the debounce, and retains the original turn deadline. */
+  for(unsigned n=0;n<3;n++) {
+   in.yaw_deg=CarMath_WrapDegrees(tangent+2.8f);in.now_ms+=10;
+   CarTask3_Update(&t,&in,&out);assert(t.phase==T3_ALIGN && out.control==T3_HOLD_HEADING);
+  }
+  in.yaw_deg=CarMath_WrapDegrees(tangent+3.2f);in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+  assert(t.phase==T3_ALIGN && !t.edge_seen && t.phase_ms==turn_start && out.control==T3_TURN_FORWARD);
+  for(unsigned n=0;n<4;n++) {
+   in.yaw_deg=tangent;in.now_ms+=10;in.distance_mm+=.5f;CarTask3_Update(&t,&in,&out);
+   assert(out.control==T3_HOLD_HEADING && !out.reset_controllers && out.base_mmps==50);
+   if(n<3)assert(t.phase==T3_ALIGN);
+  }
+  assert(t.phase==T3_CAPTURE && in.left_mmps==50); /* No stopped-wheel prerequisite. */
+  for(unsigned n=0;n<4;n++) {
+   in.now_ms+=10;in.distance_mm+=.5f;CarTask3_Update(&t,&in,&out);
+   assert(out.control!=T3_HALT && !out.reset_controllers);
+  }
+  assert(t.phase==T3_ARC_ENTRY && out.control==T3_ENTER_ARC && out.left_mmps>0 && out.right_mmps>0);
+ }
+ /* Continuous C/D handoff cannot outrank the original turn budgets,
+    stale sensors, STOP/OFF, capture limits or diagonal endpoint window. */
+ for(unsigned event=0;event<8;event++) {
+  CarTask3Config c=CarTask4_Config();CarTask3 t={0};CarTask3Output out;
+  CarTask3Input in={.enabled=1,.heading_ready=1,.now_ms=1000};assert(CarTask3_Start(&t,&c,&in));
+  t.phase=T3_ALIGN;t.leg=3;t.pending_start_signal=0;
+  in.yaw_deg=CarMath_WrapDegrees(t.start_heading_deg+t.diagonal_angle_deg+180);
+  in.line_valid=1;in.black_count=2;in.centered=1;in.left_mmps=in.right_mmps=50;
+  if(event==0)t.phase_ms=in.now_ms-c.align_timeout_ms;
+  else if(event==1)t.phase_start_mm=-c.turn_travel_limit_mm-1;
+  else if(event==2)in.stop_requested=1;
+  else if(event==3)in.enabled=0;
+  else if(event==4)in.sample_age_ms=21;
+  else if(event==5) {t.phase=T3_CAPTURE;t.phase_ms=in.now_ms-c.capture_timeout_ms;}
+  else if(event==6) {t.phase=T3_CAPTURE;t.phase_start_mm=-c.capture_limit_mm-1;}
+  else {
+   t.phase=T3_DIAGONAL;t.leg=2;in.distance_mm=t.diagonal_mm+c.entry_window_mm+1;
+   in.yaw_deg=CarMath_WrapDegrees(t.start_heading_deg+180+2*t.diagonal_angle_deg-c.bd_turn_relief_deg);
+  }
+  in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+  assert(t.phase==T3_FAULT && out.control==T3_HALT && out.reset_controllers);
+ }
+ /* Actual scheduler over all eight joins: no C/D BRAKE/SETTLE phases or
+    explicit zero-drive requests; A/B/final settled stops remain covered. */
+ setup();line_inputs=15;hold();hold();hold();hold();calibrate();enable();press_key();
+ flow_motor=app()->runtime.drive;flow_zero_requests=0;app()->runtime.drive=monitor_flow_motor;
+ unsigned vertices=0;
+ for(unsigned n=0;n<14000 && app()->runtime.state==RUNNING;n++) {
+  unsigned old_leg=app()->route.task3.leg;step_route();CarTask3 *t=&app()->route.task3;
+  if((old_leg==0 || old_leg==2) && t->leg==old_leg+1)++vertices;
+  assert(!(t->phase==T3_VERTEX_BRAKE && !(t->leg&1U)));
+  assert(!(t->phase==T3_ALIGN_SETTLE && (t->leg&1U)));
+  if((t->leg&1U) && (t->phase==T3_ALIGN || t->phase==T3_CAPTURE || t->phase==T3_ARC_ENTRY))
+   assert(app()->route.targets[0]+app()->route.targets[1]>0);
+ }
+ assert(app()->runtime.state==DONE && vertices==8 && flow_zero_requests==0);
+ assert(app()->route.task4.completed_laps==4 && app()->route.task4.arc_number==8 && signals==17);
+ app()->runtime.drive=flow_motor;
+ puts("PASS: eight continuous C/D joins, moving30ms vertex/3deg tangent confirmation, no parked entry/zero-drive handoff, retained budgets/stop priority and unchanged four-lap counting. Software only.");
+}
+
 int main(void)
 {
  CarTask3Config c=CarTask4_Config();assert(CarTask3_ConfigValid(&c));
@@ -188,7 +288,7 @@ int main(void)
  c=CarTask4_Config();c.arc_entry_deg=26;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.arc_entry_mmps=51;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.arc_entry_ms=0;assert(CarTask3_ConfigValid(&c));
- handoff_regression();bounds_regression();recorded_onset_regression();protection_regression();
+ handoff_regression();bounds_regression();recorded_onset_regression();protection_regression();rolling_regression();
  puts("PASS: C/D low-speed arc entry, 200ms minimum/60ms inner-or-centred confirmation, bounded white gaps/chatter, preserved arc distance/counts, exact deadlines, fail-closed patterns/protections and time/yaw wrap. Software only.");
  return 0;
 }

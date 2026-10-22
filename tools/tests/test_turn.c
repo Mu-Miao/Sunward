@@ -14,6 +14,9 @@ static void turn_start(unsigned mode)
  if(mode==3)task3_start();
  else {setup();line_inputs=15;hold();hold();hold();hold();calibrate();enable();press_key();}
  assert(app()->runtime.state==RUNNING);
+ /* Retain the optional parked-turn regression profile. Production C/D
+    moving confirmation is exercised end-to-end by test_entry. */
+ if(mode==4)app()->route.task3.config.rolling_entry=app()->route.task3.config.continuous_motion=0;
 }
 static void settle_at(float angle,CarTask3Phase aligning,CarTask3Phase settled)
 {
@@ -30,7 +33,7 @@ static void settle_at(float angle,CarTask3Phase aligning,CarTask3Phase settled)
 static void vertex_full_tangent(void)
 {
  for(unsigned leg=0;leg<=2;leg+=2) {
-  CarTask3Config c=CarTask4_Config();CarTask3 t={0};CarTask3Output o;
+  CarTask3Config c=CarTask4_Config();c.continuous_motion=0;CarTask3 t={0};CarTask3Output o;
   CarTask3Input in={.heading_ready=1,.enabled=1};
   assert(CarTask3_Start(&t,&c,&in));
   t.phase=T3_VERTEX_SEEK;t.leg=leg;t.pending_start_signal=0;
@@ -55,7 +58,7 @@ static void b_relief_regression(void)
  const float starts[]={0,179,-179};
  const float expected[]={-144.34019f,34.65981f,36.65981f};
  for(unsigned k=0;k<3;k++) {
-  CarTask3Config c=CarTask4_Config();CarTask3 t={0};CarTask3Output o;
+  CarTask3Config c=CarTask4_Config();c.continuous_motion=0;CarTask3 t={0};CarTask3Output o;
   CarTask3Input in={.heading_ready=1,.enabled=1,.yaw_deg=starts[k]};
   assert(c.bd_turn_relief_deg==3 && CarTask3_Start(&t,&c,&in));
   t.phase=T3_ALIGN;t.leg=2;t.pending_start_signal=0;

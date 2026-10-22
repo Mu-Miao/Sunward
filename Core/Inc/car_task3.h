@@ -41,6 +41,9 @@ typedef struct {
     /* 0 关闭入弧预转向；任务四在捕线后低速建立弧向，再交给正常巡线。 */
     uint32_t arc_entry_ms, arc_entry_min_ms, arc_entry_confirm_ms;
     float arc_entry_mm, arc_entry_deg, arc_entry_mmps, arc_entry_diff_mmps, arc_entry_line_gain;
+    uint8_t rolling_entry; /* C/D连续低速换段，省去入弧前两次停稳；默认0保留任务三流程。 */
+    uint8_t continuous_motion; /* 所有正常换段均滚动通过，最后一圈仍停稳完成。 */
+    float turn_inner_mmps; /* continuous_motion下转向内轮也保持正目标。 */
 } CarTask3Config;
 
 typedef struct {
@@ -52,6 +55,7 @@ typedef struct {
     uint8_t outermost; /* 当前有效图样为最左或最右单探头。 */
     uint8_t side_probe; /* 有效单探头，包含内侧两路。 */
     uint8_t enabled, stop_requested, protection_fault;
+    uint8_t continue_at_a; /* 仅任务四包装层授权前三圈A点不停接续。 */
 } CarTask3Input;
 
 typedef struct {
@@ -60,6 +64,7 @@ typedef struct {
     float left_mmps, right_mmps; /* 前进转向/入弧阶段的左右轮目标速度。 */
     CarTask3Point signal_point; /* 点位提示仅在一次更新中给出，由上层计时控制声光持续时间。 */
     uint8_t start_signal, reset_controllers;
+    uint8_t retarget_integrals; /* 连续低速换段：缩减降速轮的旧积分，不停车/清保护计时。 */
 } CarTask3Output;
 
 typedef struct {
@@ -91,5 +96,6 @@ int CarTask3_Start(CarTask3 *route, const CarTask3Config *config,
 void CarTask3_Update(CarTask3 *route, const CarTask3Input *input,
     CarTask3Output *output);
 void CarTask3_Cancel(CarTask3 *route);
+int CarTask3_NextLap(CarTask3 *route, const CarTask3Input *input, CarTask3Output *output);
 const char *CarTask3_LegName(const CarTask3 *route);
 #endif

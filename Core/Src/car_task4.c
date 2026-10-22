@@ -18,6 +18,11 @@ CarTask3Config CarTask4_Config(void)
     config.arc_entry_mmps = DPT_TASK4_ARC_ENTRY_MMPS;
     config.arc_entry_diff_mmps = DPT_TASK4_ARC_ENTRY_DIFF_MMPS;
     config.arc_entry_line_gain = DPT_LINE_GAIN * config.arc_entry_mmps / DPT_LINE_CRUISE_MMPS;
+    config.rolling_entry = DPT_TASK4_ROLLING_ENTRY;
+    config.continuous_motion = DPT_TASK4_CONTINUOUS;
+    config.turn_mmps = DPT_TASK4_TURN_MMPS;
+    config.turn_inner_mmps = DPT_TASK4_TURN_INNER_MMPS;
+    config.turn_travel_limit_mm = DPT_TASK4_TURN_LIMIT_MM;
     /* 外层统一执行四圈总计 160 秒的超时保护。
        不将任务三的 40 秒比赛时限单独施加到任务四每一圈。 */
     config.deadline_ms = DPT_TASK4_LAP_WATCHDOG_MS;
@@ -26,13 +31,13 @@ CarTask3Config CarTask4_Config(void)
     config.recovery_ms = DPT_TASK4_RECOVERY_MS;
     /* 2026-10-18：BD 末段已有有效探头观测，满名义距离后却全白搜索超时。
        前置探头的碰线里程不等于车轴到 D 的几何长度；恢复原终点窗口内
-       停车并连续确认有效线，不再越过候选线等待满里程。原上界/搜索预算保留。 */
+       连续确认有效线，不再越过候选线等待满里程。原上界/搜索预算保留。 */
     config.bd_full_distance = 0U;
-    /* 各点统一 ±3 度停稳复核；B 的目标与 BD 行驶共同减去独立少转量。 */
+    /* A/B/C/D均按同一±3度容差移动确认。B与BD共用少转目标。 */
     config.b_full_align = 1U;
     config.b_align_tolerance_deg = config.align_tolerance_deg;
-    /* DA 入弧前不能在切线前约 8 度就交给边缘探头反馈；
-       仅任务四 D 点完整对正并复核停稳，不改变捕获图样和原转向预算。 */
+    /* D点使用完整切线与独立容差；边缘探头不能提前约8度结束转向。
+       双轮连续转向仍受时间与独立位移预算限制。 */
     config.d_full_align = 1U;
     config.d_align_tolerance_deg = config.align_tolerance_deg;
     config.da_outer_gap = 1U;
@@ -76,7 +81,9 @@ void CarTask4_Update(CarTask4 *task, CarTask3 *lap,
         return;
     }
     CarTask3Phase previous_phase = lap->phase;
-    CarTask3_Update(lap, input, output);
+    CarTask3Input lap_input = *input;
+    lap_input.continue_at_a = lap->config.continuous_motion && task->completed_laps + 1U < DPT_TASK4_LAPS;
+    CarTask3_Update(lap, &lap_input, output);
     if ((lap->phase == T3_ARC_ENTRY && previous_phase != T3_ARC_ENTRY) ||
         (lap->phase == T3_ARC && previous_phase != T3_ARC && previous_phase != T3_ARC_ENTRY))
         ++task->arc_number;
@@ -94,9 +101,13 @@ void CarTask4_Update(CarTask4 *task, CarTask3 *lap,
         }
     } else task->resume_pending = task->resume_active = 0U;
     if (lap->phase != T3_DONE) return;
-    /* T20 单圈核心仅在 A 点两轮停稳后报告完成，此时圈数只增加一次。 */
+    /* A点出口确认后只计圈一次；连续模式前三圈当拍接续，末圈仍停稳完成。 */
     ++task->completed_laps;
     if (task->completed_laps == DPT_TASK4_LAPS) { task->active = 0U; return; }
+    if (lap->config.continuous_motion) {
+        if (!CarTask3_NextLap(lap, input, output)) task->active = 0U;
+        return;
+    }
     CarTask3Config config = lap->config;
     config.start_from_ab = 1U; /* 在 A 点复用已有的陀螺仪转向及停稳阶段。 */
     if (!CarTask3_Start(lap, &config, input)) {

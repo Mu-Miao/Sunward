@@ -1,24 +1,20 @@
-# Sunward / V14 PWM22：独立输出上限
+# Sunward / V18 FLOW：V14 基础连续转弯
 
-固定保留V14控制代码：任务四输出上限2200，其余速度目标与保护沿用该版。包含原停车确认和单轮转向。
+基于 `codex/task4-v14-pwm22`（`242b647`），本地修改分支为 `codex/task4-v14-rolling`。任务四 C/D 在原点位窗口首次见线时开始低速预转；正常换段与前三圈 A 点接续连续运动，第四圈终点停稳完成。标题为 `TASK 4 V18 FLOW`。
 
-分支：`codex/task4-v14-pwm22`。16组软件回归及ARM构建通过；没有匹配V14 ELF校验值的现场采集记录。
+- [改动、参数与验证说明](TASK4_V18_FLOW_说明.md)
+- [模块接口](MODULES.md)
+- 原 V14 固件继续保留在 `deliverables/task4-v14-pwm22/`，不作为本版下载文件。
 
-- [本版参数与保护说明](TASK4_V14_任务四输出2200_说明.md)
-- [模块接口说明](MODULES.md)
-- [pyOCD只读采集](tools/PYOCD_采集说明.md)
-- [V14原版HEX、ELF及验证数据](deliverables/task4-v14-pwm22/README.md)
+## 构建
 
-## 构建与使用
+```sh
+python3 tools/tests/run_tests.py --sanitize
+python3 tools/build_firmware.py
+```
 
-使用既有EIDE/CubeIDE工程，选择Debug并执行Rebuild。调参入口为 `Core/Inc/car_config.h`。
+构建脚本优先使用已安装的 STM32CubeIDE GCC，也支持 `--cc /path/to/arm-none-eabi-gcc`。仅使用 Python 标准库。输出为 `build/Debug/Sunward.hex`、`Sunward.elf`，构建日志和校验清单在同目录。也可用现有 EIDE/CubeIDE 工程重新构建。
 
-主机构建与回归：`python3 tools/tests/run_tests.py --sanitize`。模拟HAL不加入固件包含路径。
+OFF 且停车时短按 PA0 静态 CAL；READY 后 ON 并按键启动。当前起始摆放方向仍为 A 朝 B。运行中按键、OFF 或 `STOP!` 均可停车。
 
-固件输出为 `build/Debug/Sunward.hex` 和 `Sunward.elf`；下载时明确选择对应版本，EIDE旧下载路径可能指向其他固件。 本版标题为 `TASK 4 V14 PWM22`。
-
-OFF且停车时短按PA0静态CAL；READY后ON并按键启动。运行中按键、实体OFF或 `STOP!` 均可停车；原保护与启动条件保留。
-
-## 历史资料
-
-旧版本说明与完整实验记录统一保留在[main实验档案](https://github.com/Mu-Miao/Sunward/tree/main/docs/experiments)，本分支只保留当前需要的说明。历史文件也可从整理前提交查看；不将其他固件的成功记录计为本版验收。
+20 组 ASan/UBSan 软件回归、50 个 ARM 编译单元及 HEX 校验通过；本版未烧录、未实车验证。下载时明确选择 V18 FLOW 文件并核对屏幕标题。

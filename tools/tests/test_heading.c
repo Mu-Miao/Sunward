@@ -204,7 +204,7 @@ static void bd_distance_regression(void)
   CarTask3Config cfg=task==4?CarTask4_Config():CarRoute_Task3Config();
   assert(cfg.bd_full_distance==0);
   /* Retain coverage of the optional historical full-distance gate. */
-  cfg.bd_full_distance=task==4;cfg.start_from_ab=0;
+  cfg.bd_full_distance=task==4;cfg.start_from_ab=0;cfg.rolling_entry=cfg.continuous_motion=0;
   CarTask3 t={0};CarTask3Output out;
   CarTask3Input in={.now_ms=1000,.heading_ready=1,.enabled=1};
   assert(CarTask3_Start(&t,&cfg,&in));t.leg=leg;t.pending_start_signal=0;
@@ -261,8 +261,8 @@ static void bd_distance_regression(void)
 static void bd_probe_window_regression(void)
 {
  /* The reported 1196..1253mm observations precede nominal 1280.6mm.
-    A candidate within the original window must stop travel immediately,
-    then remain valid for 30ms; outside-window hits and glitches cannot signal D. */
+    A candidate within the original window starts a low-speed forward turn
+    for 30ms; outside-window hits and glitches still cannot signal D. */
  for(unsigned count=1;count<=3;count++) {
   CarTask3Config cfg=CarTask4_Config();cfg.start_from_ab=0;
   assert(!cfg.bd_full_distance && cfg.b_full_align && cfg.b_align_tolerance_deg==3);
@@ -278,7 +278,8 @@ static void bd_probe_window_regression(void)
   }
   in.distance_mm=1196;
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-  assert(t.edge_seen && out.control==T3_HALT && out.reset_controllers && out.signal_point==T3_NO_POINT);
+  assert(t.edge_seen && out.control==T3_TURN_FORWARD && !out.reset_controllers && out.signal_point==T3_NO_POINT);
+  assert(out.left_mmps==100 && out.right_mmps==20);
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
   in.line_valid=0;in.black_count=0;
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
@@ -286,14 +287,14 @@ static void bd_probe_window_regression(void)
   in.distance_mm=1253;in.line_valid=1;in.black_count=count;
   for(unsigned n=0;n<3;n++) {
    in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-   assert(t.phase==T3_DIAGONAL && out.control==T3_HALT && out.reset_controllers && out.signal_point==T3_NO_POINT);
+   assert(t.phase==T3_DIAGONAL && out.control==T3_TURN_FORWARD && !out.reset_controllers && out.signal_point==T3_NO_POINT);
   }
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-  assert(t.phase==T3_VERTEX_BRAKE && out.signal_point==T3_POINT_D);
+  assert(t.phase==T3_ALIGN && t.leg==3 && out.signal_point==T3_POINT_D && !out.reset_controllers);
   assert(in.distance_mm<t.diagonal_mm);
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(out.signal_point==T3_NO_POINT);
  }
- /* Actual foreground scheduler, GPIO decoding, stop output and D snapshot. */
+ /* Actual foreground scheduler, GPIO decoding, forward targets and D snapshot. */
  setup();line_inputs=15;hold();hold();hold();hold();calibrate();enable();press_key();
  for(unsigned n=0;n<4500 && !(app()->route.task3.leg==2 && app()->route.task3.phase==T3_DIAGONAL);n++) {
   assert(app()->runtime.state==RUNNING);step_route();
@@ -305,13 +306,14 @@ static void bd_probe_window_regression(void)
  line_inputs=15;step(10,0,0);assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
  int before=signals;line_inputs=9;
  for(unsigned n=0;n<3;n++) {
-  step(10,0,0);assert(a==0 && b==0 && signals==before && t->phase==T3_DIAGONAL);
+  step(10,0,0);assert(app()->route.targets[0]>0 && app()->route.targets[1]>0 && signals==before && t->phase==T3_DIAGONAL);
  }
  step(10,0,0);
- assert(t->phase==T3_VERTEX_BRAKE && signals==before+1 && a==0 && b==0);
+ assert(t->phase==T3_ALIGN && t->leg==3 && signals==before+1);
+ assert(app()->route.targets[0]+app()->route.targets[1]>0);
  assert(app()->route.vertex_trace.seen && app()->route.vertex_trace.point==T3_POINT_D);
  assert(fabsf(app()->route.vertex_trace.distance_mm-1230)<.1f);
- puts("PASS: default Task4 BD stops for 1/2/3-probe candidates inside endpoint window before nominal length, fresh 30ms debounce after glitches, no out-of-window D, actual GPIO scheduler zero output and D snapshot; B full alignment retained.");
+ puts("PASS: default Task4 BD rolls through 1/2/3-probe candidates inside endpoint window, fresh30ms confirmation after glitches, no out-of-window D, forward scheduler targets and D snapshot; B full-angle confirmation retained.");
 }
 
 int main(void)

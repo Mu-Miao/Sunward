@@ -8,7 +8,7 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 V14 PWM22")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 V18 FLOW")==0);
 }
 static void task4_start(void)
 {
@@ -19,6 +19,8 @@ static void task4_start(void)
  assert(app()->route.task3.config.deadline_ms==80000U && app()->route.run_duration==160000U);
  assert(app()->route.task4.completed_laps==0 && app()->route.task4.arc_number==0 && app()->route.task3.phase==T3_START_ALIGN && signals==1);
  assert(!app()->runtime.bluetooth_on && wp[0]==0 && wp[1]==0);
+ /* Historical parked A/B/lap profile; test_continuous exercises full production defaults. */
+ app()->route.task3.config.continuous_motion=0;
  /* Retain T27 profile here; default moving recovery is covered by test_seek. */
  app()->route.task3.config.white_seek_ms=app()->route.task3.config.vertex_seek_ms=0;
 }
