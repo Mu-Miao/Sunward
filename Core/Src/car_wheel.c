@@ -23,8 +23,12 @@ void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
     float direction = app->route.targets[i] >= 0.0f ? 1.0f : -1.0f;
     float measured = direction * w->velocity;
     float target = direction * app->route.targets[i];
-    int limit = (app->route.motion == MOVE_TEST || app->route.motion == MOVE_HEADING || CarRoute_IsDistance(app->route.motion)) ? DPT_MAX_CMD : DPT_MANUAL_MAX_CMD;
-    if (w->velocity > 350.0f || w->velocity < -350.0f) {
+    int figure8 = CarMotion_IsFigureEight(app->route.motion);
+    int limit = figure8 ? DPT_FIGURE8_MAX_CMD :
+        ((app->route.motion == MOVE_TEST || app->route.motion == MOVE_HEADING ||
+          CarRoute_IsDistance(app->route.motion)) ? DPT_MAX_CMD : DPT_MANUAL_MAX_CMD);
+    float velocity_limit = figure8 ? DPT_FIGURE8_MAX_MMPS : 350.0f;
+    if (w->velocity > velocity_limit || w->velocity < -velocity_limit) {
         CarApp_Stop(app, FAST, wheel_name[i]); return;
     }
     if (measured < -5.0f) w->bad_sign_us += app->runtime.dt_us;

@@ -231,7 +231,7 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
     if (CarMotion_IsFigureEight(app->route.motion)) {
         if (app->runtime.state != RUNNING || !app->route.tracking) return;
         for (unsigned i = 0; i < 2U; ++i) {
-            if (fabsf(app->wheel.items[i].velocity) > 350.0f) {
+            if (fabsf(app->wheel.items[i].velocity) > DPT_FIGURE8_MAX_MMPS) {
                 CarApp_Stop(app, FAST, i == LEFT ? 'L' : 'R');
                 return;
             }

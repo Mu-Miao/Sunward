@@ -92,7 +92,7 @@ static uint32_t target_follow_lap(int prior_profile)
   int counts[2];
   for(unsigned j=0;j<2;j++) {
    float cpr=j?DPT_RIGHT_CPR:DPT_LEFT_CPR;
-   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=320.01f);
+   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=470.01f);
    residue[j]+=app()->route.targets[j]*.01f*cpr/(DPT_CIRC_M*1000);
    counts[j]=(int)residue[j];residue[j]-=counts[j];
   }
@@ -136,10 +136,10 @@ int CAR_TASK3_TEST_MAIN(void)
  assert(app()->runtime.state==DONE && app()->route.task3.phase==T3_DONE && signals==5 && a==0 && b==0);
  assert(app()->route.elapsed_ms<40000 && app()->route.leg==3U && rp[0]==wp[0] && wp[1]==0);
  for(unsigned i=0;i<50;i++)step(10,0,0);
- assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 ARC16")==0);
+ assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 ARC17")==0);
  assert(strstr(oled_lines[2],"DONE DA T"));for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
  /* Task-specific faster schedule, with unchanged half-circle speed/deadline. */
- assert(CarRoute_Task3Config().diagonal_mmps==300 && CarRoute_Task3Config().arc_mmps==200);
+ assert(CarRoute_Task3Config().diagonal_mmps==450 && CarRoute_Task3Config().arc_mmps==200);
  assert(CarRoute_Task3Config().turn_mmps==80 && CarRoute_Task3Config().capture_mmps==50);
  assert(CarRoute_Task3Config().deadline_ms==40000U);
  uint32_t old_schedule=target_follow_lap(1),new_schedule=target_follow_lap(0);
@@ -156,7 +156,7 @@ int CAR_TASK3_TEST_MAIN(void)
  for(unsigned leg=1;leg<=3;leg+=2) {
   task3_start();for(unsigned k=0;k<3500&&app()->runtime.state==RUNNING && !(app()->route.task3.phase==T3_ARC && app()->route.task3.leg==leg);k++)step_route();
   assert(app()->route.task3.phase==T3_ARC && app()->route.task3.leg==leg);
-  assert(app()->route.task3.config.acceleration_mmps2==150 && app()->route.task3.config.arc_acceleration_mmps2==100);
+  assert(app()->route.task3.config.acceleration_mmps2==300 && app()->route.task3.config.arc_acceleration_mmps2==100);
   /* At 182mm and 1s after entering the arc: 50+100*1.01=151, not 200. */
   line_inputs=9;app()->route.task3.phase_ms=ms-1000;
   app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+182;
@@ -172,7 +172,7 @@ int CAR_TASK3_TEST_MAIN(void)
  CarTask3Config c=CarRoute_Task3Config();c.arc_acceleration_mmps2=0;assert(!CarTask3_ConfigValid(&c));
  c=CarRoute_Task3Config();c.arc_acceleration_mmps2=NAN;assert(!CarTask3_ConfigValid(&c));
  task3_start();reach_phase(T3_DIAGONAL);line_inputs=15;app()->route.task3.phase_ms=ms-1000;
- step(10,0,0);assert(fabsf(app()->route.base-201.5f)<.05f);
+ step(10,0,0);assert(fabsf(app()->route.base-353.0f)<.05f);
  /* Busy new button press cancels; held press cannot restart. */
  task3_start();release_key();press_key();assert(app()->runtime.state==STOPPED && a==0 && b==0 && app()->route.task3.phase==T3_FAULT);
  for(unsigned i=0;i<200;i++)step(10,0,0);assert(app()->runtime.state==STOPPED);

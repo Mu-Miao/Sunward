@@ -108,6 +108,8 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
         DPT_DURATION_MS > 3000U || DPT_MANUAL_MMPS < 40U ||
         DPT_MANUAL_MMPS > DPT_MANUAL_MAX_MMPS ||
         DPT_MANUAL_MAX_CMD <= 0 || DPT_MANUAL_MAX_CMD > 3000 ||
+        DPT_FIGURE8_MAX_CMD < DPT_MAX_CMD || DPT_FIGURE8_MAX_CMD > 3000 ||
+        DPT_FIGURE8_MAX_MMPS < 500.0f || DPT_FIGURE8_MAX_MMPS > 600.0f ||
         DPT_MANUAL_DURATION_MS < 1000U || DPT_MANUAL_DURATION_MS > 30000U) return HAL_ERROR;
     if (!CarWheel_ConfigValid() || !CarHybrid_ConfigValid()) return HAL_ERROR;
     if (!CarHeading_ConfigValid()) return HAL_ERROR;

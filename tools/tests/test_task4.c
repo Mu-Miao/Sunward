@@ -8,7 +8,7 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 ARC16")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 ARC17")==0);
 }
 static void task4_start(void)
 {
@@ -50,7 +50,7 @@ static uint32_t target_follow_four(int prior_profile)
   int counts[2];
   for(unsigned j=0;j<2;j++) {
    float cpr=j?DPT_RIGHT_CPR:DPT_LEFT_CPR;
-   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=320.01f);
+   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=470.01f);
    residue[j]+=app()->route.targets[j]*.01f*cpr/(DPT_CIRC_M*1000);
    counts[j]=(int)residue[j];residue[j]-=counts[j];
   }
@@ -78,9 +78,9 @@ static void robust_regression(void)
  CarTask3Config c=CarTask4_Config();
  assert(c.lost_ms==200U && c.recovery_ms==30U);
  assert(c.arc_acceleration_mmps2==100);
- assert(c.diagonal_mmps==300 && c.arc_mmps==220 && CarTask3_ConfigValid(&c));
+ assert(c.diagonal_mmps==450 && c.arc_mmps==220 && CarTask3_ConfigValid(&c));
  assert(CarRoute_Task3Config().lost_ms==100U && CarRoute_Task3Config().recovery_ms==30U);
- /* The faster inner-probe correction stays positive and below the 350mm/s guard;
+ /* The arc correction stays positive and below the unchanged 220mm/s arc target;
     outer-probe slowdown is independently retained below. */
  robust_arc();line_inputs=11;step(10,177,176);
  assert(fabsf(app()->route.base-220)<.01f);

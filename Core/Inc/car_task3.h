@@ -18,7 +18,7 @@ enum { T3_LOSS_TIME = 1U, T3_LOSS_DISTANCE = 2U, T3_LOSS_ANGLE = 4U };
 typedef struct {
     float span_mm, radius_mm, arc_mm, track_width_mm;
     uint8_t start_from_ab; /* 1 表示初始 A 朝 B，需要自动转向；0 表示已朝 AC。 */
-    uint8_t bd_full_distance; /* 仅保留旧配置ABI；ARC16 换段逻辑不再读取此字段。 */
+    uint8_t bd_full_distance; /* 仅保留旧配置ABI；ARC17 换段逻辑不再读取此字段。 */
     uint8_t b_full_align; /* 1：B 点完整对正使用独立的停稳角度容差。 */
     float b_align_tolerance_deg;
     uint8_t d_full_align; /* 1：D 点完整对正使用独立的停稳角度容差。 */
