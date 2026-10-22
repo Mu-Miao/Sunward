@@ -18,7 +18,7 @@ enum { T3_LOSS_TIME = 1U, T3_LOSS_DISTANCE = 2U, T3_LOSS_ANGLE = 4U };
 typedef struct {
     float span_mm, radius_mm, arc_mm, track_width_mm;
     uint8_t start_from_ab; /* 1 表示初始 A 朝 B，需要自动转向；0 表示已朝 AC。 */
-    uint8_t bd_full_distance; /* 仅保留旧配置ABI；ARC15 换段逻辑不再读取此字段。 */
+    uint8_t bd_full_distance; /* 仅保留旧配置ABI；ARC16 换段逻辑不再读取此字段。 */
     uint8_t b_full_align; /* 1：B 点完整对正使用独立的停稳角度容差。 */
     float b_align_tolerance_deg;
     uint8_t d_full_align; /* 1：D 点完整对正使用独立的停稳角度容差。 */
@@ -48,6 +48,7 @@ typedef struct {
     float left_distance_mm, right_distance_mm, line_error;
     float yaw_deg, left_mmps, right_mmps;
     uint8_t heading_ready, line_valid, black_count, centered;
+    uint8_t outer_probe_hit; /* 物理 1/4 任一外侧探头见黑，不要求整体图样已可循线。 */
     uint8_t outermost; /* 当前有效图样为最左或最右单探头。 */
     uint8_t side_probe; /* 有效单探头，包含内侧两路。 */
     uint8_t enabled, stop_requested, protection_fault;

@@ -212,17 +212,21 @@ static void bd_distance_regression(void)
   assert(CarTask3_Start(&t,&cfg,&in));t.leg=leg;t.pending_start_signal=0;
   in.yaw_deg=CarMath_WrapDegrees(t.start_heading_deg+(leg==2?180+2*t.diagonal_angle_deg:0));
   /* Remaining on the A/B start line cannot pre-arm or trigger C/D. */
-  in.distance_mm=25;in.line_valid=1;in.black_count=1;
+  in.distance_mm=25;in.line_valid=1;in.black_count=1;in.outer_probe_hit=1;
   unsigned signals_seen=0;
   for(unsigned k=0;k<8;k++) {in.now_ms+=10;CarTask3_Update(&t,&in,&out);signals_seen+=out.signal_point!=T3_NO_POINT;}
   assert(t.phase==T3_DIAGONAL && !t.diagonal_armed && !t.edge_seen && signals_seen==0);
   assert(out.control==T3_HOLD_HEADING && out.base_mmps>0 && !out.reset_controllers);
   /* Stable all-white departure arms the next-line detector. */
-  in.line_valid=0;in.black_count=0;
+  in.line_valid=0;in.black_count=0;in.outer_probe_hit=0;
   for(unsigned k=0;k<4;k++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);}
   assert(t.diagonal_armed && t.phase==T3_DIAGONAL);
+  /* 远离理论终点时，只有 2/3 中间探头的图样不能提前换段。 */
+  in.distance_mm=350;in.line_valid=1;in.black_count=2;in.centered=1;in.outer_probe_hit=0;
+  for(unsigned k=0;k<4;k++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);}
+  assert(t.phase==T3_DIAGONAL && !t.edge_seen && out.control==T3_HOLD_HEADING);
   /* The line may occur well before the nominal diagonal distance. */
-  in.distance_mm=400;in.line_valid=1;in.black_count=1;
+  in.distance_mm=400;in.line_valid=1;in.black_count=1;in.centered=0;in.outer_probe_hit=1;
   for(unsigned k=0;k<4;k++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);signals_seen+=out.signal_point!=T3_NO_POINT;}
   assert(t.phase==T3_VERTEX_BRAKE && signals_seen==1);
  }
@@ -257,21 +261,21 @@ static void bd_probe_window_regression(void)
   assert(CarTask3_Start(&t,&cfg,&in));t.leg=2;t.pending_start_signal=0;
   in.yaw_deg=CarMath_WrapDegrees(t.start_heading_deg+180+2*t.diagonal_angle_deg);
   in.distance_mm=20;
-  in.line_valid=1;in.black_count=count;
+  in.line_valid=1;in.black_count=count;in.outer_probe_hit=1;
   for(unsigned n=0;n<5;n++) {
    in.now_ms+=10;CarTask3_Update(&t,&in,&out);
    assert(t.phase==T3_DIAGONAL && !t.diagonal_armed && !t.edge_seen && out.control==T3_HOLD_HEADING && out.signal_point==T3_NO_POINT);
   }
-  in.line_valid=0;in.black_count=0;
+  in.line_valid=0;in.black_count=0;in.outer_probe_hit=0;
   for(unsigned n=0;n<4;n++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);}
   assert(t.diagonal_armed && !t.edge_seen);
   /* Two valid frames followed by white are a rejected glitch. */
-  in.distance_mm=300;in.line_valid=1;in.black_count=count;
+  in.distance_mm=300;in.line_valid=1;in.black_count=count;in.outer_probe_hit=1;
   for(unsigned n=0;n<2;n++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(t.edge_seen && out.control==T3_HOLD_HEADING && out.base_mmps==cfg.capture_mmps);}
-  in.line_valid=0;in.black_count=0;in.now_ms+=10;CarTask3_Update(&t,&in,&out);
+  in.line_valid=0;in.black_count=0;in.outer_probe_hit=0;in.now_ms+=10;CarTask3_Update(&t,&in,&out);
   assert(t.phase==T3_DIAGONAL && !t.edge_seen && out.control==T3_HOLD_HEADING);
   in.distance_mm=count==3?t.diagonal_mm+cfg.entry_window_mm+50:400;
-  in.line_valid=1;in.black_count=count;
+  in.line_valid=1;in.black_count=count;in.outer_probe_hit=1;
   for(unsigned n=0;n<3;n++) {
    in.now_ms+=10;CarTask3_Update(&t,&in,&out);
    assert(t.phase==T3_DIAGONAL && out.control==T3_HOLD_HEADING && !out.reset_controllers && out.base_mmps==cfg.capture_mmps && out.signal_point==T3_NO_POINT);
@@ -293,7 +297,7 @@ static void bd_probe_window_regression(void)
  line_inputs=15;
  for(unsigned n=0;n<4;n++)step(10,0,0);
  assert(t->diagonal_armed && app()->route.targets[0]>0 && app()->route.targets[1]>0);
- int before=signals;line_inputs=9;
+ int before=signals;line_inputs=14;
  for(unsigned n=0;n<3;n++) {
   step(10,0,0);assert(a>0 && b<0 && signals==before && t->phase==T3_DIAGONAL);
  }

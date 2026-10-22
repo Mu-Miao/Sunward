@@ -31,7 +31,7 @@ static void step_route(void)
  switch(t->phase) {
  case T3_DIAGONAL:
   app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+(t->leg==2U?180+2*t->diagonal_angle_deg:0));
-  line_inputs=p>=t->diagonal_mm?9:15;
+  line_inputs=p>=t->diagonal_mm?14:15;
   if(app()->route.targets[0]>0)dl=dr=610;
   break;
  case T3_ARC:
@@ -80,7 +80,7 @@ static uint32_t target_follow_lap(int prior_profile)
   CarTask3 *t=&app()->route.task3;float p=progress();
   if(t->phase==T3_DIAGONAL) {
    app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+(t->leg==2U?180+2*t->diagonal_angle_deg:0));
-   line_inputs=p>=t->diagonal_mm?9:15;
+   line_inputs=p>=t->diagonal_mm?14:15;
   } else if(t->phase==T3_ARC) {
    line_inputs=p>=t->config.arc_mm?15:9;
    app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+t->diagonal_angle_deg+
@@ -92,7 +92,7 @@ static uint32_t target_follow_lap(int prior_profile)
   int counts[2];
   for(unsigned j=0;j<2;j++) {
    float cpr=j?DPT_RIGHT_CPR:DPT_LEFT_CPR;
-   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=280.01f);
+   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=320.01f);
    residue[j]+=app()->route.targets[j]*.01f*cpr/(DPT_CIRC_M*1000);
    counts[j]=(int)residue[j];residue[j]-=counts[j];
   }
@@ -136,10 +136,10 @@ int CAR_TASK3_TEST_MAIN(void)
  assert(app()->runtime.state==DONE && app()->route.task3.phase==T3_DONE && signals==5 && a==0 && b==0);
  assert(app()->route.elapsed_ms<40000 && app()->route.leg==3U && rp[0]==wp[0] && wp[1]==0);
  for(unsigned i=0;i<50;i++)step(10,0,0);
- assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 ARC15")==0);
+ assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 ARC16")==0);
  assert(strstr(oled_lines[2],"DONE DA T"));for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
  /* Task-specific faster schedule, with unchanged half-circle speed/deadline. */
- assert(CarRoute_Task3Config().diagonal_mmps==270 && CarRoute_Task3Config().arc_mmps==200);
+ assert(CarRoute_Task3Config().diagonal_mmps==300 && CarRoute_Task3Config().arc_mmps==200);
  assert(CarRoute_Task3Config().turn_mmps==80 && CarRoute_Task3Config().capture_mmps==50);
  assert(CarRoute_Task3Config().deadline_ms==40000U);
  uint32_t old_schedule=target_follow_lap(1),new_schedule=target_follow_lap(0);

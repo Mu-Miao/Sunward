@@ -76,6 +76,7 @@ static int input_valid(const CarTask3Config *c, const CarTask3Input *i)
         i->sample_age_ms <= c->sample_max_age_ms && i->black_count <= 4U &&
         (!i->line_valid || (i->black_count > 0U && i->black_count < 4U)) &&
         (!i->centered || (i->line_valid && i->black_count == 2U)) &&
+        i->outer_probe_hit <= 1U && (!i->outer_probe_hit || i->black_count > 0U) &&
         i->outermost <= 1U && (!i->outermost || (i->line_valid && i->black_count == 1U)) &&
         i->side_probe <= 1U && (!i->side_probe || (i->line_valid && i->black_count == 1U));
 }
@@ -111,7 +112,8 @@ static int stable(CarTask3 *r, int matches, uint32_t now)
 
 /* AC/BD 不再以预计毫米数作为正常换段门槛。只有先稳定离开 A/B
    起点黑线，才会把下一次稳定见线解释为 C/D，避免起步时直接误换段。 */
-static int diagonal_endpoint_seen(CarTask3 *r, const CarTask3Input *i)
+static int diagonal_endpoint_seen(CarTask3 *r, const CarTask3Input *i,
+    int allow_inner_fallback)
 {
     if (!r->diagonal_armed) {
         stable(r, 0, i->now_ms);
@@ -129,7 +131,9 @@ static int diagonal_endpoint_seen(CarTask3 *r, const CarTask3Input *i)
         }
         return 0;
     }
-    if (!i->line_valid) {
+    /* 1/4 外侧探头是正常提前触发源；2/3 中间探头只在
+       已进入理论终点容错区后兜底，避免外侧单路故障使路线必然失败。 */
+    if (!i->outer_probe_hit && !(allow_inner_fallback && i->line_valid)) {
         stable(r, 0, i->now_ms);
         return 0;
     }
@@ -316,7 +320,8 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         float target = diagonal_heading(r);
         float safety_limit = r->diagonal_mm + r->config.entry_window_mm;
         if (fabsf(wrap(target - i->yaw_deg)) > r->config.diagonal_tolerance_deg) fault(r, T3_HEADING);
-        else if (diagonal_endpoint_seen(r, i)) {
+        else if (diagonal_endpoint_seen(r, i,
+            progress >= r->diagonal_mm - r->config.entry_window_mm)) {
             leave_diagonal(r, i, o);
         } else if (!r->edge_seen && progress > safety_limit) fault(r, T3_EDGE);
         else {

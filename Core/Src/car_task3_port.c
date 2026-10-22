@@ -19,6 +19,7 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
     i.line_valid = app->line.valid;
     i.black_count = app->line.count;
     i.centered = app->line.valid && app->line.count == 2U && app->line.black[1] && app->line.black[2];
+    i.outer_probe_hit = app->line.black[0] || app->line.black[3];
     i.outermost = app->line.valid && app->line.count == 1U && (app->line.black[0] || app->line.black[3]);
     i.side_probe = app->line.valid && app->line.count == 1U;
     i.enabled = enabled != 0;
