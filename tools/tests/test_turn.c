@@ -43,7 +43,7 @@ static void vertex_full_tangent(void)
    assert(fabsf(CarMath_WrapDegrees(o.heading_deg-target))<.001f);
   }
   in.yaw_deg=target;
-  for(unsigned n=0;n<21;n++){in.now_ms+=10;CarTask3_Update(&t,&in,&o);assert(o.control==T3_HALT);}
+  for(unsigned n=0;n<=c.settle_ms/10U;n++){in.now_ms+=10;CarTask3_Update(&t,&in,&o);assert(o.control==T3_HALT);}
   assert(t.seek_aligned);in.now_ms+=10;CarTask3_Update(&t,&in,&o);
   assert(o.control==T3_HOLD_HEADING && fabsf(CarMath_WrapDegrees(o.heading_deg-target))<.001f);
  }

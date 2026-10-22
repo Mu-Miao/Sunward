@@ -335,7 +335,7 @@ int main(void)
  for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_DIAGONAL && a>0 && b<0);}
  assert(app()->route.task3.diagonal_armed && signals==before);
  line_inputs=11;
- for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_DIAGONAL && a==0 && b==0 && signals==before);}
+ for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_DIAGONAL && a>0 && b<0 && signals==before);}
  step(10,0,0);assert(app()->route.task3.phase==T3_VERTEX_BRAKE && signals==before+1);
  for(unsigned n=0;n<500 && app()->route.task3.phase!=T3_ARC;n++)step_route();
  assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC && app()->route.task3.leg==3);

@@ -267,14 +267,14 @@ static void bd_probe_window_regression(void)
   assert(t.diagonal_armed && !t.edge_seen);
   /* Two valid frames followed by white are a rejected glitch. */
   in.distance_mm=300;in.line_valid=1;in.black_count=count;
-  for(unsigned n=0;n<2;n++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(t.edge_seen && out.control==T3_HALT);}
+  for(unsigned n=0;n<2;n++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(t.edge_seen && out.control==T3_HOLD_HEADING && out.base_mmps==cfg.capture_mmps);}
   in.line_valid=0;in.black_count=0;in.now_ms+=10;CarTask3_Update(&t,&in,&out);
   assert(t.phase==T3_DIAGONAL && !t.edge_seen && out.control==T3_HOLD_HEADING);
   in.distance_mm=count==3?t.diagonal_mm+cfg.entry_window_mm+50:400;
   in.line_valid=1;in.black_count=count;
   for(unsigned n=0;n<3;n++) {
    in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-   assert(t.phase==T3_DIAGONAL && out.control==T3_HALT && out.reset_controllers && out.signal_point==T3_NO_POINT);
+   assert(t.phase==T3_DIAGONAL && out.control==T3_HOLD_HEADING && !out.reset_controllers && out.base_mmps==cfg.capture_mmps && out.signal_point==T3_NO_POINT);
   }
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
   assert(t.phase==T3_VERTEX_BRAKE && out.signal_point==T3_POINT_D);
@@ -295,7 +295,7 @@ static void bd_probe_window_regression(void)
  assert(t->diagonal_armed && app()->route.targets[0]>0 && app()->route.targets[1]>0);
  int before=signals;line_inputs=9;
  for(unsigned n=0;n<3;n++) {
-  step(10,0,0);assert(a==0 && b==0 && signals==before && t->phase==T3_DIAGONAL);
+  step(10,0,0);assert(a>0 && b<0 && signals==before && t->phase==T3_DIAGONAL);
  }
  step(10,0,0);
  assert(t->phase==T3_VERTEX_BRAKE && signals==before+1 && a==0 && b==0);

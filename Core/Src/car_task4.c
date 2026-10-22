@@ -15,7 +15,7 @@ CarTask3Config CarTask4_Config(void)
     config.lost_ms = DPT_TASK4_LOST_MS;
     config.white_seek_ms = DPT_TASK4_WHITE_SEEK_MS;
     config.recovery_ms = DPT_TASK4_RECOVERY_MS;
-    /* 保留字段用于旧配置兼容；ARC14 的 AC/BD 换段已统一改为
+    /* 保留字段用于旧配置兼容；ARC15 的 AC/BD 换段已统一改为
        “稳定离开起点线后再稳定见线”，不再读取此标志作为里程门槛。 */
     config.bd_full_distance = 0U;
     /* 各点统一沿用基础 ±3 度对正容差，仍使用完整几何目标与停稳复核。 */

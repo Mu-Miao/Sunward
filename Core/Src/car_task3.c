@@ -53,7 +53,7 @@ static int config_valid(const CarTask3Config *c)
     float diagonal = hypotf(c->span_mm, 2.0f * c->radius_mm);
     return isfinite(diagonal) && diagonal < 10000.0f &&
         c->track_width_mm < 1000.0f && c->entry_window_mm < diagonal * 0.5f && c->exit_window_mm < c->arc_mm * 0.5f &&
-        c->approach_mm < diagonal && c->diagonal_mmps <= 250.0f && c->arc_mmps <= 250.0f &&
+        c->approach_mm < diagonal && c->diagonal_mmps <= 300.0f && c->arc_mmps <= 250.0f &&
         c->start_mmps <= c->diagonal_mmps && c->start_mmps <= c->arc_mmps &&
         c->minimum_mmps <= c->diagonal_mmps && c->minimum_mmps <= c->arc_mmps && c->turn_mmps <= 100.0f && c->capture_mmps <= 100.0f &&
         c->diagonal_tolerance_deg <= 20.0f && c->arc_tolerance_deg <= 20.0f &&
@@ -111,8 +111,7 @@ static int stable(CarTask3 *r, int matches, uint32_t now)
 
 /* AC/BD 不再以预计毫米数作为正常换段门槛。只有先稳定离开 A/B
    起点黑线，才会把下一次稳定见线解释为 C/D，避免起步时直接误换段。 */
-static int diagonal_endpoint_seen(CarTask3 *r, const CarTask3Input *i,
-    CarTask3Output *o)
+static int diagonal_endpoint_seen(CarTask3 *r, const CarTask3Input *i)
 {
     if (!r->diagonal_armed) {
         stable(r, 0, i->now_ms);
@@ -134,8 +133,7 @@ static int diagonal_endpoint_seen(CarTask3 *r, const CarTask3Input *i,
         stable(r, 0, i->now_ms);
         return 0;
     }
-    /* 顶点候选期先刹停，连续确认后由唯一换段函数进入刹停段。 */
-    o->reset_controllers = 1U;
+    /* 候选期保持低速前进，连续确认后才进入必要的物理制动。 */
     return stable(r, 1, i->now_ms);
 }
 
@@ -318,18 +316,17 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         float target = diagonal_heading(r);
         float safety_limit = r->diagonal_mm + r->config.entry_window_mm;
         if (fabsf(wrap(target - i->yaw_deg)) > r->config.diagonal_tolerance_deg) fault(r, T3_HEADING);
-        else if (diagonal_endpoint_seen(r, i, o)) {
+        else if (diagonal_endpoint_seen(r, i)) {
             leave_diagonal(r, i, o);
         } else if (!r->edge_seen && progress > safety_limit) fault(r, T3_EDGE);
         else {
-            /* 见线去抖期保持零输出；其余时间沿对角线前进。降速点只服务于
+            /* 见线去抖期降至捕线速度但不停车；其余时间沿对角线前进。降速点只服务于
                超程保护，不再把理论对角线长度当成 C/D 切换点。 */
-            if (!r->edge_seen) {
-                o->control = T3_HOLD_HEADING;
-                o->heading_deg = target;
-                o->base_mmps = speed(r, i, r->config.diagonal_mmps,
+            o->control = T3_HOLD_HEADING;
+            o->heading_deg = target;
+            o->base_mmps = r->edge_seen ? r->config.capture_mmps :
+                speed(r, i, r->config.diagonal_mmps,
                     safety_limit - progress, r->config.acceleration_mmps2);
-            }
         }
     } else if (r->phase == T3_ARC) {
         update_arc_observer(r, i, progress);
@@ -339,10 +336,14 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         if (progress > r->config.arc_mm + r->config.exit_window_mm) fault(r, T3_EDGE);
         else if (end_white) {
             r->lost_seen = 0U;
-            o->reset_controllers = 1U;
             if (stable(r, 1, i->now_ms)) {
                 if (r->leg == 3U) phase(r, T3_FINAL_BRAKE, i, o);
                 else { o->signal_point = T3_POINT_B; phase(r, T3_VERTEX_BRAKE, i, o); }
+            } else {
+                /* 弧线出口确认期低速沿切线前进，避免每个出口固定卡30ms。 */
+                o->control = T3_HOLD_HEADING;
+                o->heading_deg = tangent_heading(r, 1);
+                o->base_mmps = r->config.capture_mmps;
             }
         } else {
             stable(r, 0, i->now_ms);
@@ -480,18 +481,20 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             o->reset_controllers = 1U;
         }
         else if (fabsf(i->left_mmps) <= 5.0f && fabsf(i->right_mmps) <= 5.0f) {
-            if (!r->settled_seen) { r->settled_seen = 1U; r->settled_ms = i->now_ms; }
-            if ((uint32_t)(i->now_ms - r->settled_ms) >= r->config.settle_ms) {
-                if (r->phase == T3_FINAL_BRAKE) {
-                    phase(r, T3_DONE, i, o);
-                    o->signal_point = T3_POINT_A;
-                } else if (r->phase == T3_START_SETTLE) {
+            /* 顶点与终点在轮速真正归零后立即换段；只有起步航向
+               对正仍保留短时稳定确认，防止轮速/陀螺仪瞬态。 */
+            if (r->phase == T3_FINAL_BRAKE) {
+                phase(r, T3_DONE, i, o);
+                o->signal_point = T3_POINT_A;
+            } else if (r->phase == T3_VERTEX_BRAKE) {
+                ++r->leg;
+                phase(r, T3_ALIGN, i, o);
+            } else {
+                if (!r->settled_seen) { r->settled_seen = 1U; r->settled_ms = i->now_ms; }
+                if ((uint32_t)(i->now_ms - r->settled_ms) >= r->config.settle_ms) {
                     /* 转向期间也会产生平均编码器里程；完成对正且两轮停稳后才建立 AC 段的新基线。 */
                     phase(r, T3_DIAGONAL, i, o);
                     r->leg_start_mm = i->distance_mm;
-                } else {
-                    ++r->leg;
-                    phase(r, T3_ALIGN, i, o);
                 }
             }
         } else r->settled_seen = 0U;
@@ -502,21 +505,19 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             phase_travel > r->config.turn_travel_limit_mm) fault(r, T3_TURN);
         else if (fabsf(error) <= align_tolerance(r)) {
             o->reset_controllers = 1U;
-            if (stable(r, 1, i->now_ms)) {
-                if (r->phase == T3_START_ALIGN) {
-                    /* 停稳单独计时，转向总时间和距离限制仍从原起点计算。 */
-                    uint32_t turn_ms = r->phase_ms;
-                    float turn_origin = r->phase_start_mm;
-                    phase(r, T3_START_SETTLE, i, o);
-                    r->start_settle_ms = i->now_ms;
-                    r->phase_ms = turn_ms;
-                    r->phase_start_mm = turn_origin;
-                }
-                else {
-                    uint32_t turn_ms = r->phase_ms; float origin = r->phase_start_mm;
-                    phase(r, T3_ALIGN_SETTLE, i, o);
-                    r->start_settle_ms = i->now_ms; r->phase_ms = turn_ms; r->phase_start_mm = origin;
-                }
+            if (r->phase == T3_START_ALIGN) {
+                /* 停稳状态同时完成角度复核，不再在转向状态里重复等30ms。 */
+                uint32_t turn_ms = r->phase_ms;
+                float turn_origin = r->phase_start_mm;
+                phase(r, T3_START_SETTLE, i, o);
+                r->start_settle_ms = i->now_ms;
+                r->phase_ms = turn_ms;
+                r->phase_start_mm = turn_origin;
+            }
+            else {
+                uint32_t turn_ms = r->phase_ms; float origin = r->phase_start_mm;
+                phase(r, T3_ALIGN_SETTLE, i, o);
+                r->start_settle_ms = i->now_ms; r->phase_ms = turn_ms; r->phase_start_mm = origin;
             }
         } else {
             stable(r, 0, i->now_ms);

@@ -37,7 +37,7 @@ CarTask3Config CarRoute_Task3Config(void)
     c.confidence_filter = DPT_ARC_CONFIDENCE_FILTER;
     c.encoder_good_deg = DPT_ARC_ENCODER_GOOD_DEG;
     c.encoder_bad_deg = DPT_ARC_ENCODER_BAD_DEG;
-    c.settle_ms = DPT_DISTANCE_SETTLE_MS; c.brake_timeout_ms = DPT_DISTANCE_BRAKE_TIMEOUT_MS;
+    c.settle_ms = DPT_TASK3_SETTLE_MS; c.brake_timeout_ms = DPT_DISTANCE_BRAKE_TIMEOUT_MS;
     return c;
 }
 

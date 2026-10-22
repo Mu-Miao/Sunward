@@ -108,7 +108,7 @@
 #define DPT_TASK3_RADIUS_MM 400.0f
 #define DPT_TASK3_TRACK_WIDTH_MM DPT_TRACK_WIDTH_MM
 #define DPT_TASK3_ARC_MM 1256.0f
-#define DPT_TASK3_DIAGONAL_MMPS 240.0f
+#define DPT_TASK3_DIAGONAL_MMPS 270.0f
 #define DPT_TASK3_ARC_MMPS 200.0f
 #define DPT_TASK3_START_MMPS 50.0f
 #define DPT_TASK3_ACCEL_MMPS2 150.0f /* 仅用于 AC、BD 斜线段的加速。 */
@@ -127,6 +127,7 @@
 #define DPT_TASK3_CAPTURE_LIMIT_MM 60.0f
 #define DPT_TASK3_TURN_TIMEOUT_MS 4000U
 #define DPT_TASK3_CAPTURE_TIMEOUT_MS 2000U
+#define DPT_TASK3_SETTLE_MS 30U /* 实测轮速已降至5mm/s后的最小静止确认，不再额外等待200ms。 */
 /* 任务三、四受限寻线初值；车身投影是否仍覆盖黑线必须实车确认。 */
 #define DPT_TASK3_WHITE_SEEK_MS 500U
 #define DPT_TASK3_WHITE_SEEK_MM 20.0f
@@ -139,7 +140,7 @@
 #define DPT_TASK3_TURN_SLOW_DEG 15.0f
 #define DPT_TASK3_TURN_MIN_MMPS 35.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
-#define DPT_TASK4_DIAGONAL_MMPS 250.0f /* V11：仅任务四，240→250；终点降速与捕线限制保留。 */
+#define DPT_TASK4_DIAGONAL_MMPS 270.0f /* ARC15：AC/BD 使用见线换段后提高直线速度；弧线保持220。 */
 #define DPT_TASK4_ARC_MMPS 220.0f /* V11：正常巡线200→220；边缘仍限120，寻线不提速。 */
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。
