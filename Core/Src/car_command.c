@@ -3,7 +3,7 @@
 #include <string.h>
 
 const char CarCommand_Banner[] =
-    "DPI KEY_U OFF:short=CAL,long1.5s=mode; READY+ON:press=start; busy:press=STOP; TASK4!/TASK3!/TASK2!/LF20!/GO100!/GO20!/GO!/RUN!/F!/B!/L!/R!/STOP!/CAL! V/TIME\r\n";
+    "DPI CMD TASK4/TASK3/TASK2/LF20/GO100/GO20/GO/RUN/F/B/L/R/STOP/CAL/LOG/LOGSTAT/LOGSTOP/LOGCLR V/TIME; KEY OFF hold=mode tap=CAL|LOG ON=start busy=STOP\r\n";
 
 static int unsigned_value(const char *text, unsigned *value)
 {
@@ -17,7 +17,8 @@ static int unsigned_value(const char *text, unsigned *value)
     return 1;
 }
 
-static void CarCommand_Accept(CarAppContext *app, CommandInput *in, Motion *requested, uint8_t *stop_requested)
+static void CarCommand_Accept(CarAppContext *app, CommandInput *in, LabUART_Port port,
+                              Motion *requested, uint8_t *stop_requested)
 {
     in->text[in->length] = '\0';
     if (!in->discard) {
@@ -26,6 +27,13 @@ static void CarCommand_Accept(CarAppContext *app, CommandInput *in, Motion *requ
             *stop_requested = 1;
         }
         if (strcmp(in->text, "CAL") == 0 && app->runtime.state != RUNNING) app->heading.cal_requested = 1;
+        /* 日志回到发出命令的同一物理端口，无线串口不再串到USB口。 */
+        if (strcmp(in->text, "LOG") == 0 && app->runtime.state != RUNNING)
+            CarRunLog_RequestDumpPort(port);
+        if (strcmp(in->text, "LOGSTAT") == 0) CarRunLog_SendStatusPort(port);
+        if (strcmp(in->text, "LOGSTOP") == 0 && app->runtime.state != RUNNING)
+            CarRunLog_AbortDump();
+        if (strcmp(in->text, "LOGCLR") == 0 && app->runtime.state != RUNNING) CarRunLog_Clear(HAL_GetTick());
         if (strcmp(in->text, "TASK4") == 0) *requested = MOVE_TASK4;
         if (strcmp(in->text, "TASK3") == 0) *requested = MOVE_TASK3;
         if (strcmp(in->text, "TASK2") == 0) *requested = MOVE_TASK2;
@@ -74,7 +82,7 @@ void CarCommand_Poll(CarAppContext *app, uint32_t now, Motion *requested, uint8_
             if (!LabUART_TryReadPort((LabUART_Port)channel, &ch)) break;
             in->ms = now;
             if (ch == '!' || ch == '\r' || ch == '\n')
-                CarCommand_Accept(app, in, requested, stop_requested);
+                CarCommand_Accept(app, in, (LabUART_Port)channel, requested, stop_requested);
             else if (!in->discard && in->length < sizeof in->text - 1U)
                 in->text[in->length++] = (char)ch;
             else in->discard = 1;

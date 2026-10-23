@@ -61,8 +61,21 @@ void CarButton_Handle(CarAppContext *app, uint32_t now, int enabled, uint8_t was
                 CarApp_Stop(app, STOPPED, '-');
                 (*stop_requested) = 1;
                 app->button.action = KEY_STOP;
+            } else if (key_pressed == KEY_EVENT_SHORT && !enabled && app->button.selected_motion == MOVE_LOG) {
+                /* LOG 模式每次短按只触发一次完整导出；导出期间不重置游标。 */
+                if (!CarRunLog_IsDumping()) CarRunLog_RequestDump();
+                app->button.action = KEY_LOG;
             } else if (key_pressed == KEY_EVENT_HOLD && !enabled && !app->heading.cal_requested) {
-                CarRoute_Select(app, app->button.selected_motion == MOVE_ROUTE ? MOVE_LINE : (app->button.selected_motion == MOVE_LINE ? MOVE_TASK2 : (app->button.selected_motion == MOVE_TASK2 ? MOVE_TASK3 : (app->button.selected_motion == MOVE_TASK3 ? MOVE_TASK4 : MOVE_ROUTE))), now);
+                Motion next = app->button.selected_motion == MOVE_ROUTE ? MOVE_LINE :
+                    (app->button.selected_motion == MOVE_LINE ? MOVE_TASK2 :
+                     (app->button.selected_motion == MOVE_TASK2 ? MOVE_TASK3 :
+                      (app->button.selected_motion == MOVE_TASK3 ? MOVE_TASK4 :
+                       (app->button.selected_motion == MOVE_TASK4 ? MOVE_LOG : MOVE_ROUTE))));
+                /* 只有故障日志已成功导出后，长按离开 LOG 才清理。
+                   未导出的故障现场在切换模式时仍保留。 */
+                if (app->button.selected_motion == MOVE_LOG && CarRunLog_IsFrozen() && CarRunLog_IsExported())
+                    CarRunLog_Clear(now);
+                CarRoute_Select(app, next, now);
                 (*requested) = MOVE_NONE;
                 app->button.action = KEY_MODE;
             } else if (key_pressed == KEY_EVENT_SHORT && !enabled && app->heading.available) {

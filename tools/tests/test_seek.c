@@ -26,7 +26,7 @@ static void seek_d(void)
  assert(app()->route.task3.phase==T3_DIAGONAL && app()->route.task3.leg==2);
  app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+1281;
  line_inputs=15;step(10,0,0);
- assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_VERTEX_SEEK && a==0 && b==0);
+ assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_DIAGONAL && a>0 && b<0);
 }
 static void da_dropout(void)
 {
@@ -42,7 +42,8 @@ static void da_dropout(void)
  app()->route.task4.resume_pending=app()->route.task4.resume_active=0;
  app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+186;
  app()->heading.angle=156;line_inputs=14;step(10,0,0);
- assert(app()->line.error==3 && app()->route.targets[0]==168 && app()->route.targets[1]==72);
+ assert(app()->line.error==3 && app()->route.targets[0]>app()->route.targets[1]);
+ assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
  line_inputs=15;step(10,414,167);
  assert(app()->runtime.state==RUNNING && app()->route.task3.loss_seek);
  assert(app()->route.task3_trace.lost_raw[0]==1 && app()->route.task3_trace.valid_raw[0]==0);
@@ -66,7 +67,7 @@ static void extended_task4_regression(void)
   assert((uint32_t)(ms-loss)==350);
   if(action==0) {
    line_inputs=9;
-   for(unsigned n=0;n<3;n++){step(10,0,0);assert(a==0 && b==0 && app()->route.task3.lost_seen);}
+   for(unsigned n=0;n<3;n++){step(10,0,0);assert(a>0 && b<0 && app()->route.task3.lost_seen);}
    step(10,0,0);
    assert(app()->runtime.state==RUNNING && !app()->route.task3.lost_seen);
    assert(app()->route.task3.phase==T3_ARC && app()->route.task3.leg==3 && app()->route.task4.completed_laps==0);
@@ -131,12 +132,12 @@ static void history_gap_regression(void)
   uint32_t now=(ms/400U+1U)*400U;app()->ui.motion_log_ms=now-400U;CarUI_Log(app(),now,0);
   assert(strstr(logs,side?"PRE=1101 PRE2=1001 HAS2=1 DIR=L GAP=1":"PRE=1011 PRE2=1001 HAS2=1 DIR=R GAP=1"));
   /* One unconfirmed opposite probe cannot overwrite the two trusted frames. */
-  line_inputs=side?14:7;step(10,0,0);assert(a==0 && b==0);
+  line_inputs=side?14:7;step(10,0,0);assert(a>0 && b<0);
   line_inputs=15;step(10,0,0);
   assert(memcmp(app()->route.task3_trace.valid_raw,before,4)==0);
   assert(app()->route.task3.lost_start_ms==loss && app()->route.task3_trace.lost_direction==(side?-1:1));
   line_inputs=side?7:14;
-  for(unsigned n=0;n<3;n++){step(10,0,0);assert(a==0 && b==0 && app()->route.task3.lost_seen);}
+  for(unsigned n=0;n<3;n++){step(10,0,0);assert(a>0 && b<0 && app()->route.task3.lost_seen);}
   step(10,0,0);
   assert(app()->runtime.state==RUNNING && !app()->route.task3.lost_seen && app()->route.task4.arc_number==arc);
   assert(app()->route.base<=50.01f);
@@ -162,7 +163,7 @@ static void history_gap_regression(void)
  step(10,0,0);assert(app()->runtime.state==LINE_LOST && a==0 && b==0);
  line_inputs=13;for(unsigned n=0;n<5;n++)step(10,0,0);assert(app()->runtime.state==LINE_LOST);
  CarTask3Config c=CarTask4_Config();assert(c.history_gap);c.history_gap=2;assert(!CarTask3_ConfigValid(&c));
- assert(!CarRoute_Task3Config().history_gap);
+ assert(CarRoute_Task3Config().history_gap);
  puts("PASS: real arc-entry counts, CB/DA inner-probe gap recovery, two trusted raw frames, frozen side/trend/curve direction, chatter rejection, no duplicate recovery count, arc history reset, inner-gap timeout latch and HIST telemetry. Software only.");
 }
 static void measured_da_gap_regression(void)
@@ -180,12 +181,12 @@ static void measured_da_gap_regression(void)
   assert(fabsf(CarMath_WrapDegrees(app()->heading.angle-app()->route.task3.lost_yaw_deg))>12);
   assert((app()->route.distance_mm[0]+app()->route.distance_mm[1])*.5f-app()->route.task3.lost_start_mm>20);
   /* An opposite-side unconfirmed glitch cannot turn the trusted sweep around. */
-  line_inputs=side?14:7;step(10,0,0);assert(a==0 && b==0);
+  line_inputs=side?14:7;step(10,0,0);assert(a>0 && b<0);
   line_inputs=15;step(10,0,0);
   assert(app()->route.targets[side?0:1]==20 && app()->route.targets[side?1:0]==140);
   assert(app()->route.task3.lost_start_ms==loss);
   line_inputs=side?11:13;
-  for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.gap_seek && a==0 && b==0);}
+  for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.gap_seek && a>0 && b<0);}
   step(10,0,0);
   assert(app()->runtime.state==RUNNING && !app()->route.task3.gap_seek && !app()->route.task3.lost_seen);
   assert(app()->route.base<=50.01f && app()->route.targets[0]>0 && app()->route.targets[1]>0);
@@ -238,17 +239,17 @@ static void gap_regression(void)
  for(unsigned side=0;side<2;side++) {
   gap_start(side);uint32_t start=app()->route.start_ms,loss=app()->route.task3.lost_start_ms;
   float origin=app()->route.task3.leg_start_mm,reference=app()->route.task4.ac_reference_deg;
-  line_inputs=side?14:7;step(10,0,0);assert(a==0 && b==0);
+  line_inputs=side?14:7;step(10,0,0);assert(a>0 && b<0);
   line_inputs=15;step(10,0,0);
   assert(app()->route.task3.lost_start_ms==loss && app()->route.targets[side?0:1]==20 && app()->route.targets[side?1:0]==80);
   assert(app()->route.task3_trace.valid_error==(side?-3.0f:3.0f));
   line_inputs=side?11:13; /* Adjacent inner probe. */
-  for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.lost_seen && a==0 && b==0);}
+  for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.lost_seen && a>0 && b<0);}
   step(10,0,0);
   assert(app()->runtime.state==RUNNING && !app()->route.task3.loss_seek && !app()->route.task3.lost_seen);
   assert(app()->route.targets[0]>0 && app()->route.targets[1]>0 && app()->route.base<=50.01f);
   assert(app()->route.start_ms==start && app()->route.task3.leg_start_mm==origin && app()->route.task4.ac_reference_deg==reference);
-  /* This edge-specific sweep does not change Task3's two-wheel bridge. */
+  /* Task3 uses the same continuous two-wheel bridge with its tighter 40mm/s profile. */
   seek_arc(3);line_inputs=side?7:14;step(10,177,176);line_inputs=15;step(10,0,0);
   assert(app()->route.targets[0]>0 && app()->route.targets[1]>0 && app()->route.base==40);
  }
@@ -266,7 +267,7 @@ static void gap_regression(void)
   line_inputs=side?11:13;for(unsigned n=0;n<10;n++)step(10,0,0);
   assert(app()->runtime.state==LINE_LOST && a==0 && b==0);
  }
- puts("PASS: Task4 mirrored outer-to-inner probe gap sweeps, positive inner drive, retained direction under unconfirmed glitches, 30ms recovery, all original budgets and no restart; Task3 bridge unchanged. Synthetic inputs only.");
+ puts("PASS: mirrored outer-to-inner probe gap sweeps, positive inner drive, retained direction under unconfirmed glitches, moving 30ms recovery, bounded Task3 bridge and no restart. Synthetic inputs only.");
 }
 static void reverse_regression(void)
 {
@@ -312,7 +313,8 @@ int main(void)
  gap_regression();
  extended_task4_regression();
  CarTask3Config c=CarRoute_Task3Config();assert(CarTask3_ConfigValid(&c));
- assert(c.white_seek_ms==300 && CarTask4_Config().white_seek_ms==500);
+ assert(c.white_seek_ms==500 && c.history_gap && c.da_gap_mm==35 && c.da_gap_deg==18 &&
+     CarTask4_Config().white_seek_ms==500);
  c.white_seek_ms=500;assert(CarTask3_ConfigValid(&c));
  c.white_seek_ms=501;assert(!CarTask3_ConfigValid(&c));
  c=CarRoute_Task3Config();c.white_seek_mm=21;assert(!CarTask3_ConfigValid(&c));
@@ -327,37 +329,34 @@ int main(void)
   assert(signals==(task==3?5:17));
   if(task==4)assert(app()->route.task4.completed_laps==4);
  }
- /* The reported D-side miss now enters bounded search, never fabricates a D signal. */
+ /* Passing the theoretical diagonal length no longer invents D or turns toward
+    the arc. Stable departure followed by a stable line event owns the handoff. */
  seek_d();int before=signals;
- step(10,0,0);assert(app()->route.targets[0]>0 && app()->route.targets[1]==0 && signals==before);
+ for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_DIAGONAL && a>0 && b<0);}
+ assert(app()->route.task3.diagonal_armed && signals==before);
  line_inputs=11;
- for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_VERTEX_SEEK && a==0 && b==0 && signals==before);}
- step(10,0,0);assert(app()->route.task3.phase==T3_VERTEX_BRAKE && signals==before+1);
+ for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_DIAGONAL && a>0 && b<0 && signals==before);}
+ step(10,0,0);assert(app()->route.task3.phase==T3_ROLL_TURN && signals==before+1);
  for(unsigned n=0;n<500 && app()->route.task3.phase!=T3_ARC;n++)step_route();
  assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC && app()->route.task3.leg==3);
- /* Search is terminated by original global vertex window, local time/distance and yaw. */
- for(unsigned limit=0;limit<4;limit++) {
+ /* The diagonal still has independent runaway-distance and heading guards. */
+ for(unsigned limit=0;limit<2;limit++) {
   seek_d();before=signals;
-  switch(limit) {
-   case 0:app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+1401;break;
-   case 1:app()->route.task3.phase_ms=ms-3000;break;
-   case 2:app()->route.task3.phase_start_mm-=80;break;
-   case 3:app()->heading.angle+=60;break;
-  }
+  if(limit==0)app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.leg_start_mm+1401;
+  else app()->heading.angle+=60;
   step(10,0,0);assert(app()->runtime.state!=RUNNING && a==0 && b==0 && signals==before);
  }
- /* White vertex search aligns and settles before advancing, never reverses. */
- seek_d();
- /* Use production tangent formula directly for D (initial AB reference +180 degrees). */
- app()->heading.angle=CarMath_WrapDegrees(app()->route.task3.start_heading_deg+app()->route.task3.diagonal_angle_deg+180);
- for(unsigned n=0;n<21;n++){step(10,0,0);assert(a==0 && b==0);}
- assert(app()->route.task3.seek_aligned);step(10,0,0);
- assert(a>0 && b<0 && app()->route.targets[0]>0 && app()->route.targets[1]>0);
- /* Both turns must remain halted while wheels still move or yaw leaves tolerance. */
- seek_start(3);reach_phase(T3_ALIGN_SETTLE);uint32_t turn_start=app()->route.task3.phase_ms;
- for(unsigned n=0;n<10;n++){step(10,177,176);assert(app()->route.task3.phase==T3_ALIGN_SETTLE && a==0 && b==0);}
- app()->heading.angle=CarMath_WrapDegrees(app()->heading.reference+5);step(10,0,0);
- assert(app()->route.task3.phase==T3_ALIGN && app()->route.task3.phase_ms==turn_start && a==0 && b==0);
+ /* Vertex turns now roll on both wheels: moving wheels keep the turn, and only
+    the heading window ends it. The old stopped settle no longer exists here. */
+ seek_start(3);reach_phase(T3_ROLL_TURN);step(10,0,0);
+ assert(app()->route.task3.phase==T3_ROLL_TURN && a>0 && b<0);
+ assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+ uint32_t turn_start=app()->route.task3.phase_ms;float goal=app()->heading.reference;
+ for(unsigned n=0;n<10;n++){step(10,0,0);assert(app()->route.task3.phase==T3_ROLL_TURN && a>0 && b<0);}
+ app()->heading.angle=CarMath_WrapDegrees(goal+5);step(10,0,0);
+ assert(app()->route.task3.phase==T3_ROLL_TURN && app()->route.task3.phase_ms==turn_start && a>0 && b<0);
+ app()->heading.angle=goal;step(10,0,0);
+ assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_CAPTURE);
  /* Transient all-white arc interval bridges slowly while preserving valid=false and fixed budgets. */
  for(unsigned task=3;task<=4;task++) {
   seek_arc(task);uint32_t start=app()->route.start_ms;float origin=app()->route.task3.leg_start_mm;
@@ -368,7 +367,7 @@ int main(void)
   for(unsigned n=0;n<12;n++)step(10,100,100);
   assert(app()->runtime.state==RUNNING && app()->route.task3_trace.lost_ms==loss);
   line_inputs=9;
-  for(unsigned n=0;n<3;n++){step(10,0,0);assert(a==0 && b==0 && app()->route.task3_trace.lost_seen);}
+  for(unsigned n=0;n<3;n++){step(10,0,0);assert(a>0 && b<0 && app()->route.task3_trace.lost_seen);}
   step(10,0,0);assert(app()->runtime.state==RUNNING && !app()->route.task3.lost_seen && !app()->route.task3_trace.lost_seen);
   assert(app()->route.base<=50.01f && app()->route.start_ms==start && app()->route.task3.leg_start_mm==origin);
  }
@@ -376,7 +375,8 @@ int main(void)
  seek_arc(3);line_inputs=14;step(10,177,176);
  assert(app()->route.task3_trace.valid_error>0);
  line_inputs=15;step(10,0,0);assert(app()->route.targets[0]>app()->route.targets[1]);
- line_inputs=7;step(10,0,0);assert(app()->line.error<0 && a==0 && b==0);
+ line_inputs=7;step(10,0,0);
+ assert(app()->line.error<0 && a>0 && b<0 && app()->route.targets[0]>app()->route.targets[1]);
  line_inputs=15;step(10,0,0);
  assert(app()->route.task3_trace.valid_error>0 && app()->route.targets[0]>app()->route.targets[1]);
  /* Every original bound is enforced and diagnosed in both tasks, including
@@ -386,7 +386,7 @@ int main(void)
   if(limit==0 || limit==3) {
    /* Keep encoders moving above the stall threshold while staying below the
       distance limit, so this isolates the timeout rather than STALL at 500ms. */
-   for(unsigned n=0;n<(task==3?29U:49U);n++)step(10,task==4?30:0,task==4?30:0);
+   for(unsigned n=0;n<49U;n++)step(10,30,30);
    if(limit==3)line_inputs=9;
   } else if(limit==1)app()->route.task3.lost_start_mm-=20;
   else if(limit==4)app()->route.task3.lost_start_mm+=6;
@@ -399,7 +399,7 @@ int main(void)
   unsigned expected=limit==0 || limit==3?T3_LOSS_TIME:
    (limit==1 || limit==4?T3_LOSS_DISTANCE:(limit==5?T3_LOSS_DISTANCE|T3_LOSS_ANGLE:T3_LOSS_ANGLE));
   assert(t->loss_limits==expected);
-  if(limit==0 || limit==3)assert(t->loss_duration_ms==(task==3?300U:500U));
+  if(limit==0 || limit==3)assert(t->loss_duration_ms==500U);
   if(limit==1 || limit==5)assert(fabsf(t->loss_distance_mm-20)<.001f);
   if(limit==4)assert(fabsf(t->loss_distance_mm+6)<.001f);
   if(limit==2 || limit==5) {
@@ -431,7 +431,7 @@ int main(void)
  /* Alternating white/valid samples do not renew either task's deadline. */
  for(unsigned task=3;task<=4;task++) {
   seek_arc(task);line_inputs=15;step(10,0,0);uint32_t loss=app()->route.task3.lost_start_ms;
-  for(unsigned n=0;n<(task==3?29U:49U);n++) {line_inputs=n%2?15:9;step(10,0,0);assert(app()->route.task3.lost_start_ms==loss);}
+  for(unsigned n=0;n<49U;n++) {line_inputs=n%2?15:9;step(10,30,30);assert(app()->route.task3.lost_start_ms==loss);}
   step(10,0,0);assert(app()->runtime.state==LINE_LOST && a==0 && b==0);
  }
  /* STOP, enable, sensor, scheduler and total watchdog override either search phase. */

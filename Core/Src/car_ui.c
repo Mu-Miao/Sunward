@@ -1,5 +1,6 @@
 /* OLED文本和串口诊断。保留原日志格式及刷新周期，满发送队列不阻塞运动。 */
 #include "car_internal.h"
+#include "car_build.h"
 #include "task_oled.h"
 #include <stdio.h>
 
@@ -28,8 +29,9 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             state_text = wheel_state;
         }
         const char *title = "TASK 1 A->B";
-        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V11 FAST";
-        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V3 GYRO";
+        if (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LOG) title = "LOG EXPORT";
+        else if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 " CAR_FIRMWARE_VERSION;
+        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 " CAR_FIRMWARE_VERSION;
         else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
         else if (app->route.motion == MOVE_DISTANCE) title = "TEST GO20";
@@ -148,6 +150,10 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         else if (app->route.motion == MOVE_NONE)
             (void)snprintf(progress, sizeof progress, "S 0/1000mm");
         else (void)snprintf(progress, sizeof progress, "V %dmm/s", app->runtime.state == RUNNING ? CarMath_Round(app->route.targets[LEFT]) : 0);
+        /* 待机和正常完成时在最底行显示固件时间码。运行及故障时
+           保留实时/快照数据，避免覆盖定位信息。 */
+        if (app->runtime.state == IDLE || app->runtime.state == DONE)
+            (void)snprintf(progress, sizeof progress, "TC %s %s", CAR_FIRMWARE_TC, CAR_FIRMWARE_VERSION);
         const char *lines[4] = {title, cal, run, progress};
         (void)TaskOLED_SetLines(lines);
         app->ui.render_ms = now; /* 屏幕上一帧尚未完成时，等下次刷新周期再尝试。 */
@@ -317,11 +323,11 @@ void CarUI_Log(CarAppContext *app, uint32_t now, int enabled)
     }
     CarSignal_UpdateReady(app, now);
     if ((uint32_t)(now - app->ui.button_log_ms) >= 1000U) {
-        static const char *const actions[] = {"-", "CAL", "START", "STOP", "WAIT", "BLOCK", "MODE"};
+        static const char *const actions[] = {"-", "CAL", "START", "STOP", "WAIT", "BLOCK", "MODE", "LOG"};
         char msg[96];
         int n = snprintf(msg, sizeof msg, "KEY EN=%u RAW=%u ARM=%u EVT=%lu ACT=%s %s\r\n",
             (unsigned)enabled, (unsigned)app->button.raw, (unsigned)app->button.armed,
-            (unsigned long)app->button.events, actions[app->button.action], app->button.selected_motion == MOVE_TASK4 ? "TASK=4" : (app->button.selected_motion == MOVE_TASK3 ? "TASK=3" : (app->button.selected_motion == MOVE_TASK2 ? "TASK=2" : (app->button.selected_motion == MOVE_LINE ? "TEST=HALF" : "TASK=1"))));
+            (unsigned long)app->button.events, actions[app->button.action], app->button.selected_motion == MOVE_LOG ? "MODE=LOG" : (app->button.selected_motion == MOVE_TASK4 ? "TASK=4" : (app->button.selected_motion == MOVE_TASK3 ? "TASK=3" : (app->button.selected_motion == MOVE_TASK2 ? "TASK=2" : (app->button.selected_motion == MOVE_LINE ? "TEST=HALF" : "TASK=1")))));
         app->ui.button_log_ms = now;
         if (n > 0 && n < (int)sizeof msg) {
             (void)LabUART_TryWrite(msg, (uint16_t)n);

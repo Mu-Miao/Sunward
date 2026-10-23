@@ -12,15 +12,56 @@ parser.add_argument('--sanitize', action='store_true', help='Enable ASan and UBS
 args = parser.parse_args()
 root = args.project.resolve()
 tests = Path(__file__).resolve().parent
-modules = sorted((root / 'Core/Src').glob('car_*.c'))
-assert len(modules) == 14, 'Expected all 14 car modules in Core/Src'
+modules = sorted(p for p in (root / 'Core/Src').glob('car_*.c')
+                 if p.name != 'car_rtos.c')
+assert len(modules) == 17, 'Expected all 17 host-testable car modules in Core/Src'
 assert not any('#include' in line and '.c"' in line
                for path in modules for line in path.read_text().splitlines())
 flags = [os.environ.get('CC', 'cc'), '-std=c11', '-Wall', '-Wextra', '-Werror',
+         '-Wno-misleading-indentation',
          '-DCAR_APP_TEST', '-I' + str(tests), '-I' + str(root / 'Core/Inc')]
 if args.sanitize:
     flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
 with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
+    result = subprocess.run([os.environ.get('PYTHON', 'python3'),
+                             str(tests / 'test_log_analyzer.py')],
+                            capture_output=True, text=True, check=True)
+    print('log_analyzer: ' + result.stdout.strip())
+    result = subprocess.run([os.environ.get('PYTHON', 'python3'),
+                             str(tests / 'test_capture_run_log.py')],
+                            capture_output=True, text=True, check=True)
+    print('log_capture: ' + result.stdout.strip())
+    hybrid = str(Path(folder) / 'hybrid')
+    subprocess.run(flags + [str(tests / 'test_hybrid.c'),
+                            str(root / 'Core/Src/car_hybrid.c'),
+                            '-lm', '-o', hybrid], check=True)
+    result = subprocess.run([hybrid], capture_output=True, text=True, check=True)
+    print('hybrid: ' + result.stdout.strip())
+    boundary = str(Path(folder) / 'rtos_boundary')
+    subprocess.run(flags + [str(tests / 'test_rtos_boundary.c'),
+                            str(root / 'Core/Src/car_tick.c'),
+                            '-o', boundary], check=True)
+    result = subprocess.run([boundary], capture_output=True, text=True, check=True)
+    print('rtos_boundary: ' + result.stdout.strip())
+    run_log = str(Path(folder) / 'run_log')
+    subprocess.run(flags + [str(tests / 'test_run_log.c'),
+                            str(root / 'Core/Src/car_run_log.c'),
+                            '-lm', '-o', run_log], check=True)
+    result = subprocess.run([run_log], capture_output=True, text=True, check=True)
+    print('run_log: ' + result.stdout.strip())
+    observer = str(Path(folder) / 'arc_observer')
+    subprocess.run(flags + [str(tests / 'test_arc_observer.c'),
+                            str(root / 'Core/Src/car_task3.c'),
+                            '-lm', '-o', observer], check=True)
+    result = subprocess.run([observer], capture_output=True, text=True, check=True)
+    print('arc_observer: ' + result.stdout.strip())
+    properties = str(Path(folder) / 'control_properties')
+    subprocess.run(flags + [str(tests / 'test_control_properties.c'),
+                            str(root / 'Core/Src/car_hybrid.c'),
+                            str(root / 'Core/Src/car_task3.c'),
+                            '-lm', '-o', properties], check=True)
+    result = subprocess.run([properties], capture_output=True, text=True, check=True)
+    print('control_properties: ' + result.stdout.strip())
     for suite in ['motion', 'task2', 'task3', 'task4', 'seek', 'turn', 'heading']:
         for public in [False, True]:
             name = suite + ('_car_app' if public else '_legacy_api')
@@ -38,4 +79,4 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                 print(result.stdout + result.stderr, flush=True)
                 result.check_returncode()
             print(name + ': ' + result.stdout.strip())
-print('PASS: motion/task2/task3/task4/seek/turn/heading regressions; CarApp and compatibility APIs; separate module linkage.')
+print('PASS: log analysis, hybrid, arc-observer, randomized properties, SysTick and run-log units; motion/task2/task3/task4/seek/turn/heading regressions; CarApp and compatibility APIs; separate module linkage.')

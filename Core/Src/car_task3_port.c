@@ -9,6 +9,9 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
     i.now_ms = now;
     i.sample_age_ms = (uint32_t)(now - app->line.sample_ms);
     i.distance_mm = (app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f;
+    i.left_distance_mm = app->route.distance_mm[LEFT];
+    i.right_distance_mm = app->route.distance_mm[RIGHT];
+    i.line_error = app->line.error;
     i.yaw_deg = app->heading.angle;
     i.left_mmps = app->wheel.items[LEFT].velocity;
     i.right_mmps = app->wheel.items[RIGHT].velocity;
@@ -16,6 +19,7 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
     i.line_valid = app->line.valid;
     i.black_count = app->line.count;
     i.centered = app->line.valid && app->line.count == 2U && app->line.black[1] && app->line.black[2];
+    i.outer_probe_hit = app->line.black[0] || app->line.black[3];
     i.outermost = app->line.valid && app->line.count == 1U && (app->line.black[0] || app->line.black[3]);
     i.side_probe = app->line.valid && app->line.count == 1U;
     i.enabled = enabled != 0;
@@ -36,6 +40,8 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
     if (o->reset_controllers || o->control == T3_HALT) {
         app->runtime.drive(0, 0);
         CarWheel_Clear(app);
+        /* 阶段停车和失线恢复会中断巡线采样，不能让旧微分/积分跨段复用。 */
+        CarHybrid_Reset(&app->line.hybrid);
     }
     if (o->control == T3_HOLD_HEADING) {
         app->heading.reference = o->heading_deg;
@@ -61,13 +67,27 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
                         fmaxf(floor, app->route.targets[w] * scale));
             app->route.base = (app->route.targets[LEFT] + app->route.targets[RIGHT]) * 0.5f;
         }
+    } else if (o->control == T3_ROLL_DRIVE) {
+        /* 低速滚动差速转向：核心已给出两轮正向目标，直接下发。
+           不再套用单轮转向的近目标降速，否则两轮会同时被压到同一地板值而失去速差。 */
+        app->heading.reference = o->heading_deg;
+        app->heading.error = CarMath_WrapDegrees(o->heading_deg - app->heading.angle);
+        app->route.targets[LEFT] = o->left_mmps;
+        app->route.targets[RIGHT] = o->right_mmps;
+        app->route.base = o->base_mmps;
     } else if (o->control == T3_SEEK_LINE) {
-        /* 仅核心已授权的弧段全白桥接；不调用正常巡线接口，也不伪造 valid。 */
+        /* 仅核心已授权的弧段桥接。全白时搜线；重新见线的30ms
+           确认期仍沿冻结方向运行，确认后才交回 LQR/PID。 */
+        int white_seek = !app->line.valid && app->line.count == 0U;
+        int confirming = app->line.valid && app->route.task3.lost_seen &&
+            app->route.task3.recovery_seen;
         if (app->route.task3.phase != T3_ARC || !app->route.task3.loss_seek ||
             !app->route.task3.arc_valid_seen || !app->route.task3_trace.valid_seen ||
-            app->line.valid || app->line.count != 0U) {
+            (!white_seek && !confirming)) {
             app->runtime.drive(0, 0); CarWheel_Clear(app); return;
         }
+        /* 避免重新交线时将跨缝前的离散误差当成当前微分。 */
+        CarHybrid_Reset(&app->line.hybrid);
         float base = fminf(o->base_mmps, 50.0f);
         float heading = CarMath_WrapDegrees(o->heading_deg - app->heading.angle);
         float last_error = app->route.task3_trace.valid_error;

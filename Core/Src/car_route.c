@@ -9,12 +9,17 @@ CarTask3Config CarRoute_Task3Config(void)
     CarTask3Config c = CarTask3_DefaultConfig();
     c.start_from_ab = DPT_TASK3_START_FROM_AB;
     c.span_mm = DPT_TASK3_SPAN_MM; c.radius_mm = DPT_TASK3_RADIUS_MM;
+    c.track_width_mm = DPT_TASK3_TRACK_WIDTH_MM;
     c.arc_mm = DPT_TASK3_ARC_MM;
     c.diagonal_mmps = DPT_TASK3_DIAGONAL_MMPS; c.arc_mmps = DPT_TASK3_ARC_MMPS;
     c.start_mmps = DPT_TASK3_START_MMPS; c.acceleration_mmps2 = DPT_TASK3_ACCEL_MMPS2;
     c.arc_acceleration_mmps2 = DPT_TASK3_ARC_ACCEL_MMPS2;
     c.approach_mm = DPT_TASK3_APPROACH_MM; c.minimum_mmps = DPT_TASK3_MIN_MMPS;
     c.turn_mmps = DPT_TASK3_TURN_MMPS; c.capture_mmps = DPT_TASK3_CAPTURE_MMPS;
+    c.roll_turn_mmps = DPT_TASK3_ROLL_MMPS;
+    c.roll_turn_diff_mmps = DPT_TASK3_ROLL_DIFF_MMPS;
+    c.roll_turn_gain = DPT_TASK3_ROLL_GAIN;
+    c.align_tolerance_deg = DPT_TASK3_ALIGN_TOLERANCE_DEG;
     c.deadline_ms = DPT_TASK3_TIMEOUT_MS;
     c.entry_window_mm = DPT_TASK3_ENTRY_WINDOW_MM; c.exit_window_mm = DPT_TASK3_EXIT_WINDOW_MM;
     c.turn_travel_limit_mm = DPT_TASK3_TURN_LIMIT_MM; c.capture_limit_mm = DPT_TASK3_CAPTURE_LIMIT_MM;
@@ -22,9 +27,20 @@ CarTask3Config CarRoute_Task3Config(void)
     c.white_seek_ms = DPT_TASK3_WHITE_SEEK_MS;
     c.white_seek_mm = DPT_TASK3_WHITE_SEEK_MM; c.white_seek_deg = DPT_TASK3_WHITE_SEEK_DEG;
     c.seek_mmps = DPT_TASK3_SEEK_MMPS;
+    /* 四路数字探头在弯道上会经过相邻通道的物理盲区。
+       只有本弧段已见到可信单探头时，才允许沿冻结方向使用较大跨缝边界。 */
+    c.history_gap = 1U;
+    c.da_gap_mm = DPT_TASK3_GAP_MM; c.da_gap_deg = DPT_TASK3_GAP_DEG;
     c.vertex_seek_ms = DPT_TASK3_VERTEX_SEEK_MS; c.vertex_seek_mm = DPT_TASK3_VERTEX_SEEK_MM;
     c.recovery_ms = 30U;
-    c.settle_ms = DPT_DISTANCE_SETTLE_MS; c.brake_timeout_ms = DPT_DISTANCE_BRAKE_TIMEOUT_MS;
+    c.soft_checkpoints = DPT_ARC_SOFT_CHECKPOINT_ENABLE;
+    c.checkpoint_gain = DPT_ARC_CHECKPOINT_GAIN;
+    c.checkpoint_step_dps = DPT_ARC_CHECKPOINT_STEP_DPS;
+    c.checkpoint_max_bias_dps = DPT_ARC_CHECKPOINT_MAX_BIAS_DPS;
+    c.confidence_filter = DPT_ARC_CONFIDENCE_FILTER;
+    c.encoder_good_deg = DPT_ARC_ENCODER_GOOD_DEG;
+    c.encoder_bad_deg = DPT_ARC_ENCODER_BAD_DEG;
+    c.settle_ms = DPT_TASK3_SETTLE_MS; c.brake_timeout_ms = DPT_DISTANCE_BRAKE_TIMEOUT_MS;
     return c;
 }
 
@@ -58,6 +74,7 @@ void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now)
             2.0f * (hypotf(DPT_TASK3_SPAN_MM, 2.0f * DPT_TASK3_RADIUS_MM) + DPT_TASK3_ARC_MM);
     app->line.center_seen = app->line.center_ready = app->line.invalid_seen = 0U;
     app->line.diff = 0.0f;
+    CarHybrid_Reset(&app->line.hybrid);
     app->ui.button_log_ms = now - 1000U;
     app->ui.render_ms = now - 200U;
 }
@@ -115,6 +132,7 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
             app->route.base = requested == MOVE_TASK2 ? DPT_ROUTE_START_MMPS : requested == MOVE_ROUTE ? DPT_ROUTE_START_MMPS : (requested == MOVE_LINE ? DPT_LINE_START_MMPS : DPT_TARGET_MMPS);
             app->line.invalid_seen = 0U;
             app->line.diff = 0.0f;
+            CarHybrid_Reset(&app->line.hybrid);
             app->route.targets[LEFT] = app->route.targets[RIGHT] = app->route.base;
             app->route.tracking = 1;
             app->route.settle_seen = 0;
@@ -146,6 +164,7 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
             app->route.run_duration = requested == MOVE_TASK4 ? DPT_TASK4_TIMEOUT_MS : config.deadline_ms;
         }
         app->runtime.state = RUNNING;
+        CarRunLog_BeginRun(app, now);
     }
 }
 
@@ -177,6 +196,7 @@ void CarRoute_UpdateTask2(CarAppContext *app, uint32_t now)
             ++app->route.leg;
             app->route.leg_start = travelled;
             CarWheel_Clear(app);
+            CarHybrid_Reset(&app->line.hybrid);
             app->signal.ms = now;
             CarSignal_Set(app, 1); /* 经过 B、C、D 时触发声光提示，提示本身不暂停路线执行。 */
             app->route.cruise = CarRoute_IsArc(app) ? DPT_LINE_CRUISE_MMPS : DPT_TASK2_STRAIGHT_MMPS;
@@ -214,7 +234,7 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
     if (CarMotion_IsFigureEight(app->route.motion)) {
         if (app->runtime.state != RUNNING || !app->route.tracking) return;
         for (unsigned i = 0; i < 2U; ++i) {
-            if (fabsf(app->wheel.items[i].velocity) > 350.0f) {
+            if (fabsf(app->wheel.items[i].velocity) > DPT_FIGURE8_MAX_MMPS) {
                 CarApp_Stop(app, FAST, i == LEFT ? 'L' : 'R');
                 return;
             }

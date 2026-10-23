@@ -2,6 +2,11 @@
 #define CAR_CONFIG_H
 #include "stm32f1xx_hal.h"
 
+/* 1：FreeRTOS 10ms 周期任务；0：保留 TIM2+前台轮询回退路径。 */
+#ifndef CAR_USE_FREERTOS
+#define CAR_USE_FREERTOS 1U
+#endif
+
 /* 集中保存现有标定值和调试参数，DPT_ 命名与原操作记录对应。
  * 参数调整统一在本文件进行，避免各模块分别保存不同数值。 */
 
@@ -16,6 +21,8 @@
 #define DPT_MANUAL_MMPS 120U
 #define DPT_MANUAL_MAX_MMPS 300U
 #define DPT_MANUAL_MAX_CMD 3000
+#define DPT_FIGURE8_MAX_MMPS 550.0f /* 410mm/s高速斜线的独立超速保护，其他模式仍使用350。 */
+#define DPT_FIGURE8_MAX_CMD 3000 /* 仅任务三/四；不放宽实验和普通定距模式。 */
 #define DPT_MANUAL_DURATION_MS 10000U
 #define DPT_SWITCH_BRAKE_MS 200U
 #define DPT_LEFT_CPR 60104.3333f
@@ -67,6 +74,27 @@
 #define DPT_LINE_TIMEOUT_MS 45000U
 #define DPT_LINE_CENTER_MS 100U
 #define DPT_LINE_INVALID_MS 100U
+/* 巡线上层混合控制。LQR 用离线固定增益，PID 补偿 LF04 的离散量化与安装偏差。
+ * 这些是保守的上车初值，不是已辨识车模的最优解；调参流程见 FREERTOS_LQR_PID_TESTING.md。 */
+#define DPT_HYBRID_ENABLE 1U
+#define DPT_HYBRID_LQR_LINE_K 22.0f
+#define DPT_HYBRID_LQR_RATE_K 0.050f
+#define DPT_HYBRID_LQR_YAW_K 0.80f
+#define DPT_HYBRID_PID_KP 20.0f
+#define DPT_HYBRID_PID_KI 3.0f
+#define DPT_HYBRID_PID_KD 0.020f
+#define DPT_HYBRID_LQR_WEIGHT 0.65f
+#define DPT_HYBRID_RATE_FILTER 0.25f
+#define DPT_HYBRID_INTEGRAL_LIMIT 1.0f
+#define DPT_HYBRID_HEADING_K 0.35f
+/* 弧线软检查点：每 1/4 弧长只小幅修正后续目标角速度，运行中不停车。 */
+#define DPT_ARC_SOFT_CHECKPOINT_ENABLE 1U
+#define DPT_ARC_CHECKPOINT_GAIN 0.12f
+#define DPT_ARC_CHECKPOINT_STEP_DPS 0.75f
+#define DPT_ARC_CHECKPOINT_MAX_BIAS_DPS 2.0f
+#define DPT_ARC_CONFIDENCE_FILTER 0.15f
+#define DPT_ARC_ENCODER_GOOD_DEG 3.0f
+#define DPT_ARC_ENCODER_BAD_DEG 15.0f
 /* 任务二路线：AB 直线、BC 半圆、CD 直线、DA 半圆；正常运行无需遥控。 */
 #define DPT_TASK2_STRAIGHT_MM 1000.0f
 #define DPT_TASK2_ARC_MM 1256.0f /* 实测 BC 半圆全白出口对应平均编码器里程约 1256 毫米，独立半圆测试参数保持原值。 */
@@ -80,16 +108,25 @@
 #define DPT_TASK3_START_FROM_AB 1U /* 约定的初始摆放方向：A 点朝 B。 */
 #define DPT_TASK3_SPAN_MM 1000.0f
 #define DPT_TASK3_RADIUS_MM 400.0f
+#define DPT_TASK3_TRACK_WIDTH_MM DPT_TRACK_WIDTH_MM
 #define DPT_TASK3_ARC_MM 1256.0f
-#define DPT_TASK3_DIAGONAL_MMPS 240.0f
+#define DPT_TASK3_DIAGONAL_MMPS 400.0f
 #define DPT_TASK3_ARC_MMPS 200.0f
 #define DPT_TASK3_START_MMPS 50.0f
-#define DPT_TASK3_ACCEL_MMPS2 150.0f /* 仅用于 AC、BD 斜线段的加速。 */
+#define DPT_TASK3_ACCEL_MMPS2 300.0f /* 0.3m/s²目标斜坡；仅用于 AC、BD 斜线中段。 */
 #define DPT_TASK3_ARC_ACCEL_MMPS2 100.0f /* 半圆入弧沿用 T17 调速前的加速斜坡。 */
-#define DPT_TASK3_APPROACH_MM 100.0f
-#define DPT_TASK3_MIN_MMPS 60.0f /* 捕获黑线阶段仍使用独立的 50 毫米/秒速度。 */
-#define DPT_TASK3_TURN_MMPS 80.0f
-/* A/B/C/D 均使用完整几何目标，不再叠加少转角度。 */
+#define DPT_TASK3_APPROACH_MM 350.0f /* 终点前350mm开始降速，400→300约需1s。 */
+#define DPT_TASK3_MIN_MMPS 300.0f /* 直道末端目标速度；捕获黑线仍使用独立的50毫米/秒。 */
+#define DPT_TASK3_TURN_MMPS 100.0f
+/* ARC22：顶点改为低速滚动差速转向，两轮同向滚动靠速差转过顶点约 38.7 度，
+ * 不再制动到零后单轮原地转。中心速度 100、最大半差 70 时内轮仍保留 30mm/s；
+ * 增益 8mm/s/度约在 8.75 度误差内按比例收敛，减小末端过冲。 */
+#define DPT_TASK3_ROLL_MMPS 100.0f
+#define DPT_TASK3_ROLL_DIFF_MMPS 70.0f
+#define DPT_TASK3_ROLL_GAIN 8.0f
+/* 车身投影只需覆盖黑线；转向从单一方向逼近时，首次进入 3 度窗口即停，
+ * 通常会比完整几何角少转约 3 度，为探头/车身投影留容错。 */
+#define DPT_TASK3_ALIGN_TOLERANCE_DEG 3.0f
 #define DPT_TASK3_CAPTURE_MMPS 50.0f
 #define DPT_TASK3_TIMEOUT_MS 40000U
 #define DPT_TASK3_ENTRY_WINDOW_MM 120.0f
@@ -98,22 +135,26 @@
 #define DPT_TASK3_CAPTURE_LIMIT_MM 60.0f
 #define DPT_TASK3_TURN_TIMEOUT_MS 4000U
 #define DPT_TASK3_CAPTURE_TIMEOUT_MS 2000U
+#define DPT_TASK3_SETTLE_MS 30U /* 实测轮速已降至5mm/s后的最小静止确认，不再额外等待200ms。 */
 /* 任务三、四受限寻线初值；车身投影是否仍覆盖黑线必须实车确认。 */
-#define DPT_TASK3_WHITE_SEEK_MS 300U
+#define DPT_TASK3_WHITE_SEEK_MS 500U
 #define DPT_TASK3_WHITE_SEEK_MM 20.0f
 #define DPT_TASK3_WHITE_SEEK_DEG 12.0f
 #define DPT_TASK3_SEEK_MMPS 40.0f
+#define DPT_TASK3_GAP_MM 35.0f
+#define DPT_TASK3_GAP_DEG 18.0f
 #define DPT_TASK3_VERTEX_SEEK_MS 3000U
 #define DPT_TASK3_VERTEX_SEEK_MM 80.0f
-#define DPT_TASK3_TURN_SLOW_DEG 15.0f
-#define DPT_TASK3_TURN_MIN_MMPS 35.0f
+#define DPT_TASK3_TURN_SLOW_DEG 12.0f
+#define DPT_TASK3_TURN_MIN_MMPS 40.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
-#define DPT_TASK4_DIAGONAL_MMPS 250.0f /* V11：仅任务四，240→250；终点降速与捕线限制保留。 */
+#define DPT_TASK4_DIAGONAL_MMPS 400.0f /* ARC21：斜线0→400→300，1/4外侧探头提前触发；弧线保持220。 */
 #define DPT_TASK4_ARC_MMPS 220.0f /* V11：正常巡线200→220；边缘仍限120，寻线不提速。 */
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。
  * 已授权的全白桥接使用下方 500 毫秒预算；恢复需连续有效 30 毫秒。
- * 普通桥接受 20 毫米/12 度约束；DA 外侧交接使用下方独立边界。任务三保持 300 毫秒。
+ * 普通桥接受 20 毫米/12 度约束；可信单探头交接使用 35 毫米/18 度边界。
+ * 任务三、四的授权全白搜线均最长 500 毫秒。
  * 下列数值为待实车验证的容错初值，不改变任务三和全局 PI 标定。 */
 #define DPT_TASK4_LOST_MS 200U
 #define DPT_TASK4_WHITE_SEEK_MS 500U
@@ -132,8 +173,8 @@
 #define DPT_TASK4_RESUME_MMPS 50.0f
 #define DPT_TASK4_RESUME_ACCEL_MMPS2 100.0f
 #define DPT_TASK4_EDGE_MMPS 120.0f
-#define DPT_TASK4_TURN_SLOW_DEG 15.0f
-#define DPT_TASK4_TURN_MIN_MMPS 35.0f
+#define DPT_TASK4_TURN_SLOW_DEG 12.0f
+#define DPT_TASK4_TURN_MIN_MMPS 40.0f
 #define DPT_TASK4_LAPS 4U
 #define DPT_TASK4_TIMEOUT_MS 160000U
 #endif

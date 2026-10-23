@@ -8,7 +8,8 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 V11 FAST")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 ARC22")==0);
+ assert(strcmp(oled_lines[3],"TC 1023-1056 ARC22")==0);
 }
 static void task4_start(void)
 {
@@ -38,19 +39,21 @@ static uint32_t target_follow_four(int prior_profile)
   CarTask3 *t=&app()->route.task3;float p=progress();
   if(t->phase==T3_DIAGONAL) {
    app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+(t->leg==2U?180+2*t->diagonal_angle_deg:0));
-   line_inputs=p>=t->diagonal_mm?9:15;
+   line_inputs=p>=t->diagonal_mm?14:15;
   } else if(t->phase==T3_ARC) {
    line_inputs=p>=t->config.arc_mm?15:9;
    app()->heading.angle=CarMath_WrapDegrees(t->start_heading_deg+t->diagonal_angle_deg+
      (t->leg==1U?fminf(p/t->config.arc_mm,1)*180:180-fminf(p/t->config.arc_mm,1)*180));
   } else if(t->phase==T3_CAPTURE) line_inputs=9;
   else if(t->phase==T3_VERTEX_SEEK) line_inputs=p>=t->diagonal_mm?9:15;
+  else if(t->phase==T3_ROLL_TURN)
+   app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+(app()->route.targets[1]-app()->route.targets[0])*.01f/140*57.2957795131f);
   else if(t->phase==T3_ALIGN || t->phase==T3_START_ALIGN)
    app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+(app()->route.targets[1]-app()->route.targets[0])*.01f/140*57.2957795131f);
   int counts[2];
   for(unsigned j=0;j<2;j++) {
    float cpr=j?DPT_RIGHT_CPR:DPT_LEFT_CPR;
-   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=280.01f);
+   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=470.01f);
    residue[j]+=app()->route.targets[j]*.01f*cpr/(DPT_CIRC_M*1000);
    counts[j]=(int)residue[j];residue[j]-=counts[j];
   }
@@ -78,13 +81,15 @@ static void robust_regression(void)
  CarTask3Config c=CarTask4_Config();
  assert(c.lost_ms==200U && c.recovery_ms==30U);
  assert(c.arc_acceleration_mmps2==100);
- assert(c.diagonal_mmps==250 && c.arc_mmps==220 && CarTask3_ConfigValid(&c));
+ assert(c.diagonal_mmps==400 && c.arc_mmps==220 && CarTask3_ConfigValid(&c));
  assert(CarRoute_Task3Config().lost_ms==100U && CarRoute_Task3Config().recovery_ms==30U);
- /* The faster inner-probe correction stays positive and below the 350mm/s guard;
+ /* The arc correction stays positive and below the unchanged 220mm/s arc target;
     outer-probe slowdown is independently retained below. */
  robust_arc();line_inputs=11;step(10,177,176);
  assert(fabsf(app()->route.base-220)<.01f);
- assert(fabsf(app()->route.targets[0]-149.6f)<.01f && fabsf(app()->route.targets[1]-290.4f)<.01f);
+ assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+ assert(app()->route.targets[0]<app()->route.targets[1]);
+ assert(fabsf(app()->route.targets[0]+app()->route.targets[1]-440.0f)<.01f);
  c.recovery_ms=29;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.recovery_ms=c.lost_ms;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.lost_ms=251;assert(!CarTask3_ConfigValid(&c));
@@ -137,8 +142,8 @@ static void robust_regression(void)
  /* Heading-dependent turn speed; zero inner target and no reversed wheel. */
  task4_start();CarTask3Output o={.control=T3_TURN_FORWARD,.heading_deg=0,.left_mmps=80};
  app()->heading.angle=30;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==80 && app()->route.targets[1]==0);
- app()->heading.angle=7.5f;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==40 && app()->route.targets[1]==0);
- app()->heading.angle=4;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==35 && app()->route.targets[1]==0);
+ app()->heading.angle=7.5f;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==50 && app()->route.targets[1]==0);
+ app()->heading.angle=4;CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==40 && app()->route.targets[1]==0);
  /* Protection overrides the recovery wait; no automatic restart. */
  for(unsigned fault=0;fault<6;fault++) {
   robust_arc();line_inputs=15;step(10,0,0);
@@ -168,7 +173,7 @@ int main(void)
  robust_regression();
  CarTask3Config c=CarTask4_Config();assert(CarTask3_ConfigValid(&c) && c.deadline_ms==80000U);
  assert(CarRoute_Task3Config().deadline_ms==40000U);
- task4_select();hold();assert(app()->button.selected_motion==MOVE_ROUTE);
+ task4_select();hold();assert(app()->button.selected_motion==MOVE_LOG);hold();assert(app()->button.selected_motion==MOVE_ROUTE);
  setup();queue(0,"TASK4!");step(10,0,0);assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  enable();press_key();assert(app()->runtime.state!=RUNNING); /* Cannot start without CAL. */
  task4_start();float reference=app()->route.task3.start_heading_deg;

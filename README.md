@@ -4,6 +4,8 @@
 
 基于 **STM32F103RCT6 / STM32 HAL** 的双轮小车固件，包含轮速 PI 闭环、编码器里程、MPU6050 航向保持、LF04 巡线，以及任务一至四的路线控制。
 
+> `feature/freertos-lqr-pid` 是基于 V11 FAST 的实验分支：已加入 FreeRTOS 10ms 周期调度与 LQR/PID 巡线上层，但尚未完成实车重新验收。架构、公式、构建和上车顺序见 [FreeRTOS + LQR/PID 测试说明](FREERTOS_LQR_PID_TESTING.md)。
+
 ## 最新实测（2026-10-18）
 
 **任务四 V11 FAST 已完成一次四圈实测，固件计时 149.606 秒（2 分 29.606 秒）。** 用户现场确认顺利完成，pyOCD 同步记录如下：
@@ -21,30 +23,40 @@
 
 ## 当前版本
 
-当前固件使用静态CAL后的陀螺积分、完整角度对正及任务四探头间隙找回；在线航向融合修正暂时关闭：
+当前实验固件版本为 `ARC22`，发布时间码为 `TC 1023-1056`，使用静态CAL后的陀螺积分、完整角度对正、弧线软检查点、动态控制置信度及任务四探头间隙找回；AC/BD 由 1/4 外侧探头优先提前触发，中段启用400mm/s实验高速档；顶点改为低速滚动差速转向；旧的在线零偏学习仍关闭：
 
-- 任务三屏幕标题：`TASK 3 V3 GYRO`。
-- 任务四屏幕标题：`TASK 4 V11 FAST`。
-- 仅任务四正常直线240→250mm/s、正常巡线200→220mm/s；任务一至三不提速。转向、捕线、寻线、边缘降速和终点降速规则保留。
-- 删除任务三、四共用的少转5°偏移：A启动对正AC，B对正BD，C/D捕线及顶点搜线使用完整切线。各点对正容差统一为±3°，保留停稳复核。
+- 任务三屏幕标题：`TASK 3 ARC22`。
+- 任务四屏幕标题：`TASK 4 ARC22`。
+- 待机或正常完成时，OLED 最底行显示 `TC 1023-1056 ARC22`；运行和故障期间保留原调试数据。
+- 任务三、四 AC/BD 采用 0→400→300 mm/s 速度曲线：起步从50mm/s按300mm/s²加速，直道中段达到400mm/s，终点前350mm开始线性降速，约1s降到300mm/s；顶点不再制动到零，而是两轮继续同向滚动、靠左右轮速差转过顶点转角。任务三弧线保持200mm/s，任务四弧线保持220mm/s。
+- 任务三/四单独使用3000 PWM限幅和550mm/s超速保护；其他定距、转向和手动测试模式不放宽原保护。
+- AC/BD 正常换段优先使用物理 1/4 外侧探头，不等待 2/3 中心图样；仅在进入理论终点容错区后，允许有效中间图样应急兜底，避免外侧单路失效导致必然超程。
+- AC/BD 终点与弧线出口的30ms确认期改为50mm/s连续前进；顶点检测后直接进入滚动差速转向，不再停车等待速度降至5mm/s，也没有原地转和停稳确认；航向进入±3°窗口即交给捕获/斜线。
+- 顶点滚动差速转向以中心100mm/s、最大轮速半差70mm/s运行，内轮最低保留30mm/s；误差大于约8.75°时饱和到最大半差，进入该窗口后按8mm/s/度比例收敛，降低末端过冲。转向行程上限放宽到160mm（原80mm的2倍），超时或超程仍报 `T3_TURN`。
+- 删除原来固定少转5°偏移，仍以完整几何切线为参考；转向从单一方向首次进入±3°容差窗口即切换，通常形成约3°的可控少转容错。
+- 起点 A 点对正和失线恢复路径仍保留停车对正与停稳复核，仅正常顶点换段改为滚动差速转向。
 - `DPT_HEADING_FUSION_ENABLE=0`：任务三、四均不学习或扣除在线零偏，转向与直线使用同一份静态CAL后的陀螺积分。保留160mm轮距和融合内核用于后续分析，FUS诊断输出`EN=0`；正常重新CAL后Y/G接近一致、B=0。
-- 任务四在 B 点对正完整 BD 航向、D 点对正完整 DA 切线，均达到 ±3°并停稳后才前进；D 点在原终点窗口内停车并连续确认有效线，不再强制前置探头等到完整车轴几何里程才认线。
+- 任务四在 B 点滚动转向到完整 BD 航向、D 点滚动转向到完整 DA 切线，均进入 ±3°窗口即前进；AC/BD 先稳定离开起点黑线，再把下一次连续 30 ms 的有效线认作 C/D，不依赖理论对角线里程换段。
+- 任务三弧段全白且已有可信巡线历史时，沿冻结的上次方向连续低速搜线；重新见线的30 ms确认期也不刹停，避免弯道跨探头时一顿一顿。搜线仍受500 ms、20/35 mm和12°/18°分级边界约束。
 - 按 LF04 的 33/14.5/33 mm 探头间距、约45 mm前伸和19 mm线宽，任务四 CB/DA 的可信内外单探头全白交接使用独立桥接；仍限500 ms，角度/位移边界为18°/35 mm，恢复需连续有效30 ms。其他普通桥接保留原12°/20 mm。
 - 四圈实际入弧计数1～8，恢复不重复计数；保存最近两帧可信探头图样，失线时按侧向线索、图样变化和CB/DA方向确定并冻结寻找方向，输出独立HIST诊断帧。
 - 保留 STOP / OFF、串口接收故障、低压、ADC / MPU 异常、节拍、超速、反转、堵转和路线边界等停车保护，并提供停车快照及非阻塞遥测。
 
-主机模拟验证与实际场地验收分别记录。当前 V11 FAST 的具体修改和验证边界见 [任务四小幅提速说明](TASK4_V11_FAST_说明.md)，不能把软件回归通过当作四圈实车验收通过。
+主机模拟验证与实际场地验收分别记录。V11 FAST 是当前分支的实车回退基线；ARC21 尚未完成实车验收，不能把软件回归通过当作四圈实车验收通过。
 
 ## 工程结构
 
 | 路径 | 内容 |
 | --- | --- |
 | `Core/Inc/car_config.h` | 轮速 PI、编码器、轮距、航向融合和路线参数 |
+| `Core/Inc/car_build.h` | `ARC22`版本、TC时间码及构建脚本注入的Git/配置指纹接口 |
 | `Core/Inc/car_state.h` | 整车模块状态 |
 | `Core/Src/car_app.c` | 前台调度、初始化、统一停车与保护 |
 | `Core/Src/car_wheel.c` / `car_pi.c` | 编码器反馈和轮速闭环 |
 | `Core/Src/car_heading.c` | 静态校准、航向融合与积分 |
 | `Core/Src/car_line.c` | LF04 图样判定与巡线 |
+| `Core/Src/car_hybrid.c` | LQR/PID 混合差速控制 |
+| `Core/Src/car_rtos.c` / `FreeRTOSConfig.h` | 10ms 控制任务和 RTOS 配置 |
 | `Core/Src/car_route.c` | 运动模式、距离控制与路线衔接 |
 | `Core/Src/car_task3.c` / `car_task3_port.c` / `car_task4.c` | 任务三、四状态机及整车适配 |
 | `Core/Src/car_button.c` / `car_command.c` / `car_ui.c` | 按键、调试命令、OLED 和遥测 |
@@ -53,15 +65,17 @@
 | `.eide/` / `Sunward.code-workspace` | EIDE 构建配置与 VS Code 工作区 |
 | `STM32F103RCTX_FLASH.ld` | 链接脚本 |
 | `tools/tests/` | 使用模拟 HAL 的主机回归，不访问硬件 |
+| `tools/analyze_run_log.py` | 将串口三层日志转换为CSV、JSON摘要和SVG曲线 |
 
 更多接口与调度说明见 [MODULES.md](MODULES.md)。参数包含当前小车的标定值，换硬件后需重新核对。
 
 ## 构建
 
-1. 安装 VS Code、Embedded IDE（`cl.eide`）及 Arm GNU 工具链。
-2. 打开 `Sunward.code-workspace`，在 EIDE 中配置工具链路径并选择 **Debug**。
-3. 执行 **Rebuild**，输出位于 `build/Debug/`：`Sunward.elf`、`Sunward.hex` 和链接映射文件。
-4. 如需下载，在 EIDE 中配置对应调试器；当前 Debug 使用 pyOCD / CMSIS-DAP / SWD，目标为 `stm32f103rc`、速度 4 MHz。下载文件选择 `build/Debug/Sunward.hex`；当前工程的下载文件配置为空，需手动选择。
+1. 初次克隆执行 `git submodule update --init`，取得仓库锁定的 FreeRTOS Kernel。
+2. 安装 VS Code、Embedded IDE（`cl.eide`）及 Arm GNU 工具链。
+3. 打开 `Sunward.code-workspace`，在 EIDE 中配置工具链路径并选择 **Debug**。
+4. 执行 **Rebuild**，或在终端运行 `python3 tools/build_firmware.py`，同时产生RTOS/裸机的 ELF、HEX及 `firmware-manifest.json`。清单包含Git提交、脏工作区标志、配置CRC32、资源占用和SHA-256。正式实车建议使用脚本生成的HEX；IDE直接构建无法注入Git信息，日志会明确显示 `GIT=LOCAL/CFG=00000000/MODE=LOCAL`。
+5. 如需下载，在 EIDE 中配置对应调试器；当前 Debug 使用 pyOCD / CMSIS-DAP / SWD，目标为 `stm32f103rc`、速度 4 MHz。
 
 固件从 `Core/` 和 `Drivers/` 构建；`tools/tests/` 的模拟 HAL 仅用于主机测试，不应加入固件包含路径。`build/` 为本地产物，不提交到 Git。
 
@@ -69,10 +83,11 @@
 
 实体使能与 PA0（KEY_U）配合使用，每次操作前先松开按键：
 
-- **OFF、空闲时长按 1.5 秒**：循环选择一米直行、半圆巡线、任务二、任务三、任务四。
-- **OFF 时短按并松开**：静止校准 MPU6050，等待 `READY`。
+- **OFF、空闲时长按 1.5 秒**：循环选择一米直行、半圆巡线、任务二、任务三、任务四、`LOG EXPORT`。
+- **OFF 时短按并松开**：普通任务模式下静止校准 MPU6050；`LOG EXPORT` 模式下则完整导出一次当前环形日志。
 - **READY + ON 时按下**：启动所选模式。
 - **运行、制动或校准中按下**：停止；实体 OFF 和串口 `STOP!` 也可停止。
+- **故障日志**：必须先长按切到 `LOG EXPORT`，再短按导出；未导出的故障日志不会因切换模式被清除。看到 `RLOG END` 后，长按离开 `LOG EXPORT` 才清除已导出的故障日志。
 
 USB / 蓝牙调试命令以 `!` 或换行结束：
 
@@ -85,6 +100,31 @@ USB / 蓝牙调试命令以 `!` 或换行结束：
 | `TASK2!` / `TASK3!` / `TASK4!` | 对应路线任务；OFF 下可选模式，ON 下满足条件后可启动 |
 | `F!` / `B!` / `L!` / `R!` | 手动方向测试 |
 | `V120!` / `TIME3!` | 停车时设置手动速度（mm/s）和时长（秒） |
+| `LOG!` | 停车时从发出命令的同一串口导出完整日志；再发一次会从头重传 |
+| `LOGSTAT!` / `LOGSTOP!` | 查询日志数量、故障与导出进度 / 只停止导出，不清日志 |
+| `LOGCLR!` | 停车时清除日志 |
+
+### 运行日志
+
+`car_run_log` 采用双层环形记录。高频层每50 ms保存任务、阶段、路段、弧段号、四路循线原始位、循线误差、左右目标/实际轮速、航向和故障标志，160条可保留故障前约8秒；全程层每200 ms保存分段进度、航向、实际轮速、线误差、阶段、检查点及线/航向置信度，805条可完整覆盖任务四160秒上限。另有32条事件快照，记录开始、换段、软检查点、丢线、重获和停止。正常运行自动覆盖各层最旧记录，相当于定期清理。
+
+任务未完成时，如果两轮实际速度连续300 ms均接近0，日志立即冻结；即使异常逻辑同时把目标轮速清为0也能保留。任何 STOP/OFF、失线、堵转、反转、超时或传感器故障同样冻结；仅任务顶点制动、转向停稳和换段刹车等明确的计划内停车阶段不会误判。导出依次包含 `JLOG` 全程层、`ELOG` 事件层和 `RLOG` 高频层，直到看到 `RLOG END` 才算完成，可直接保存为CSV文本分析。
+
+日志首行包含 `VER/GIT/CFG/MODE`，可核对固件版本、Git提交、`car_config.h` CRC32和RTOS/裸机模式。将串口终端从 `RLOG BEGIN` 到 `RLOG END` 的内容保存为文本后运行：
+
+```sh
+python3 tools/analyze_run_log.py capture.txt
+```
+
+脚本不需要第三方Python库，会生成 `journey.csv`、`events.csv`、`high_rate.csv`、`summary.json` 和可直接浏览的 `report.svg`。输入里夹有普通遥测或串口前缀也可以解析；缺少 `RLOG END` 时拒绝生成不完整报告。
+
+无线调试器如果提供虚拟串口，将其TX/RX对应连到USART1（PA9/PA10，115200 8N1）后，可用零第三方依赖的抓取脚本。它只在停车时发送 `LOG!`，中断或超时时整包重试，看到 `RLOG END` 后自动调用分析器，不会自动清除车端日志：
+
+```sh
+python3 tools/capture_run_log.py /dev/ttyACM0 -o capture.txt
+# USART3蓝牙默认9600：
+python3 tools/capture_run_log.py /dev/ttyUSB0 --baud 9600 --timeout 120 -o capture.txt
+```
 
 ## 软件回归
 
@@ -95,10 +135,11 @@ python3 tools/tests/run_tests.py
 python3 tools/tests/run_tests.py --sanitize
 ```
 
-共 7 类场景，分别经过 `CarApp` 和旧兼容 API 两套入口，共 **14 组回归**，覆盖运动、任务二至四、寻线、转向、航向融合及故障保护。`--sanitize` 需要编译器支持 AddressSanitizer 和 UndefinedBehaviorSanitizer。测试产物放在临时目录，结束后自动清理。
+首先运行日志分析器、混合控制器、弧线软检查点/置信度观测器、7万组确定性随机边界、SysTick和双层日志单元测试，再将 7 类场景分别经过 `CarApp` 和旧兼容 API 两套入口，共 **14 组回归**。`--sanitize` 需要编译器支持 AddressSanitizer 和 UndefinedBehaviorSanitizer。
 
 ## 调试记录
 
+- [FreeRTOS SysTick 交接、致命制动和双构建验证](FREERTOS_SAFETY_FIX_20261020.md)
 - [pyOCD实时只读采集方法](tools/PYOCD_采集说明.md)
 - [航向融合 V1 机制和诊断字段](HEADING_FUSION_V1_说明.md)
 - [任务四 FUSE V2 BD 实测与修改](TASK4_FUSE_V2_BD_实测与修改.md)
@@ -117,7 +158,7 @@ python3 tools/tests/run_tests.py --sanitize
 - [任务四起步与恢复斜坡记录](TASK4_RAMP_V1_调试说明.md)
 - [任务四 T29 诊断记录](TASK4_T29_D1_调试说明.md)
 
-旧记录保留各自版本的参数和验证结果；当前行为以源码和 V11 FAST 说明为准。记录中的本地日志、备份和构建产物路径不属于仓库交付内容。
+旧记录保留各自版本的参数和验证结果；当前行为以源码、`ARC22 / TC 1023-1056`日志指纹和总体设计文档为准，V11 FAST说明只代表实车回退基线。记录中的本地日志、备份和构建产物路径不属于仓库交付内容。
 
 ## 仓库文件
 

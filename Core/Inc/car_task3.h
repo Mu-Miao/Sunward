@@ -5,20 +5,20 @@
 /* 仅在主循环调用的单圈路线核心，不依赖 HAL、PWM、GPIO、串口或全局状态。
  * 左转角度增加；启动前放在 A 点朝 B，由陀螺仪自动对准 AC。 */
 typedef enum { T3_IDLE, T3_DIAGONAL, T3_VERTEX_BRAKE, T3_ALIGN,
-    T3_CAPTURE, T3_ARC, T3_FINAL_BRAKE, T3_DONE, T3_FAULT, T3_START_ALIGN, T3_START_SETTLE, T3_ALIGN_SETTLE, T3_VERTEX_SEEK } CarTask3Phase;
+    T3_CAPTURE, T3_ARC, T3_FINAL_BRAKE, T3_DONE, T3_FAULT, T3_START_ALIGN, T3_START_SETTLE, T3_ALIGN_SETTLE, T3_VERTEX_SEEK, T3_ROLL_TURN } CarTask3Phase;
 typedef enum { T3_OK, T3_CONFIG, T3_ABORT, T3_SENSOR, T3_TIMEOUT,
     T3_HEADING, T3_EDGE, T3_LOST, T3_TURN, T3_SETTLE, T3_DISTANCE } CarTask3Fault;
 typedef enum { T3_HALT, T3_HOLD_HEADING, T3_TURN_FORWARD,
-    T3_FOLLOW_LINE, T3_SEEK_LINE } CarTask3Control;
+    T3_FOLLOW_LINE, T3_SEEK_LINE, T3_ROLL_DRIVE } CarTask3Control;
 typedef enum { T3_NO_POINT, T3_POINT_A, T3_POINT_B,
     T3_POINT_C, T3_POINT_D } CarTask3Point;
 /* 失线预算触发位，仅作停车诊断；可同时触发多个限制。 */
 enum { T3_LOSS_TIME = 1U, T3_LOSS_DISTANCE = 2U, T3_LOSS_ANGLE = 4U };
 
 typedef struct {
-    float span_mm, radius_mm, arc_mm;
+    float span_mm, radius_mm, arc_mm, track_width_mm;
     uint8_t start_from_ab; /* 1 表示初始 A 朝 B，需要自动转向；0 表示已朝 AC。 */
-    uint8_t bd_full_distance; /* 1：BD 达到完整名义斜线里程后才确认 D；C 点规则不变。 */
+    uint8_t bd_full_distance; /* 仅保留旧配置ABI；ARC19 换段逻辑不再读取此字段。 */
     uint8_t b_full_align; /* 1：B 点完整对正使用独立的停稳角度容差。 */
     float b_align_tolerance_deg;
     uint8_t d_full_align; /* 1：D 点完整对正使用独立的停稳角度容差。 */
@@ -26,6 +26,8 @@ typedef struct {
     float diagonal_mmps, arc_mmps, start_mmps, acceleration_mmps2;
     float arc_acceleration_mmps2; /* 半圆加速度，与斜线段独立配置。 */
     float turn_mmps, capture_mmps;
+    /* 顶点低速滚动差速转向：中心速度、最大轮速半差和每度航向误差的轮速差。 */
+    float roll_turn_mmps, roll_turn_diff_mmps, roll_turn_gain;
     float entry_window_mm, exit_window_mm, turn_travel_limit_mm;
     float capture_limit_mm, approach_mm, minimum_mmps;
     float diagonal_tolerance_deg, arc_tolerance_deg, align_tolerance_deg;
@@ -37,13 +39,18 @@ typedef struct {
     uint8_t history_gap; /* CB/DA：可信内/外侧单探头交接，方向由上层历史快照确定。 */
     float da_gap_mm, da_gap_deg;
     uint32_t recovery_ms; /* 0 保留旧的逐帧恢复；非零时需连续有效，原失线预算不重置。 */
+    uint8_t soft_checkpoints;
+    float checkpoint_gain, checkpoint_step_dps, checkpoint_max_bias_dps;
+    float confidence_filter, encoder_good_deg, encoder_bad_deg;
 } CarTask3Config;
 
 typedef struct {
     uint32_t now_ms, sample_age_ms;
     float distance_mm; /* 左右编码器的有符号平均里程，包含转向对正期间的移动。 */
+    float left_distance_mm, right_distance_mm, line_error;
     float yaw_deg, left_mmps, right_mmps;
     uint8_t heading_ready, line_valid, black_count, centered;
+    uint8_t outer_probe_hit; /* 物理 1/4 任一外侧探头见黑，不要求整体图样已可循线。 */
     uint8_t outermost; /* 当前有效图样为最左或最右单探头。 */
     uint8_t side_probe; /* 有效单探头，包含内侧两路。 */
     uint8_t enabled, stop_requested, protection_fault;
@@ -63,7 +70,9 @@ typedef struct {
     CarTask3Fault fault;
     uint8_t leg; /* 当前路线段：0 为 AC，1 为 CB，2 为 BD，3 为 DA。 */
     uint8_t edge_seen, settled_seen, lost_seen, pending_start_signal;
-    uint32_t start_ms, phase_ms, edge_ms, settled_ms, lost_start_ms;
+    /* 对角线端点检测必须先连续离开起点黑线，再接受下一条稳定黑线。 */
+    uint8_t diagonal_armed, departure_seen;
+    uint32_t start_ms, phase_ms, edge_ms, settled_ms, lost_start_ms, departure_ms;
     uint32_t previous_ms, elapsed_ms, start_settle_ms;
     uint8_t recovery_seen, arc_valid_seen, loss_seek, seek_aligned, resume_active;
     uint8_t arc_outer_valid, gap_seek;
@@ -76,6 +85,12 @@ typedef struct {
     float loss_distance_mm, loss_turn_deg; /* F7 触发时锁存，区别于首次失线快照。 */
     float diagonal_mm, diagonal_angle_deg, start_heading_deg;
     float leg_start_mm, phase_start_mm;
+    /* 弧段观测器：陀螺为主，编码器只评估一致性；巡线置信度独立保留。 */
+    uint8_t observer_ready, checkpoint_index, checkpoint_event;
+    float observer_left_mm, observer_right_mm, observer_last_yaw_deg;
+    float gyro_turn_deg, encoder_turn_deg;
+    float expected_yaw_deg, heading_error_deg;
+    float line_confidence, heading_confidence, checkpoint_bias_dps;
 } CarTask3;
 
 int CarTask3_ConfigValid(const CarTask3Config *config);

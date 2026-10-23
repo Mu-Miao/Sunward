@@ -11,6 +11,7 @@ CarAppContext *CarApp_TestContext(void) { return &instance; }
 
 void CarApp_Stop(CarAppContext *app, TestState why, char faulty)
 {
+    CarRunLog_OnStop(app, why, HAL_GetTick());
     if (why == REVERSE && CarMotion_IsFigureEight(app->route.motion)) {
         app->route.reverse_trace.seen = 1U;
         app->route.reverse_trace.phase = (uint8_t)app->route.task3.phase;
@@ -23,6 +24,7 @@ void CarApp_Stop(CarAppContext *app, TestState why, char faulty)
     uint8_t completed_route = why == DONE && app->runtime.state == BRAKING && (app->route.motion == MOVE_ROUTE || app->route.motion == MOVE_LINE || app->route.motion == MOVE_TASK2);
     app->runtime.drive(0, 0);
     CarWheel_Clear(app);
+    CarHybrid_Reset(&app->line.hybrid);
     CarSignal_Set(app, 0);
     app->route.switching = 0;
     if (app->heading.phase == Y_WARM || app->heading.phase == Y_CAL) app->heading.phase = Y_NONE;
@@ -106,8 +108,10 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
         DPT_DURATION_MS > 3000U || DPT_MANUAL_MMPS < 40U ||
         DPT_MANUAL_MMPS > DPT_MANUAL_MAX_MMPS ||
         DPT_MANUAL_MAX_CMD <= 0 || DPT_MANUAL_MAX_CMD > 3000 ||
+        DPT_FIGURE8_MAX_CMD < DPT_MAX_CMD || DPT_FIGURE8_MAX_CMD > 3000 ||
+        DPT_FIGURE8_MAX_MMPS < 500.0f || DPT_FIGURE8_MAX_MMPS > 600.0f ||
         DPT_MANUAL_DURATION_MS < 1000U || DPT_MANUAL_DURATION_MS > 30000U) return HAL_ERROR;
-    if (!CarWheel_ConfigValid()) return HAL_ERROR;
+    if (!CarWheel_ConfigValid() || !CarHybrid_ConfigValid()) return HAL_ERROR;
     if (!CarHeading_ConfigValid()) return HAL_ERROR;
     if (!(DPT_TASK4_DA_GAP_OUTER_MMPS > 0.0f && DPT_TASK4_DA_GAP_OUTER_MMPS <= 140.0f) ||
         !(DPT_TASK4_DA_GAP_INNER_MMPS > 0.0f && DPT_TASK4_DA_GAP_INNER_MMPS < DPT_TASK4_DA_GAP_OUTER_MMPS)) return HAL_ERROR;
@@ -169,6 +173,8 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     app->line.valid = app->line.count = app->line.center_seen = app->line.center_ready = app->line.invalid_seen = 0U;
     app->line.center_ms = app->line.sample_ms = app->line.invalid_ms = now;
     app->line.error = app->line.diff = 0.0f;
+    CarHybrid_Reset(&app->line.hybrid);
+    CarRunLog_Init(now);
     if (LabUART_Begin(u) != HAL_OK) return HAL_ERROR;
     if (!LabUART_TryWrite(CarCommand_Banner, sizeof CarCommand_Banner - 1U)) return HAL_ERROR;
     app->command.inputs[LAB_UART_USB].ms = now;
@@ -278,6 +284,8 @@ void CarApp_Poll(uint32_t tick10_count)
         app->runtime.old_cycles = cycles; app->runtime.old_tick = tick10_count; app->runtime.old_ms = now;
     }
 
+    CarRunLog_Poll(app, now);
+    CarRunLog_Service(app);
     CarUI_Log(app, now, enabled);
     CarUI_UpdateOLED(app, now, enabled);
 

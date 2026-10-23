@@ -1,5 +1,22 @@
 /* LF04巡线。电气O1..O4排列为物理左→右O4/O3/O2/O1，黑0白1。 */
 #include "car_internal.h"
+#include <math.h>
+
+static float desired_yaw_rate(const CarAppContext *app, float base)
+{
+    float sign = 0.0f;
+    float radius = DPT_TASK3_RADIUS_MM;
+    if (app->route.motion == MOVE_TASK2 && CarRoute_IsArc((CarAppContext *)app))
+        sign = -1.0f;
+    else if (CarMotion_IsFigureEight(app->route.motion) && app->route.task3.phase == T3_ARC)
+        sign = app->route.task3.leg == 1U ? 1.0f : -1.0f;
+    /* MOVE_LINE 没有路线方向信息，只用横向误差状态，不强行拉回零角速度。 */
+    if (sign == 0.0f || radius <= 0.0f) return app->heading.previous_rate;
+    float rate = sign * base * 57.2957795131f / radius;
+    if (CarMotion_IsFigureEight(app->route.motion) && app->route.task3.phase == T3_ARC)
+        rate += app->route.task3.checkpoint_bias_dps;
+    return rate;
+}
 
 void CarLine_Read(CarAppContext *app)
 {
@@ -47,6 +64,7 @@ void CarLine_SetTargets(CarAppContext *app, uint32_t now, float base)
            故障锁存后必须重新满足启动条件，不自动搜线。 */
         app->runtime.drive(0, 0);
         CarWheel_Clear(app);
+        CarHybrid_Reset(&app->line.hybrid);
         app->route.targets[LEFT] = app->route.targets[RIGHT] = app->line.diff = 0.0f;
         if (!app->line.invalid_seen) { app->line.invalid_seen = 1U; app->line.invalid_ms = now; }
         else if ((uint32_t)(now - app->line.invalid_ms) >= DPT_LINE_INVALID_MS)
@@ -59,10 +77,33 @@ void CarLine_SetTargets(CarAppContext *app, uint32_t now, float base)
         (app->line.error >= 2.0f || app->line.error <= -2.0f) && base > DPT_TASK4_EDGE_MMPS)
         base = DPT_TASK4_EDGE_MMPS;
     if (app->route.motion == MOVE_TASK4) app->route.base = base;
-    app->line.diff = DPT_LINE_GAIN * app->line.error * base / DPT_LINE_CRUISE_MMPS;
     float limit = DPT_LINE_MAX_DIFF * base / DPT_LINE_CRUISE_MMPS;
-    if (app->line.diff > limit) app->line.diff = limit;
-    if (app->line.diff < -limit) app->line.diff = -limit;
+    if (DPT_HYBRID_ENABLE) {
+        float seconds = (float)app->runtime.dt_us / 1000000.0f;
+        if (seconds < 0.005f || seconds > 0.020f) seconds = 0.010f;
+        float line_confidence = 1.0f, heading_confidence = 1.0f, heading_error = 0.0f;
+        if (CarMotion_IsFigureEight(app->route.motion) && app->route.task3.phase == T3_ARC) {
+            line_confidence = app->route.task3.line_confidence;
+            heading_confidence = app->route.task3.heading_confidence;
+            heading_error = app->route.task3.heading_error_deg;
+        }
+        CarHybridInput input = {
+            .line_error = app->line.error,
+            .yaw_rate_dps = app->heading.previous_rate,
+            .desired_yaw_rate_dps = desired_yaw_rate(app, base),
+            .heading_error_deg = heading_error,
+            .line_confidence = line_confidence,
+            .heading_confidence = heading_confidence,
+            .base_mmps = base,
+            .seconds = seconds,
+            .max_diff_mmps = limit
+        };
+        app->line.diff = CarHybrid_Update(&app->line.hybrid, &input);
+    } else {
+        app->line.diff = DPT_LINE_GAIN * app->line.error * base / DPT_LINE_CRUISE_MMPS;
+        if (app->line.diff > limit) app->line.diff = limit;
+        if (app->line.diff < -limit) app->line.diff = -limit;
+    }
     /* 黑线偏右时提高左轮目标速度，使车向右纠偏；两轮目标均保持前进。 */
     app->route.targets[LEFT] = base + app->line.diff;
     app->route.targets[RIGHT] = base - app->line.diff;

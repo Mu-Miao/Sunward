@@ -14,6 +14,7 @@
 | `Core/Src/car_heading.c` | MPU零偏校准、角度积分、航向差速 | 修改校准与直线航向保持 |
 | `Core/Src/car_line.c` | LF04 GPIO读取、物理左右排列、有效图样判定、巡线差速 | 修改巡线处理 |
 | `Core/Src/car_button.c` | PA0消抖、长短按、选择/校准/启动/停止意图 | 修改按键操作 |
+| `Core/Src/car_run_log.c` | 20Hz环形运行日志、故障冻结和非阻塞CSV导出 | 调整日志字段/保留策略 |
 | `Core/Src/car_route.c` | 模式选择与启动门槛、定距、速度曲线、停稳、AB/BC/CD/DA换段 | 修改路线和终点逻辑 |
 | `Core/Src/car_command.c` | USB/蓝牙分流、命令解析、STOP/接收故障优先 | 修改调试指令 |
 | `Core/Src/car_power.c` | ADC采样、低压与ADC失败停车 | 修改电池监测 |
