@@ -5,11 +5,11 @@
 /* 仅在主循环调用的单圈路线核心，不依赖 HAL、PWM、GPIO、串口或全局状态。
  * 左转角度增加；启动前放在 A 点朝 B，由陀螺仪自动对准 AC。 */
 typedef enum { T3_IDLE, T3_DIAGONAL, T3_VERTEX_BRAKE, T3_ALIGN,
-    T3_CAPTURE, T3_ARC, T3_FINAL_BRAKE, T3_DONE, T3_FAULT, T3_START_ALIGN, T3_START_SETTLE, T3_ALIGN_SETTLE, T3_VERTEX_SEEK } CarTask3Phase;
+    T3_CAPTURE, T3_ARC, T3_FINAL_BRAKE, T3_DONE, T3_FAULT, T3_START_ALIGN, T3_START_SETTLE, T3_ALIGN_SETTLE, T3_VERTEX_SEEK, T3_ROLL_TURN } CarTask3Phase;
 typedef enum { T3_OK, T3_CONFIG, T3_ABORT, T3_SENSOR, T3_TIMEOUT,
     T3_HEADING, T3_EDGE, T3_LOST, T3_TURN, T3_SETTLE, T3_DISTANCE } CarTask3Fault;
 typedef enum { T3_HALT, T3_HOLD_HEADING, T3_TURN_FORWARD,
-    T3_FOLLOW_LINE, T3_SEEK_LINE } CarTask3Control;
+    T3_FOLLOW_LINE, T3_SEEK_LINE, T3_ROLL_DRIVE } CarTask3Control;
 typedef enum { T3_NO_POINT, T3_POINT_A, T3_POINT_B,
     T3_POINT_C, T3_POINT_D } CarTask3Point;
 /* 失线预算触发位，仅作停车诊断；可同时触发多个限制。 */
@@ -26,6 +26,8 @@ typedef struct {
     float diagonal_mmps, arc_mmps, start_mmps, acceleration_mmps2;
     float arc_acceleration_mmps2; /* 半圆加速度，与斜线段独立配置。 */
     float turn_mmps, capture_mmps;
+    /* 顶点低速滚动差速转向：中心速度、最大轮速半差和每度航向误差的轮速差。 */
+    float roll_turn_mmps, roll_turn_diff_mmps, roll_turn_gain;
     float entry_window_mm, exit_window_mm, turn_travel_limit_mm;
     float capture_limit_mm, approach_mm, minimum_mmps;
     float diagonal_tolerance_deg, arc_tolerance_deg, align_tolerance_deg;

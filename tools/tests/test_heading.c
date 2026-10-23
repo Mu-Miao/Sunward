@@ -228,7 +228,7 @@ static void bd_distance_regression(void)
   /* The line may occur well before the nominal diagonal distance. */
   in.distance_mm=400;in.line_valid=1;in.black_count=1;in.centered=0;in.outer_probe_hit=1;
   for(unsigned k=0;k<4;k++){in.now_ms+=10;CarTask3_Update(&t,&in,&out);signals_seen+=out.signal_point!=T3_NO_POINT;}
-  assert(t.phase==T3_VERTEX_BRAKE && signals_seen==1);
+  assert(t.phase==T3_ROLL_TURN && signals_seen==1);
  }
  /* Distance remains only a runaway guard; nominal distance itself is not a transition. */
  for(unsigned limit=0;limit<2;limit++) {
@@ -281,7 +281,7 @@ static void bd_probe_window_regression(void)
    assert(t.phase==T3_DIAGONAL && out.control==T3_HOLD_HEADING && !out.reset_controllers && out.base_mmps==cfg.capture_mmps && out.signal_point==T3_NO_POINT);
   }
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
-  assert(t.phase==T3_VERTEX_BRAKE && out.signal_point==T3_POINT_D);
+  assert(t.phase==T3_ROLL_TURN && out.signal_point==T3_POINT_D);
   if(count<3)assert(in.distance_mm<t.diagonal_mm-cfg.entry_window_mm);
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);assert(out.signal_point==T3_NO_POINT);
  }
@@ -302,7 +302,7 @@ static void bd_probe_window_regression(void)
   step(10,0,0);assert(a>0 && b<0 && signals==before && t->phase==T3_DIAGONAL);
  }
  step(10,0,0);
- assert(t->phase==T3_VERTEX_BRAKE && signals==before+1 && a==0 && b==0);
+ assert(t->phase==T3_ROLL_TURN && signals==before+1 && a==0 && b==0);
  assert(app()->route.vertex_trace.seen && app()->route.vertex_trace.point==T3_POINT_D);
  assert(fabsf(app()->route.vertex_trace.distance_mm-400)<.1f);
  puts("PASS: event-driven BD rejects its starting line and short glitches, accepts stable 1/2/3-probe endpoints at arbitrary distance, and actual GPIO scheduler halts with a D snapshot.");

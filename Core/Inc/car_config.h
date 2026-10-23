@@ -118,6 +118,12 @@
 #define DPT_TASK3_APPROACH_MM 350.0f /* 终点前350mm开始降速，400→300约需1s。 */
 #define DPT_TASK3_MIN_MMPS 300.0f /* 直道末端目标速度；捕获黑线仍使用独立的50毫米/秒。 */
 #define DPT_TASK3_TURN_MMPS 100.0f
+/* ARC22：顶点改为低速滚动差速转向，两轮同向滚动靠速差转过顶点约 38.7 度，
+ * 不再制动到零后单轮原地转。中心速度 100、最大半差 70 时内轮仍保留 30mm/s；
+ * 增益 8mm/s/度约在 8.75 度误差内按比例收敛，减小末端过冲。 */
+#define DPT_TASK3_ROLL_MMPS 100.0f
+#define DPT_TASK3_ROLL_DIFF_MMPS 70.0f
+#define DPT_TASK3_ROLL_GAIN 8.0f
 /* 车身投影只需覆盖黑线；转向从单一方向逼近时，首次进入 3 度窗口即停，
  * 通常会比完整几何角少转约 3 度，为探头/车身投影留容错。 */
 #define DPT_TASK3_ALIGN_TOLERANCE_DEG 3.0f

@@ -16,6 +16,9 @@ CarTask3Config CarRoute_Task3Config(void)
     c.arc_acceleration_mmps2 = DPT_TASK3_ARC_ACCEL_MMPS2;
     c.approach_mm = DPT_TASK3_APPROACH_MM; c.minimum_mmps = DPT_TASK3_MIN_MMPS;
     c.turn_mmps = DPT_TASK3_TURN_MMPS; c.capture_mmps = DPT_TASK3_CAPTURE_MMPS;
+    c.roll_turn_mmps = DPT_TASK3_ROLL_MMPS;
+    c.roll_turn_diff_mmps = DPT_TASK3_ROLL_DIFF_MMPS;
+    c.roll_turn_gain = DPT_TASK3_ROLL_GAIN;
     c.align_tolerance_deg = DPT_TASK3_ALIGN_TOLERANCE_DEG;
     c.deadline_ms = DPT_TASK3_TIMEOUT_MS;
     c.entry_window_mm = DPT_TASK3_ENTRY_WINDOW_MM; c.exit_window_mm = DPT_TASK3_EXIT_WINDOW_MM;

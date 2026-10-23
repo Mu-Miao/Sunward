@@ -8,8 +8,8 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 ARC21")==0);
- assert(strcmp(oled_lines[3],"TC 1023-1022 ARC21")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 ARC22")==0);
+ assert(strcmp(oled_lines[3],"TC 1023-1056 ARC22")==0);
 }
 static void task4_start(void)
 {
@@ -46,6 +46,8 @@ static uint32_t target_follow_four(int prior_profile)
      (t->leg==1U?fminf(p/t->config.arc_mm,1)*180:180-fminf(p/t->config.arc_mm,1)*180));
   } else if(t->phase==T3_CAPTURE) line_inputs=9;
   else if(t->phase==T3_VERTEX_SEEK) line_inputs=p>=t->diagonal_mm?9:15;
+  else if(t->phase==T3_ROLL_TURN)
+   app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+(app()->route.targets[1]-app()->route.targets[0])*.01f/140*57.2957795131f);
   else if(t->phase==T3_ALIGN || t->phase==T3_START_ALIGN)
    app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+(app()->route.targets[1]-app()->route.targets[0])*.01f/140*57.2957795131f);
   int counts[2];

@@ -67,6 +67,14 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
                         fmaxf(floor, app->route.targets[w] * scale));
             app->route.base = (app->route.targets[LEFT] + app->route.targets[RIGHT]) * 0.5f;
         }
+    } else if (o->control == T3_ROLL_DRIVE) {
+        /* 低速滚动差速转向：核心已给出两轮正向目标，直接下发。
+           不再套用单轮转向的近目标降速，否则两轮会同时被压到同一地板值而失去速差。 */
+        app->heading.reference = o->heading_deg;
+        app->heading.error = CarMath_WrapDegrees(o->heading_deg - app->heading.angle);
+        app->route.targets[LEFT] = o->left_mmps;
+        app->route.targets[RIGHT] = o->right_mmps;
+        app->route.base = o->base_mmps;
     } else if (o->control == T3_SEEK_LINE) {
         /* 仅核心已授权的弧段桥接。全白时搜线；重新见线的30ms
            确认期仍沿冻结方向运行，确认后才交回 LQR/PID。 */

@@ -336,7 +336,7 @@ int main(void)
  assert(app()->route.task3.diagonal_armed && signals==before);
  line_inputs=11;
  for(unsigned n=0;n<3;n++){step(10,0,0);assert(app()->route.task3.phase==T3_DIAGONAL && a>0 && b<0 && signals==before);}
- step(10,0,0);assert(app()->route.task3.phase==T3_VERTEX_BRAKE && signals==before+1);
+ step(10,0,0);assert(app()->route.task3.phase==T3_ROLL_TURN && signals==before+1);
  for(unsigned n=0;n<500 && app()->route.task3.phase!=T3_ARC;n++)step_route();
  assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_ARC && app()->route.task3.leg==3);
  /* The diagonal still has independent runaway-distance and heading guards. */
@@ -346,11 +346,17 @@ int main(void)
   else app()->heading.angle+=60;
   step(10,0,0);assert(app()->runtime.state!=RUNNING && a==0 && b==0 && signals==before);
  }
- /* Both turns must remain halted while wheels still move or yaw leaves tolerance. */
- seek_start(3);reach_phase(T3_ALIGN_SETTLE);uint32_t turn_start=app()->route.task3.phase_ms;
- for(unsigned n=0;n<10;n++){step(10,177,176);assert(app()->route.task3.phase==T3_ALIGN_SETTLE && a==0 && b==0);}
- app()->heading.angle=CarMath_WrapDegrees(app()->heading.reference+5);step(10,0,0);
- assert(app()->route.task3.phase==T3_ALIGN && app()->route.task3.phase_ms==turn_start && a==0 && b==0);
+ /* Vertex turns now roll on both wheels: moving wheels keep the turn, and only
+    the heading window ends it. The old stopped settle no longer exists here. */
+ seek_start(3);reach_phase(T3_ROLL_TURN);step(10,0,0);
+ assert(app()->route.task3.phase==T3_ROLL_TURN && a>0 && b<0);
+ assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+ uint32_t turn_start=app()->route.task3.phase_ms;float goal=app()->heading.reference;
+ for(unsigned n=0;n<10;n++){step(10,0,0);assert(app()->route.task3.phase==T3_ROLL_TURN && a>0 && b<0);}
+ app()->heading.angle=CarMath_WrapDegrees(goal+5);step(10,0,0);
+ assert(app()->route.task3.phase==T3_ROLL_TURN && app()->route.task3.phase_ms==turn_start && a>0 && b<0);
+ app()->heading.angle=goal;step(10,0,0);
+ assert(app()->runtime.state==RUNNING && app()->route.task3.phase==T3_CAPTURE);
  /* Transient all-white arc interval bridges slowly while preserving valid=false and fixed budgets. */
  for(unsigned task=3;task<=4;task++) {
   seek_arc(task);uint32_t start=app()->route.start_ms;float origin=app()->route.task3.leg_start_mm;

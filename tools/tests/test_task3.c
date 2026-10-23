@@ -51,6 +51,13 @@ static void step_route(void)
   if(app()->route.targets[1]>0)dr=176;
   break;
  }
+ case T3_ROLL_TURN: {
+  /* Both wheels keep rolling forward; yaw follows the commanded wheel-speed difference. */
+  app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+
+    (app()->route.targets[1]-app()->route.targets[0])*.01f/140*57.2957795131f);
+  dl=(int)(app()->route.targets[0]*2.94f);dr=(int)(app()->route.targets[1]*2.94f);
+  break;
+ }
  case T3_CAPTURE: line_inputs=9;break;
  case T3_VERTEX_SEEK: line_inputs=p>=t->diagonal_mm?9:15;break;
  default: break;
@@ -87,6 +94,8 @@ static uint32_t target_follow_lap(int prior_profile)
      (t->leg==1U?fminf(p/t->config.arc_mm,1)*180:180-fminf(p/t->config.arc_mm,1)*180));
   } else if(t->phase==T3_CAPTURE) line_inputs=9;
   else if(t->phase==T3_VERTEX_SEEK) line_inputs=p>=t->diagonal_mm?9:15;
+  else if(t->phase==T3_ROLL_TURN)
+   app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+(app()->route.targets[1]-app()->route.targets[0])*.01f/140*57.2957795131f);
   else if(t->phase==T3_ALIGN || t->phase==T3_START_ALIGN)
    app()->heading.angle=CarMath_WrapDegrees(app()->heading.angle+(app()->route.targets[1]-app()->route.targets[0])*.01f/140*57.2957795131f);
   int counts[2];
@@ -136,8 +145,8 @@ int CAR_TASK3_TEST_MAIN(void)
  assert(app()->runtime.state==DONE && app()->route.task3.phase==T3_DONE && signals==5 && a==0 && b==0);
  assert(app()->route.elapsed_ms<40000 && app()->route.leg==3U && rp[0]==wp[0] && wp[1]==0);
  for(unsigned i=0;i<50;i++)step(10,0,0);
- assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 ARC21")==0);
- assert(strcmp(oled_lines[3],"TC 1023-1022 ARC21")==0);
+ assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 ARC22")==0);
+ assert(strcmp(oled_lines[3],"TC 1023-1056 ARC22")==0);
  assert(strstr(oled_lines[2],"DONE DA T"));for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
  /* Task-specific faster schedule, with unchanged half-circle speed/deadline. */
  assert(CarRoute_Task3Config().diagonal_mmps==400 && CarRoute_Task3Config().arc_mmps==200);
@@ -217,9 +226,12 @@ int CAR_TASK3_TEST_MAIN(void)
  task3_start();reach_phase(T3_CAPTURE);line_inputs=13;
  app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.task3.phase_start_mm+61;
  step(10,0,0);assert(app()->runtime.state==LINE_BAD && app()->route.task3.fault==T3_EDGE && a==0 && b==0);
- /* Turns bypass the legacy 20deg heading trip, zero wheel clears old integral. */
- task3_start();reach_phase(T3_ALIGN);app()->wheel.items[0].integral=1700;step(10,0,0);
- assert(app()->runtime.state==RUNNING && app()->route.targets[0]==0 && app()->wheel.items[0].integral==0 && b==0 && a>0);
+ /* Startup single-wheel turn keeps its zero inner target and clears the old integral.
+    Vertex turns now roll on both wheels, so their inner target is never zero. */
+ task3_start();reach_phase(T3_START_ALIGN);app()->wheel.items[1].integral=1700;step(10,0,0);
+ assert(app()->runtime.state==RUNNING && app()->route.targets[1]==0 && app()->wheel.items[1].integral==0 && a==0 && b<0);
+ task3_start();reach_phase(T3_ROLL_TURN);step(10,0,0);
+ assert(app()->runtime.state==RUNNING && app()->route.targets[0]>0 && app()->route.targets[1]>0 && b<0 && a>0);
  /* D capture uses the same line feedback without reversing either wheel. */
  task3_start();for(unsigned i=0;i<3500&&app()->runtime.state==RUNNING && !(app()->route.task3.phase==T3_CAPTURE && app()->route.task3.leg==3U);i++)step_route();
  assert(app()->route.task3.phase==T3_CAPTURE && app()->route.task3.leg==3U);
@@ -286,7 +298,8 @@ int CAR_TASK3_TEST_MAIN(void)
  task3_start();reach_phase(T3_ARC);line_inputs=15;
  for(unsigned i=0;i<11;i++)step(10,0,0);
  assert(app()->runtime.state==LINE_LOST && app()->route.task3.fault==T3_LOST && a==0 && b==0);
- task3_start();reach_phase(T3_ALIGN);app()->route.task3.phase_start_mm=-100;step(10,0,0);
+ task3_start();reach_phase(T3_ROLL_TURN);
+ app()->route.task3.phase_start_mm-=2*app()->route.task3.config.turn_travel_limit_mm+1;step(10,0,0);
  assert(app()->runtime.state==YAW_BAD && app()->route.task3.fault==T3_TURN && a==0 && b==0);
  task3_start();app()->route.start_ms=ms-40000U;step(10,0,0);
  assert(app()->runtime.state==TIMEOUT && app()->route.task3.fault==T3_TIMEOUT && a==0 && b==0);

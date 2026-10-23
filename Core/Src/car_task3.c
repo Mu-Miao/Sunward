@@ -40,6 +40,9 @@ static int config_valid(const CarTask3Config *c)
         !positive(c->start_mmps) || !positive(c->acceleration_mmps2) ||
         !positive(c->arc_acceleration_mmps2) ||
         !positive(c->turn_mmps) || !positive(c->capture_mmps) ||
+        !positive(c->roll_turn_mmps) || !positive(c->roll_turn_diff_mmps) ||
+        c->roll_turn_diff_mmps >= c->roll_turn_mmps ||
+        !positive(c->roll_turn_gain) || c->roll_turn_gain > 20.0f ||
         !positive(c->entry_window_mm) || !positive(c->exit_window_mm) ||
         !positive(c->turn_travel_limit_mm) || !positive(c->capture_limit_mm) ||
         !positive(c->approach_mm) || !positive(c->minimum_mmps) ||
@@ -145,7 +148,9 @@ static void leave_diagonal(CarTask3 *r, const CarTask3Input *i,
     CarTask3Output *o)
 {
     o->signal_point = r->leg == 0U ? T3_POINT_C : T3_POINT_D;
-    phase(r, T3_VERTEX_BRAKE, i, o);
+    /* 顶点不再制动到零：先切到下一段，再以低速滚动差速转过该顶点转角。 */
+    ++r->leg;
+    phase(r, T3_ROLL_TURN, i, o);
 }
 static float diagonal_heading(const CarTask3 *r)
 {
@@ -258,6 +263,7 @@ CarTask3Config CarTask3_DefaultConfig(void)
         .span_mm=1000.0f, .radius_mm=400.0f, .arc_mm=1256.0f, .track_width_mm=160.0f, .start_from_ab=1U,
         .diagonal_mmps=200.0f, .arc_mmps=200.0f, .start_mmps=50.0f,
         .acceleration_mmps2=100.0f, .arc_acceleration_mmps2=100.0f, .turn_mmps=60.0f, .capture_mmps=50.0f,
+        .roll_turn_mmps=100.0f, .roll_turn_diff_mmps=60.0f, .roll_turn_gain=6.0f,
         .entry_window_mm=120.0f, .exit_window_mm=200.0f,
         .turn_travel_limit_mm=80.0f, .capture_limit_mm=60.0f,
         .approach_mm=150.0f, .minimum_mmps=40.0f,
@@ -343,7 +349,11 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             r->lost_seen = 0U;
             if (stable(r, 1, i->now_ms)) {
                 if (r->leg == 3U) phase(r, T3_FINAL_BRAKE, i, o);
-                else { o->signal_point = T3_POINT_B; phase(r, T3_VERTEX_BRAKE, i, o); }
+                else {
+                    o->signal_point = T3_POINT_B;
+                    ++r->leg;
+                    phase(r, T3_ROLL_TURN, i, o);
+                }
             } else {
                 /* 弧线出口确认期低速沿切线前进，避免每个出口固定卡30ms。 */
                 o->control = T3_HOLD_HEADING;
@@ -417,6 +427,31 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                     }
                 }
             }
+        }
+    } else if (r->phase == T3_ROLL_TURN) {
+        /* 低速滚动差速转向：两轮都保持前进，用左右轮速差转过顶点。
+           误差大时饱和到最大半差，进入约 9 度后按比例收敛；不做停车确认。 */
+        float target = align_heading(r);
+        float error = wrap(target - i->yaw_deg);
+        if ((uint32_t)(i->now_ms - r->phase_ms) >= r->config.align_timeout_ms ||
+            phase_travel > 2.0f * r->config.turn_travel_limit_mm) fault(r, T3_TURN);
+        else if (fabsf(error) <= align_tolerance(r)) {
+            o->reset_controllers = 1U;
+            if (r->leg & 1U) phase(r, T3_CAPTURE, i, o);
+            else {
+                phase(r, T3_DIAGONAL, i, o);
+                r->leg_start_mm = i->distance_mm;
+            }
+        } else {
+            float diff = clampf(r->config.roll_turn_gain * error,
+                -r->config.roll_turn_diff_mmps, r->config.roll_turn_diff_mmps);
+            float inner = fmaxf(r->config.roll_turn_mmps - fabsf(diff), 0.0f);
+            float outer = r->config.roll_turn_mmps + fabsf(diff);
+            o->control = T3_ROLL_DRIVE;
+            o->heading_deg = target;
+            o->base_mmps = r->config.roll_turn_mmps;
+            o->left_mmps = error < 0.0f ? outer : inner;
+            o->right_mmps = error > 0.0f ? outer : inner;
         }
     } else if (r->phase == T3_VERTEX_SEEK) {
         float tangent = wrap(r->start_heading_deg + r->diagonal_angle_deg + (r->leg == 2U ? 180.0f : 0.0f));
