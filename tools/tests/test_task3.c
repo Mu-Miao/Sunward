@@ -136,11 +136,11 @@ int CAR_TASK3_TEST_MAIN(void)
  assert(app()->runtime.state==DONE && app()->route.task3.phase==T3_DONE && signals==5 && a==0 && b==0);
  assert(app()->route.elapsed_ms<40000 && app()->route.leg==3U && rp[0]==wp[0] && wp[1]==0);
  for(unsigned i=0;i<50;i++)step(10,0,0);
- assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 ARC20")==0);
- assert(strcmp(oled_lines[3],"TC 1022-2037 ARC20")==0);
+ assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 ARC21")==0);
+ assert(strcmp(oled_lines[3],"TC 1023-1022 ARC21")==0);
  assert(strstr(oled_lines[2],"DONE DA T"));for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
  /* Task-specific faster schedule, with unchanged half-circle speed/deadline. */
- assert(CarRoute_Task3Config().diagonal_mmps==410 && CarRoute_Task3Config().arc_mmps==200);
+ assert(CarRoute_Task3Config().diagonal_mmps==400 && CarRoute_Task3Config().arc_mmps==200);
  assert(CarRoute_Task3Config().turn_mmps==100 && CarRoute_Task3Config().capture_mmps==50);
  assert(CarRoute_Task3Config().deadline_ms==40000U);
  uint32_t old_schedule=target_follow_lap(1),new_schedule=target_follow_lap(0);

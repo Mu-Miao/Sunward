@@ -8,8 +8,8 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 ARC20")==0);
- assert(strcmp(oled_lines[3],"TC 1022-2037 ARC20")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 ARC21")==0);
+ assert(strcmp(oled_lines[3],"TC 1023-1022 ARC21")==0);
 }
 static void task4_start(void)
 {
@@ -79,7 +79,7 @@ static void robust_regression(void)
  CarTask3Config c=CarTask4_Config();
  assert(c.lost_ms==200U && c.recovery_ms==30U);
  assert(c.arc_acceleration_mmps2==100);
- assert(c.diagonal_mmps==410 && c.arc_mmps==220 && CarTask3_ConfigValid(&c));
+ assert(c.diagonal_mmps==400 && c.arc_mmps==220 && CarTask3_ConfigValid(&c));
  assert(CarRoute_Task3Config().lost_ms==100U && CarRoute_Task3Config().recovery_ms==30U);
  /* The arc correction stays positive and below the unchanged 220mm/s arc target;
     outer-probe slowdown is independently retained below. */
