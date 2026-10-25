@@ -114,6 +114,7 @@ def main():
     assert eof==1 and min(memory)==0x08000000 and max(memory)<0x08040000
     image=bytes(memory.get(a,255) for a in range(min(memory),max(memory)+1))
     assert b'TASK 4 V19 EDGE' in image and b'TASK 3 V3 GYRO' in image
+    assert b'TASK 2 V22 T4LINE' in image and b'FW=T2V22' in image
     assert 0x20000000 < int.from_bytes(image[:4], 'little') <= 0x2000C000
     reset=int.from_bytes(image[4:8], 'little')
     assert reset & 1 and 0x08000000 <= (reset & ~1) < 0x08040000
@@ -121,6 +122,16 @@ def main():
         'base_commit':'f2802b6bf4152c0142424c0d71640e7091490cd5',
         'task4_title':'TASK 4 V19 EDGE', 'units_compiled':len(SOURCES),
         'diagonal_mmps':270, 'arc_mmps':240, 'entry_mmps':50, 'task4_max_cmd':2200,
+        'task2_title':'TASK 2 V22 T4LINE', 'task2_fw_tag':'T2V22',
+        'task2_straight_mmps':270, 'task2_arc_mmps':240, 'task2_max_cmd':2200,
+        'task2_edge_follow_mmps':70, 'task2_edge_follow_diff_mmps':50,
+        'task2_edge_follow_entry':'capture-at-arc-entry', 'task2_edge_follow_exit_ms':60,
+        'task2_edge_follow_min_ms':200, 'task2_edge_follow_capture_mmps':50,
+        'task2_edge_follow_seek_mmps':40, 'task2_edge_follow_white_ms':500,
+        'task2_edge_follow_white_mm':20, 'task2_edge_follow_white_deg':12,
+        'task2_edge_follow_gap_mm':35, 'task2_edge_follow_gap_deg':18,
+        'task2_edge_follow_recovery_ms':30, 'task2_edge_follow_accel_mmps2':100,
+        'task2_edge_follow_bounds':'120mm/2500ms/45deg',
         'preview':'first valid C/D candidate inside original window; 30ms point confirmation',
         'edge_follow':True, 'edge_follow_mmps':70, 'edge_follow_diff_mmps':50,
         'edge_follow_mm':120, 'edge_follow_ms':2500, 'edge_follow_deg':45,

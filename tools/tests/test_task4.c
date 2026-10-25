@@ -185,16 +185,16 @@ static void pwm22_straight(void)
 
 static void output_limit_regression(void)
 {
- assert(DPT_MAX_CMD==1800 && DPT_TASK4_MAX_CMD==2200 && DPT_MANUAL_MAX_CMD==3000);
+ assert(DPT_MAX_CMD==1800 && DPT_TASK4_MAX_CMD==2200 && DPT_TASK2_MAX_CMD==2200 && DPT_MANUAL_MAX_CMD==3000);
  assert(CarWheel_ConfigValid());
- /* Exercise every existing mode: the new cap must not leak into Task1/2/3
-    or change the separate manual limits. Both PI outputs saturate here. */
+ /* Exercise every existing mode: the raised caps must not leak into
+    Task1/3/line or change the separate manual limits. Both PI outputs saturate here. */
  task4_start();
  const Motion modes[]={MOVE_TEST,MOVE_HEADING,MOVE_DISTANCE,MOVE_ROUTE,MOVE_LINE,
   MOVE_TASK2,MOVE_TASK3,MOVE_TASK4,MOVE_FORWARD,MOVE_BACK,MOVE_LEFT,MOVE_RIGHT};
  for(unsigned n=0;n<sizeof modes/sizeof modes[0];n++) {
   app()->route.motion=modes[n];CarWheel_Clear(app());
-  int expected=n<7?1800:(n==7?2200:3000);
+  int expected=(n==5||n==7)?2200:(n<8?1800:3000);
   for(unsigned w=0;w<2;w++) {
    app()->route.targets[w]=270;app()->wheel.items[w].velocity=60;
    CarWheel_Control(app(),w,.01f);

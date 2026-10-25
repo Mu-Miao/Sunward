@@ -110,6 +110,27 @@ typedef struct {
     uint32_t elapsed_ms;
     float leg_start;
     float start_heading;
+    uint8_t edge_follow;      /* 弧段已进入最外侧单探头低速跟随。 */
+    uint8_t edge_follow_pending; /* 弧入口已捕线，本拍立即进入低速跟随。 */
+    uint8_t edge_follow_exit_seen;
+    uint8_t edge_follow_resume; /* 退出后按斜坡提回弧段速度。 */
+    uint8_t edge_follow_valid;  /* 本弧已见过有效线，全白桥接的前提。 */
+    uint8_t edge_follow_outer;  /* 本弧见过最外侧单探头。 */
+    uint8_t edge_follow_side;   /* 本弧见过任一单探头。 */
+    uint8_t edge_follow_lost;   /* 已进入弧内失线状态。 */
+    uint8_t edge_follow_loss_seek; /* 全白且本弧有有效历史，允许桥接。 */
+    uint8_t edge_follow_gap_seek;  /* DA 外侧/历史单探头空档，扩大桥接边界。 */
+    uint8_t edge_follow_recovery;  /* 恢复需连续有效线的确认。 */
+    uint32_t edge_follow_ms;
+    uint32_t edge_follow_exit_ms;
+    uint32_t edge_follow_resume_ms;
+    uint32_t edge_follow_lost_ms;
+    uint32_t edge_follow_recovery_ms;
+    float edge_follow_start_mm;
+    float edge_follow_yaw;
+    float edge_follow_lost_mm;
+    float edge_follow_lost_yaw;
+    float edge_follow_diff;
     CarTask3 task3;
     CarTask4 task4;
     struct {

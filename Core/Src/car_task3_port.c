@@ -145,11 +145,7 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         /* 只在已确认的换段/首次低速确认时缩减降速轮积分。
            防止直线大积分带进低速转向；不增加积分、不发零驱动，
            不重置反向/堵转计时。后续每拍仍由原PI和保护处理。 */
-        for (unsigned w = 0; w < 2U; ++w) {
-            float target = app->route.targets[w], previous = previous_targets[w];
-            if (target > 0.0f && target < previous)
-                app->wheel.items[w].integral *= target / previous;
-        }
+        CarWheel_Retarget(app, previous_targets);
     }
     if (app->runtime.state == RUNNING && o->signal_point != T3_NO_POINT) {
         app->signal.ms = now;
