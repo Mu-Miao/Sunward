@@ -1,0 +1,3 @@
+# Preserve firmware bytes and validation logs for SHA256 checks.
+firmware/* binary
+validation/*.log -text whitespace=-blank-at-eof

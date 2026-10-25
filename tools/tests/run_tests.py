@@ -8,6 +8,8 @@ import tempfile
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--project', type=Path, default=Path(__file__).resolve().parents[2])
+suites = ['motion', 'task2', 'task3', 'task4', 'seek', 'turn', 'heading', 'entry', 'continuous', 'preview', 'edge']
+parser.add_argument('--suite', action='append', choices=suites, help='Run selected suites; defaults to all')
 parser.add_argument('--sanitize', action='store_true', help='Enable ASan and UBSan')
 args = parser.parse_args()
 root = args.project.resolve()
@@ -21,7 +23,7 @@ flags = [os.environ.get('CC', 'cc'), '-std=c11', '-Wall', '-Wextra', '-Werror',
 if args.sanitize:
     flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
 with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
-    for suite in ['motion', 'task2', 'task3', 'task4', 'seek', 'turn', 'heading']:
+    for suite in args.suite or suites:
         for public in [False, True]:
             name = suite + ('_car_app' if public else '_legacy_api')
             binary = str(Path(folder) / name)
@@ -38,4 +40,4 @@ with tempfile.TemporaryDirectory(prefix='sunward-host-tests-') as folder:
                 print(result.stdout + result.stderr, flush=True)
                 result.check_returncode()
             print(name + ': ' + result.stdout.strip())
-print('PASS: motion/task2/task3/task4/seek/turn/heading regressions; CarApp and compatibility APIs; separate module linkage.')
+print('PASS: ' + '/'.join(args.suite or suites) + ' regressions; CarApp and compatibility APIs; separate module linkage.')

@@ -95,7 +95,7 @@ STATES = ['IDLE', 'RUNNING', 'DONE', 'OFF', 'LOW', 'ADC_BAD', 'GAP', 'REVERSE',
           'FAST', 'STALL', 'UART_BAD', 'STOPPED', 'YAW_BAD', 'BRAKING', 'TIMEOUT',
           'SETTLE_BAD', 'LINE_LOST', 'LINE_BAD']
 PHASES = ['IDLE', 'DIAGONAL', 'VERTEX_BRAKE', 'ALIGN', 'CAPTURE', 'ARC', 'FINAL_BRAKE',
-          'DONE', 'FAULT', 'START_ALIGN', 'START_SETTLE', 'ALIGN_SETTLE', 'VERTEX_SEEK']
+          'DONE', 'FAULT', 'START_ALIGN', 'START_SETTLE', 'ALIGN_SETTLE', 'VERTEX_SEEK', 'ARC_ENTRY']
 
 
 def select(d, names):
@@ -110,7 +110,8 @@ def summarize(d):
         'heading': select(d['heading'], 'phase angle reference error gyro_angle bias bias_rate fusion_active fusion_learning wheel_rate samples io_us'),
         'line': select(d['line'], 'raw valid count error sample_ms'),
         'route': select(r, 'motion distance_mm targets base elapsed_ms start_ms'),
-        'task3': select(t, 'phase fault leg start_heading_deg leg_start_mm phase_start_mm phase_ms lost_seen loss_seek gap_seek loss_limits loss_duration_ms loss_distance_mm loss_turn_deg'),
+        'task3': select(t, 'phase fault leg start_heading_deg leg_start_mm phase_start_mm phase_ms lost_seen loss_seek gap_seek loss_limits loss_duration_ms loss_distance_mm loss_turn_deg') |
+                 {k: t[k] for k in ('entry_yaw_deg', 'entry_diff_mmps', 'edge_follow_active', 'resume_start_mmps') if k in t},
         'phase_name': PHASES[t['phase']] if t['phase'] < len(PHASES) else 'UNKNOWN',
         'task4': r['task4'],
         'wheel': [select(w, 'velocity command integral bad_sign_us') for w in d['wheel']['items']],

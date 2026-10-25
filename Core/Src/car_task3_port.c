@@ -10,6 +10,7 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
     i.sample_age_ms = (uint32_t)(now - app->line.sample_ms);
     i.distance_mm = (app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f;
     i.yaw_deg = app->heading.angle;
+    i.line_error = app->line.error;
     i.left_mmps = app->wheel.items[LEFT].velocity;
     i.right_mmps = app->wheel.items[RIGHT].velocity;
     i.heading_ready = app->heading.phase == Y_READY;
@@ -26,6 +27,7 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
 
 void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t now)
 {
+    float previous_targets[2] = {app->route.targets[LEFT], app->route.targets[RIGHT]};
     app->route.targets[LEFT] = app->route.targets[RIGHT] = 0.0f;
     /* 整车已锁存故障时，之前计算的运动输出不得重新使电机启动。 */
     if (app->runtime.state != RUNNING) {
@@ -50,22 +52,55 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         app->route.targets[LEFT] = o->left_mmps;
         app->route.targets[RIGHT] = o->right_mmps;
         /* 任务三、四接近目标角时降低外轮速度，减少不同车架惯性导致的过冲。
-           仍按陀螺仪确认角度，并保留原时间、距离及内轮零目标保护。 */
+           仍按陀螺仪确认角度；任务四连续模式保留正内轮与最小差速。 */
         if (CarMotion_IsFigureEight(app->route.motion)) {
             float slow = app->route.motion == MOVE_TASK4 ? DPT_TASK4_TURN_SLOW_DEG : DPT_TASK3_TURN_SLOW_DEG;
             float floor = app->route.motion == MOVE_TASK4 ? DPT_TASK4_TURN_MIN_MMPS : DPT_TASK3_TURN_MIN_MMPS;
             float scale = fminf(1.0f, fabsf(app->heading.error) / slow);
-            for (unsigned w = 0; w < 2U; ++w)
+            if (app->route.motion == MOVE_TASK4 && app->route.task3.config.continuous_motion) {
+                unsigned outer = app->route.targets[LEFT] > app->route.targets[RIGHT] ? LEFT : RIGHT;
+                unsigned inner = 1U - outer;
+                /* 内轮保持20；外轮最低55，保留原35mm/s最小差速。 */
+                app->route.targets[outer] = fminf(app->route.targets[outer],
+                    fmaxf(floor + app->route.targets[inner], app->route.targets[outer] * scale));
+            } else for (unsigned w = 0; w < 2U; ++w)
                 if (app->route.targets[w] > 0.0f)
                     app->route.targets[w] = fminf(app->route.targets[w],
                         fmaxf(floor, app->route.targets[w] * scale));
             app->route.base = (app->route.targets[LEFT] + app->route.targets[RIGHT]) * 0.5f;
         }
+    } else if (o->control == T3_ENTER_ARC) {
+        /* 仅任务四捕线后的受限入弧；保留轮速 PI，不使用固定 PWM。 */
+        const CarTask3 *t = &app->route.task3;
+        if (app->route.motion != MOVE_TASK4 || t->phase != T3_ARC_ENTRY ||
+            !t->config.arc_entry_ms || (!app->line.valid && (app->line.count || !t->loss_seek))) {
+            app->runtime.drive(0, 0); CarWheel_Clear(app); return;
+        }
+        float base = fminf(o->base_mmps, 50.0f);
+        float diff = (o->left_mmps - o->right_mmps) * 0.5f;
+        float limit = base * 0.4f;
+        diff = fmaxf(-limit, fminf(limit, diff));
+        app->route.targets[LEFT] = base + diff; app->route.targets[RIGHT] = base - diff;
+        app->route.base = base; app->line.diff = diff;
+    } else if (o->control == T3_EDGE_FOLLOW) {
+        const CarTask3 *t = &app->route.task3;
+        if (app->route.motion != MOVE_TASK4 || t->phase != T3_ARC ||
+            !t->config.edge_follow || !t->edge_follow_active || !t->arc_valid_seen ||
+            (!app->line.valid && (app->line.count || !t->loss_seek)) ||
+            (t->lost_seen && !t->loss_seek)) {
+            app->runtime.drive(0, 0); CarWheel_Clear(app); return;
+        }
+        float base = fminf(o->base_mmps, t->config.edge_follow_mmps);
+        if (t->lost_seen) base = fminf(base, t->config.capture_mmps);
+        float limit = fminf(t->config.edge_follow_diff_mmps, fmaxf(0.0f, base - t->config.turn_inner_mmps));
+        float diff = fmaxf(-limit, fminf(limit, (o->left_mmps - o->right_mmps) * 0.5f));
+        app->route.targets[LEFT] = base + diff; app->route.targets[RIGHT] = base - diff;
+        app->route.base = base; app->line.diff = diff;
     } else if (o->control == T3_SEEK_LINE) {
-        /* 仅核心已授权的弧段全白桥接；不调用正常巡线接口，也不伪造 valid。 */
+        /* 仅核心已授权的弧段桥接及移动恢复确认；不伪造 valid，不续期预算。 */
         if (app->route.task3.phase != T3_ARC || !app->route.task3.loss_seek ||
             !app->route.task3.arc_valid_seen || !app->route.task3_trace.valid_seen ||
-            app->line.valid || app->line.count != 0U) {
+            (app->line.valid ? !(app->route.task3.config.continuous_motion && app->route.task3.lost_seen) : app->line.count != 0U)) {
             app->runtime.drive(0, 0); CarWheel_Clear(app); return;
         }
         float base = fminf(o->base_mmps, 50.0f);
@@ -103,6 +138,14 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         app->heading.reference = o->heading_deg; app->heading.error = heading;
     } else if (o->control == T3_FOLLOW_LINE) {
         CarLine_SetTargets(app, now, o->base_mmps);
+    }
+    if (app->runtime.state == RUNNING && app->route.motion == MOVE_TASK4 &&
+        app->route.task3.config.continuous_motion && o->retarget_integrals &&
+        !o->reset_controllers && o->control != T3_HALT) {
+        /* 只在已确认的换段/首次低速确认时缩减降速轮积分。
+           防止直线大积分带进低速转向；不增加积分、不发零驱动，
+           不重置反向/堵转计时。后续每拍仍由原PI和保护处理。 */
+        CarWheel_Retarget(app, previous_targets);
     }
     if (app->runtime.state == RUNNING && o->signal_point != T3_NO_POINT) {
         app->signal.ms = now;

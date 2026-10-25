@@ -28,9 +28,9 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             state_text = wheel_state;
         }
         const char *title = "TASK 1 A->B";
-        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V11 FAST";
+        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V19 EDGE";
         else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V3 GYRO";
-        else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 ONE LAP";
+        else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 V22 T4LINE";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
         else if (app->route.motion == MOVE_DISTANCE) title = "TEST GO20";
         else if (app->route.motion == MOVE_HEADING) title = "TEST GO";
@@ -46,7 +46,8 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) {
             static const char *const legs[] = {"AB", "BC", "CD", "DA"};
             uint32_t elapsed = app->runtime.state == RUNNING || app->runtime.state == BRAKING ? (uint32_t)(now - app->route.start_ms) : app->route.elapsed_ms;
-            (void)snprintf(run, sizeof run, "%s %s T%lu.%lus", state_text, legs[app->route.leg],
+            (void)snprintf(run, sizeof run, "%s %s T%lu.%lus", state_text,
+                app->route.edge_follow ? "EDGE" : legs[app->route.leg],
                 (unsigned long)(elapsed / 1000U), (unsigned long)((elapsed / 100U) % 10U));
         }
         if (CarMotion_IsFigureEight(app->route.motion) || (app->route.motion == MOVE_NONE && CarMotion_IsFigureEight(app->button.selected_motion))) {
@@ -55,7 +56,9 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
                 (app->route.task3.phase == T3_START_SETTLE ? "WAIT A" :
                  (app->route.task3.phase == T3_ALIGN_SETTLE ? "WAIT" :
                   (app->route.task3.phase == T3_VERTEX_SEEK ? (app->route.task3.leg == 0U ? "SEEK C" : "SEEK D") :
-                   (app->route.task3.loss_seek ? "SEEK" : CarTask3_LegName(&app->route.task3)))));
+                   (app->route.task3.edge_follow_active ? "EDGE" :
+                   (app->route.task3.phase == T3_ARC_ENTRY ? "ENTRY" :
+                    (app->route.task3.loss_seek ? "SEEK" : CarTask3_LegName(&app->route.task3)))))));
             if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) {
                 unsigned lap = app->route.task4.completed_laps + 1U;
                 if (lap > DPT_TASK4_LAPS) lap = DPT_TASK4_LAPS;
@@ -79,7 +82,9 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             if (page == 0U) {
                 const char *source = app->route.edge_trace.phase == T3_VERTEX_SEEK ? "SEEK" :
                     (app->route.edge_trace.phase == T3_CAPTURE ? "CAP" :
-                     (app->route.edge_trace.phase == T3_DIAGONAL ? "DIAG" : "ARC"));
+                     (app->route.edge_trace.phase == T3_ARC_ENTRY ? "ENTRY" :
+                      (app->route.edge_trace.phase == T3_DIAGONAL ? "DIAG" :
+                       (app->route.task3.edge_follow_active ? "EDGE" : "ARC"))));
                 const char *limit = app->route.edge_trace.limits == T3_LOSS_TIME ? "TIME" :
                     (app->route.edge_trace.limits == T3_LOSS_DISTANCE ? "DIST" : "MULTI");
                 (void)snprintf(cal, sizeof cal, "%s %s %s", CarTask3_LegName(&app->route.task3), source, limit);
@@ -165,11 +170,14 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
     if ((!enabled || app->button.selected_motion == MOVE_LINE || app->route.motion == MOVE_LINE || app->button.selected_motion == MOVE_TASK2 || app->route.motion == MOVE_TASK2 || CarMotion_IsFigureEight(app->button.selected_motion) || CarMotion_IsFigureEight(app->route.motion)) && (uint32_t)(now - app->ui.line_log_ms) >= 1000U) {
         char msg[128];
         int n;
-        if (app->button.selected_motion == MOVE_LINE || app->route.motion == MOVE_LINE || app->button.selected_motion == MOVE_TASK2 || app->route.motion == MOVE_TASK2 || CarMotion_IsFigureEight(app->button.selected_motion) || CarMotion_IsFigureEight(app->route.motion))
-            n = snprintf(msg, sizeof msg, "LINE RAW=%u%u%u%u E100=%d C=%d VALID=%u CENTER=%u MODE=%s SEG=%u\r\n",
+        if (app->button.selected_motion == MOVE_LINE || app->route.motion == MOVE_LINE || app->button.selected_motion == MOVE_TASK2 || app->route.motion == MOVE_TASK2 || CarMotion_IsFigureEight(app->button.selected_motion) || CarMotion_IsFigureEight(app->route.motion)) {
+            const char *fw = app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK2 ? " FW=T2V22" : "";
+            n = snprintf(msg, sizeof msg, "LINE RAW=%u%u%u%u E100=%d C=%d VALID=%u CENTER=%u MODE=%s SEG=%u EF=%u%s\r\n",
                 (unsigned)app->line.raw[0], (unsigned)app->line.raw[1], (unsigned)app->line.raw[2], (unsigned)app->line.raw[3],
                 CarMath_Round(app->line.error * 100.0f), CarMath_Round(app->line.diff), (unsigned)app->line.valid, (unsigned)app->line.center_ready,
-                app->route.motion == MOVE_TASK4 || app->button.selected_motion == MOVE_TASK4 ? "TASK4" : (CarMotion_IsFigureEight(app->route.motion) || CarMotion_IsFigureEight(app->button.selected_motion) ? "TASK3" : (app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK2 ? "TASK2" : "HALF")), (unsigned)app->route.leg);
+                app->route.motion == MOVE_TASK4 || app->button.selected_motion == MOVE_TASK4 ? "TASK4" : (CarMotion_IsFigureEight(app->route.motion) || CarMotion_IsFigureEight(app->button.selected_motion) ? "TASK3" : (app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK2 ? "TASK2" : "HALF")), (unsigned)app->route.leg,
+                (unsigned)app->route.edge_follow, fw);
+        }
         else n = snprintf(msg, sizeof msg, "LINE O1=%u O2=%u O3=%u O4=%u\r\n",
             (unsigned)app->line.raw[0], (unsigned)app->line.raw[1], (unsigned)app->line.raw[2], (unsigned)app->line.raw[3]);
         app->ui.line_log_ms = now;

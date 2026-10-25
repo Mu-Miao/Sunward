@@ -1,0 +1,3 @@
+# Preserve verified firmware bytes and logs.
+firmware/* binary
+validation/*.log -text whitespace=-blank-at-eof

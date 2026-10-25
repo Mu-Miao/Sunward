@@ -82,7 +82,12 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
         DPT_LINE_MAX_DIFF > DPT_LINE_CRUISE_MMPS * 0.5f ||
         DPT_LINE_TIMEOUT_MS < 1000U || DPT_LINE_TIMEOUT_MS > 60000U ||
         DPT_TASK2_STRAIGHT_MM != 1000.0f || DPT_TASK2_ARC_MM < 500.0f || DPT_TASK2_ARC_MM > 2500.0f ||
-        DPT_TASK2_STRAIGHT_MMPS < 40.0f || DPT_TASK2_STRAIGHT_MMPS > 250.0f ||
+        DPT_TASK2_STRAIGHT_MMPS < 40.0f || DPT_TASK2_STRAIGHT_MMPS > 300.0f ||
+        DPT_TASK2_ARC_MMPS < DPT_ROUTE_START_MMPS || DPT_TASK2_ARC_MMPS > 300.0f ||
+        DPT_TASK2_START_MMPS < DPT_ROUTE_START_MMPS || DPT_TASK2_START_MMPS > DPT_TASK2_ARC_MMPS ||
+        DPT_TASK2_ACCEL_MMPS2 <= 0.0f || DPT_TASK2_ACCEL_MMPS2 > 300.0f ||
+        DPT_TASK2_EDGE_MMPS < DPT_ROUTE_START_MMPS || DPT_TASK2_EDGE_MMPS > DPT_TASK2_ARC_MMPS ||
+        DPT_TASK2_MAX_CMD < DPT_MAX_CMD || DPT_TASK2_MAX_CMD > DPT_MANUAL_MAX_CMD ||
         DPT_TASK2_TIMEOUT_MS < 1000U || DPT_TASK2_TIMEOUT_MS > 60000U ||
         DPT_TASK2_ENTRY_WINDOW_MM < 50.0f || DPT_TASK2_ENTRY_WINDOW_MM > 250.0f ||
         DPT_TASK2_EXIT_WINDOW_MM < 50.0f || DPT_TASK2_EXIT_WINDOW_MM > 250.0f ||
@@ -263,7 +268,8 @@ void CarApp_Poll(uint32_t tick10_count)
                 if (app->runtime.state == RUNNING) {
                     if (tick10_count - app->runtime.old_tick != 1U || app->runtime.dt_us < 5000U || app->runtime.dt_us > 15000U)
                         CarApp_Stop(app, GAP, '-');
-                    else if (!app->route.switching && (!CarRoute_UsesLine(app) || app->line.valid)) {
+                    else if (!app->route.switching && (!CarRoute_UsesLine(app) || app->line.valid ||
+                        (app->route.motion == MOVE_TASK2 && app->route.edge_seen))) {
                         for (unsigned i = 0; i < 2U && app->runtime.state == RUNNING; ++i)
                             CarWheel_Control(app, i, seconds);
                         /* 两轮保护检查都通过后，才统一提交左右轮输出。 */

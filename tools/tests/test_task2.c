@@ -192,6 +192,15 @@ static void step(unsigned n,int dl,int dr){
  l.count=(l.count+dl)&65535U;r.count=(r.count-dr)&65535U;
  trace_poll(tick);
 }
+/* 按当前目标速度补编码器计数，避免长等待被 500ms 堵转保护误停。 */
+static void step_roll(void){
+ int counts[2];
+ for(unsigned w=0;w<2;w++){
+  float target=fabsf(CarApp_TestContext()->route.targets[w]);
+  counts[w]=(int)(target*.01f*(w?DPT_RIGHT_CPR:DPT_LEFT_CPR)/(DPT_CIRC_M*1000.0f)+.5f);
+ }
+ step(10,counts[0],counts[1]);
+}
 static void queue(unsigned c,const char*s){size_t n=strlen(s);assert(wp[c]+n<sizeof rx[c]);memcpy(rx[c]+wp[c],s,n);wp[c]+=(unsigned)n;}
 static void cmd(const char*s){queue(0,s);trace_poll(tick);}
 static void enable(void){off=0;for(int i=0;i<20;i++)step(10,0,0);}
@@ -201,6 +210,8 @@ static void release_key(void){key_input=0;for(int i=0;i<4;i++)step(10,0,0);}
 static void press_key(void){key_input=1;for(int i=0;i<4;i++)step(10,0,0);}
 
 static float progress(void){return (CarApp_TestContext()->route.distance_mm[0]+CarApp_TestContext()->route.distance_mm[1])*.5f-CarApp_TestContext()->route.leg_start;}
+static int ideal_counts;
+static float ideal_residue[2];
 static void hold(void){
  release_key();key_input=1;for(int i=0;i<154;i++)step(10,0,0);release_key();
  assert(a==0&&b==0&&CarApp_TestContext()->button.action==KEY_MODE&&CarApp_TestContext()->heading.phase!=Y_WARM&&CarApp_TestContext()->heading.phase!=Y_CAL);
@@ -225,16 +236,130 @@ static void endpoint(unsigned leg){
    CarApp_TestContext()->heading.angle=leg==0?CarApp_TestContext()->route.start_heading:CarMath_WrapDegrees(CarApp_TestContext()->route.start_heading+180);
    line_inputs=prog>=goal?9:15;
   }
-  step(10,610,610);
-  if(CarApp_TestContext()->route.edge_seen&&(leg%2))assert(a==0&&b==0&&CarApp_TestContext()->route.targets[0]==0&&CarApp_TestContext()->route.targets[1]==0);
+  if(ideal_counts){
+   int counts[2];
+   for(unsigned w=0;w<2;w++){
+    float target=fabsf(CarApp_TestContext()->route.targets[w]);
+    ideal_residue[w]+=target*.01f*(w?DPT_RIGHT_CPR:DPT_LEFT_CPR)/(DPT_CIRC_M*1000.0f);
+    counts[w]=(int)ideal_residue[w];ideal_residue[w]-=(float)counts[w];
+   }
+   step(10,counts[0],counts[1]);
+  }else step(10,610,610);
+  /* 出口桥接速度很低（捕线速度），两轮目标仍须前进；本测试的固定 610 计数
+     远高于桥接目标，PI 可能恰好输出 0，不能当作停车判据。 */
+  if(CarApp_TestContext()->route.edge_seen&&(leg%2))
+   assert(CarApp_TestContext()->route.targets[0]>0&&CarApp_TestContext()->route.targets[1]>0);
  }
  assert(leg==3?CarApp_TestContext()->runtime.state==BRAKING:CarApp_TestContext()->runtime.state==RUNNING);
  assert(CarApp_TestContext()->route.leg==(leg==3?3:leg+1));
 }
-static void fast_to_arc(void){task_start();endpoint(0);assert(CarRoute_IsArc(CarApp_TestContext()));}
+static void fast_to_arc(void){
+ task_start();endpoint(0);assert(CarRoute_IsArc(CarApp_TestContext()));
+ /* 入弧本拍已按任务四低速接管；喂中间双探头 200ms+60ms 后应提回常速。 */
+ for(int i=0;i<26;i++)step_roll();
+ assert(!CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->route.edge_follow_resume);
+}
+/* 停在“刚入弧、仍在低速跟随”的状态，用于跟随本身与边界测试。 */
+static void to_arc_entry(void){
+ task_start();
+ CarApp_TestContext()->route.start_ms=ms-5000U;
+ CarApp_TestContext()->route.distance_mm[0]=CarApp_TestContext()->route.distance_mm[1]=
+  CarApp_TestContext()->route.leg_start+DPT_TASK2_STRAIGHT_MM-10;
+ line_inputs=9;
+ for(int i=0;i<4;i++)step(10,0,0);
+ assert(CarApp_TestContext()->route.leg==1&&CarRoute_IsArc(CarApp_TestContext()));
+ assert(CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->route.base==DPT_TASK2_EDGE_FOLLOW_MMPS);
+}
 static void near_arc_end(void){
  fast_to_arc();CarApp_TestContext()->route.distance_mm[0]=CarApp_TestContext()->route.distance_mm[1]=CarApp_TestContext()->route.leg_start+DPT_TASK2_ARC_MM-10;
  CarApp_TestContext()->heading.angle=CarMath_WrapDegrees(CarApp_TestContext()->route.start_heading+180);
+}
+/* Continuous handoff must keep both wheels driving through the arc-exit debounce. */
+static void ideal_lap(void){
+ task_start();ideal_counts=1;ideal_residue[0]=ideal_residue[1]=0;
+ uint32_t began=CarApp_TestContext()->route.start_ms;
+ assert(CarApp_TestContext()->route.cruise==DPT_TASK2_STRAIGHT_MMPS);
+ endpoint(0);assert(CarApp_TestContext()->route.cruise==DPT_TASK2_ARC_MMPS);
+ endpoint(1);assert(CarApp_TestContext()->route.cruise==DPT_TASK2_STRAIGHT_MMPS);
+ endpoint(2);assert(CarApp_TestContext()->route.cruise==DPT_TASK2_ARC_MMPS);
+ endpoint(3);
+ for(int i=0;i<21;i++)step(10,0,0);
+ assert(CarApp_TestContext()->runtime.state==DONE&&CarApp_TestContext()->route.start_ms==began);
+ printf("IDEAL Task2 one lap: %lu ms; target-following/160mm track, not field acceptance.\n",(unsigned long)CarApp_TestContext()->route.elapsed_ms);
+ /* 验收上限 30 秒；理想目标跟随含每个弧 200ms 低速接管与 1.7 秒提速斜坡。 */
+ assert(CarApp_TestContext()->route.elapsed_ms<24000);
+ ideal_counts=0;
+}
+static void pwm_cap(void){
+ setup();
+ CarApp_TestContext()->route.motion=MOVE_TASK2;CarApp_TestContext()->route.targets[0]=300;
+ CarApp_TestContext()->wheel.items[0].velocity=0;CarApp_TestContext()->wheel.items[0].integral=0;
+ CarWheel_Control(CarApp_TestContext(),0,.01f);
+ assert(CarApp_TestContext()->wheel.items[0].command==DPT_TASK2_MAX_CMD);
+ CarApp_TestContext()->route.motion=MOVE_ROUTE;CarApp_TestContext()->wheel.items[0].integral=0;
+ CarWheel_Control(CarApp_TestContext(),0,.01f);
+ assert(CarApp_TestContext()->wheel.items[0].command==DPT_MAX_CMD);
+ assert(DPT_TASK2_MAX_CMD>DPT_MAX_CMD&&CarWheel_ConfigValid());
+}
+/* Entering a slower leg scales both integrals instead of clearing them. */
+static void retarget_regression(void){
+ task_start();
+ CarApp_TestContext()->route.start_ms=ms-5000U; /* past the Task2 ramp */
+ CarApp_TestContext()->route.distance_mm[0]=CarApp_TestContext()->route.distance_mm[1]=
+  CarApp_TestContext()->route.leg_start+DPT_TASK2_STRAIGHT_MM-10;
+ for(unsigned w=0;w<2;w++)CarApp_TestContext()->wheel.items[w].integral=1800;
+ line_inputs=9;
+ for(int i=0;i<4;i++)step(10,0,0);
+ assert(CarApp_TestContext()->route.leg==1&&CarApp_TestContext()->route.cruise==DPT_TASK2_ARC_MMPS);
+ for(unsigned w=0;w<2;w++){
+  assert(fabsf(CarApp_TestContext()->wheel.items[w].integral-1800.0f*DPT_TASK2_EDGE_FOLLOW_MMPS/DPT_TASK2_STRAIGHT_MMPS)<.01f);
+  assert(CarApp_TestContext()->wheel.items[w].command==DPT_TASK2_MAX_CMD);
+ }
+}
+/* Task4 parity: capture at arc entry takes over at 70mm/s at once, the
+   outermost probe pins +-50, all-white freezes it at 50mm/s, and a stable
+   inner line promotes back to the arc cruise. */
+static void edge_follow_port(void){
+ to_arc_entry();
+ line_inputs=7; /* 最左单探头：固定 -50 差速，两轮仍前进。 */
+ step_roll();
+ assert(CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->route.base==DPT_TASK2_EDGE_FOLLOW_MMPS);
+ assert(CarApp_TestContext()->route.targets[0]==DPT_TASK2_EDGE_FOLLOW_MMPS-DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS);
+ assert(CarApp_TestContext()->route.targets[1]==DPT_TASK2_EDGE_FOLLOW_MMPS+DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS);
+ line_inputs=15; /* 全白冻结 -50，降到捕线速度 50 并夹到内轮 20。 */
+ step_roll();
+ assert(CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->runtime.state==RUNNING);
+ assert(CarApp_TestContext()->route.base==DPT_TASK2_EDGE_FOLLOW_CAPTURE_MMPS);
+ assert(CarApp_TestContext()->route.targets[0]==DPT_TASK4_TURN_INNER_MMPS);
+ assert(CarApp_TestContext()->route.targets[1]==DPT_TASK2_EDGE_FOLLOW_CAPTURE_MMPS+
+  DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS-DPT_TASK4_TURN_INNER_MMPS);
+ for(int i=0;i<9;i++)step_roll(); /* 100ms，未到 500ms/20mm 桥接预算。 */
+ assert(CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->runtime.state==RUNNING);
+ line_inputs=9; /* 回中稳定：30ms 恢复 + 60ms 退出 + 200ms 最短跟随。 */
+ int ticks=0;
+ while(CarApp_TestContext()->route.edge_follow&&ticks++<40)step_roll();
+ assert(!CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->route.edge_follow_resume);
+ assert(CarApp_TestContext()->route.base>=DPT_TASK2_EDGE_FOLLOW_MMPS&&CarApp_TestContext()->route.base<DPT_TASK2_ARC_MMPS);
+ ticks=0;
+ while(CarApp_TestContext()->route.edge_follow_resume&&ticks++<250)step_roll();
+ assert(!CarApp_TestContext()->route.edge_follow_resume&&CarApp_TestContext()->route.base==DPT_TASK2_ARC_MMPS);
+ line_inputs=14; /* 已提回巡线后最右单探头只按 160 边缘降速，不再回到 70。 */
+ for(int i=0;i<10;i++)step_roll();
+ assert(!CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->runtime.state==RUNNING);
+ assert(CarApp_TestContext()->route.base==DPT_TASK2_EDGE_MMPS);
+ assert(CarApp_TestContext()->route.targets[0]==DPT_TASK2_EDGE_MMPS+DPT_LINE_MAX_DIFF*DPT_TASK2_EDGE_MMPS/DPT_LINE_CRUISE_MMPS);
+ assert(CarApp_TestContext()->route.targets[1]==DPT_TASK2_EDGE_MMPS-DPT_LINE_MAX_DIFF*DPT_TASK2_EDGE_MMPS/DPT_LINE_CRUISE_MMPS);
+}
+/* Task4 parity: outermost-only creep is bounded at 120mm and faults. */
+static void edge_follow_limit(void){
+ to_arc_entry();
+ line_inputs=7;
+ step_roll();
+ CarApp_TestContext()->route.distance_mm[0]=CarApp_TestContext()->route.distance_mm[1]=
+  CarApp_TestContext()->route.edge_follow_start_mm+DPT_TASK2_EDGE_FOLLOW_MM;
+ step_roll();
+ assert(CarApp_TestContext()->runtime.state==LINE_BAD&&CarApp_TestContext()->route.leg==1);
+ assert(!CarApp_TestContext()->route.edge_follow&&a==0&&b==0);
 }
 int main(void){
  /* Independent raw-pattern truth table retains the tuned LF polarity and signs. */
@@ -268,7 +393,16 @@ int main(void){
  for(int i=0;i<50;i++)step(10,0,0);
  assert(CarApp_TestContext()->runtime.state==DONE&&!CarApp_TestContext()->signal.active&&signals==4);
  for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
- assert(strcmp(oled_lines[0],"TASK 2 ONE LAP")==0&&strstr(oled_lines[2],"DONE DA T"));
+ assert(strcmp(oled_lines[0],"TASK 2 V22 T4LINE")==0&&strstr(oled_lines[2],"DONE DA T"));
+ /* Task2 only: 2200 PWM headroom; other distance modes keep 1800. */
+ pwm_cap();
+ /* Straight->arc handoff keeps PI state, scaled to the slower target. */
+ retarget_regression();
+ /* Arc entry capture takes over at 70mm/s; Task4 bridge/promotion/bounds. */
+ edge_follow_port();
+ edge_follow_limit();
+ /* Continuous legs at Task4-class speeds must finish one lap well under 30s. */
+ ideal_lap();
  /* Repeated same-route request must not reset distance/timing while running. */
  task_start();uint32_t saved=CarApp_TestContext()->route.start_ms;cmd("TASK2!");assert(CarApp_TestContext()->route.start_ms==saved&&CarApp_TestContext()->route.leg==0);
  /* Modes cycle 1 -> half -> 2 -> 1; reboot is still task 1. */
@@ -292,16 +426,23 @@ int main(void){
  /* Mid-arc white/all-black/split are faults, not C/DA endpoints. */
  const unsigned bad[]={15,0,6};
  for(unsigned k=0;k<3;k++){
-  fast_to_arc();line_inputs=bad[k];step(10,0,0);assert(a==0&&b==0);
-  for(int i=0;i<10;i++)step(10,0,0);
+  fast_to_arc();line_inputs=bad[k];step(10,0,0);
+  /* 全白按任务四桥接继续前进；全黑/分裂立即停输出等预算。 */
+  if(k==0)assert(a>0&&b<0);else assert(a==0&&b==0);
+  assert(CarApp_TestContext()->runtime.state==RUNNING);
+  int ticks=0;
+  while(CarApp_TestContext()->runtime.state==RUNNING&&ticks++<80)step_roll();
   assert(CarApp_TestContext()->runtime.state==(k?LINE_BAD:LINE_LOST)&&CarApp_TestContext()->route.leg==1&&signals==1&&!CarApp_TestContext()->signal.active);
   line_inputs=9;for(int i=0;i<30;i++)step(10,0,0);assert(CarApp_TestContext()->runtime.state!=RUNNING&&a==0&&b==0);
  }
  /* Near-end white only succeeds with the expected 180-degree heading. */
  near_arc_end();CarApp_TestContext()->heading.angle=CarApp_TestContext()->route.start_heading;line_inputs=15;
- for(int i=0;i<11;i++)step(10,0,0);assert(CarApp_TestContext()->runtime.state==LINE_LOST&&signals==1&&CarApp_TestContext()->route.leg==1);
+ int ticks=0;
+ while(CarApp_TestContext()->runtime.state==RUNNING&&ticks++<80)step_roll();
+ assert(CarApp_TestContext()->runtime.state==LINE_LOST&&signals==1&&CarApp_TestContext()->route.leg==1);
  near_arc_end();line_inputs=15;step(10,0,0);
- assert(CarApp_TestContext()->route.edge_seen&&CarApp_TestContext()->runtime.state==RUNNING&&a==0&&b==0);
+ assert(CarApp_TestContext()->route.edge_seen&&CarApp_TestContext()->runtime.state==RUNNING&&a>0&&b<0);
+ assert(CarApp_TestContext()->route.targets[0]>0&&CarApp_TestContext()->route.targets[1]>0);
  for(int i=0;i<3;i++)step(10,0,0);assert(CarApp_TestContext()->route.leg==2&&CarApp_TestContext()->runtime.state==RUNNING&&signals==2);
  /* Exit bounce resets the stable-white timer, not an endpoint. */
  near_arc_end();line_inputs=15;step(10,0,0);step(10,0,0);line_inputs=9;step(10,0,0);
@@ -331,7 +472,9 @@ int main(void){
  /* Full TX only drops telemetry and cannot change task2 sequencing. */
  fast_to_arc();full_tx=1;line_inputs=9;step(10,600,600);assert(CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.leg==1);
  /* A new key restarts from A state after a fault, not from its interrupted leg. */
- fast_to_arc();line_inputs=15;for(int i=0;i<11;i++)step(10,0,0);assert(CarApp_TestContext()->runtime.state==LINE_LOST);
+ fast_to_arc();line_inputs=15;int lost=0;
+ while(CarApp_TestContext()->runtime.state==RUNNING&&lost++<80)step_roll();
+ assert(CarApp_TestContext()->runtime.state==LINE_LOST);
  release_key();press_key();assert(CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.leg==0&&CarApp_TestContext()->route.distance_mm[0]==0);
  /* Heading guard applies on straights, is disabled during intended arcs. */
  task_start();CarApp_TestContext()->heading.angle=45;step(10,0,0);assert(CarApp_TestContext()->runtime.state==YAW_BAD);
@@ -360,7 +503,7 @@ int main(void){
  cmd("STOP!");assert(CarApp_TestContext()->route.elapsed_ms==300);
  assert(sizeof CarCommand_Banner-1<=160);
  (void)head;
- puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
+ puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; Task2 270/240mm/s continuous legs with Task4-parity arc handling (70mm/s takeover at capture, fixed +-50 outermost, 500ms/20mm/12deg white and 35mm/18deg gap bridges, 30ms recovery, 60ms/200ms promotion, ramp resume, 120mm/2.5s/45deg fault bounds), Task4 PI retarget and 2200 PWM cap; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
  printf("TRACE hash=%016llx events=%llu\n",(unsigned long long)trace_hash,(unsigned long long)trace_events);
  return 0;
 }

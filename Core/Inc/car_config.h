@@ -67,15 +67,47 @@
 #define DPT_LINE_TIMEOUT_MS 45000U
 #define DPT_LINE_CENTER_MS 100U
 #define DPT_LINE_INVALID_MS 100U
-/* 任务二路线：AB 直线、BC 半圆、CD 直线、DA 半圆；正常运行无需遥控。 */
+/* 任务二路线：AB 直线、BC 半圆、CD 直线、DA 半圆；正常运行无需遥控。
+ * 速度与输出上限参考任务四 V19 的正常段配置，但任务二保留自己的四段状态机。 */
 #define DPT_TASK2_STRAIGHT_MM 1000.0f
 #define DPT_TASK2_ARC_MM 1256.0f /* 实测 BC 半圆全白出口对应平均编码器里程约 1256 毫米，独立半圆测试参数保持原值。 */
-#define DPT_TASK2_STRAIGHT_MMPS 200.0f
+#define DPT_TASK2_STRAIGHT_MMPS 270.0f
+#define DPT_TASK2_ARC_MMPS 240.0f /* 半圆巡线沿用任务四弧段速度；差速仍按 DPT_LINE_CRUISE_MMPS 缩放。 */
+#define DPT_TASK2_START_MMPS 50.0f
+#define DPT_TASK2_ACCEL_MMPS2 150.0f
+#define DPT_TASK2_MAX_CMD 2200 /* 与任务四相同的轮速 PI 输出上限；其他任务仍为 DPT_MAX_CMD。 */
+#define DPT_TASK2_EDGE_MMPS 160.0f /* 仅最外侧探头压线时降速，沿用任务四的边缘降速机制。 */
 #define DPT_TASK2_TIMEOUT_MS 45000U /* 开发阶段的故障超时保护；任务二验收用时要求不超过 30 秒。 */
 #define DPT_TASK2_ENTRY_WINDOW_MM 200.0f
 #define DPT_TASK2_EXIT_WINDOW_MM 200.0f
 #define DPT_TASK2_EDGE_MS 30U
 #define DPT_TASK2_END_ANGLE_DEG 20.0f
+/* 任务二弧段巡线：直接沿用任务四 V19 的弧内逻辑。
+ * 弧入口确认捕线后立即以 70 毫米/秒低速跟线；最外侧单探头固定 ±50（20/120），
+ * 内侧双探头稳定 60 毫秒且已运行 200 毫秒后才交回 240 毫米/秒常规巡线。
+ * 全白按任务四预算桥接（500 毫秒/20 毫米/12 度；DA 可信外侧 35 毫米/18 度），
+ * 桥接时冻结最后差速并降到 50（跟随时）/40（常规巡线时）；非全白无效图样
+ * 立即停输出，200 毫秒后判 LINE_BAD；跟随超时/超程/超角按任务四停车。 */
+#define DPT_TASK2_EDGE_FOLLOW 1U
+#define DPT_TASK2_EDGE_FOLLOW_MMPS 70.0f
+#define DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS 50.0f
+#define DPT_TASK2_EDGE_FOLLOW_CAPTURE_MMPS 50.0f
+#define DPT_TASK2_EDGE_FOLLOW_SEEK_MMPS 40.0f
+#define DPT_TASK2_EDGE_FOLLOW_GAP_OUTER_MMPS 140.0f
+#define DPT_TASK2_EDGE_FOLLOW_GAP_INNER_MMPS 20.0f
+#define DPT_TASK2_EDGE_FOLLOW_EXIT_MS 60U
+#define DPT_TASK2_EDGE_FOLLOW_MIN_MS 200U
+#define DPT_TASK2_EDGE_FOLLOW_MM 120.0f
+#define DPT_TASK2_EDGE_FOLLOW_MS 2500U
+#define DPT_TASK2_EDGE_FOLLOW_DEG 45.0f
+#define DPT_TASK2_EDGE_FOLLOW_WHITE_MS 500U
+#define DPT_TASK2_EDGE_FOLLOW_WHITE_MM 20.0f
+#define DPT_TASK2_EDGE_FOLLOW_WHITE_DEG 12.0f
+#define DPT_TASK2_EDGE_FOLLOW_GAP_MM 35.0f
+#define DPT_TASK2_EDGE_FOLLOW_GAP_DEG 18.0f
+#define DPT_TASK2_EDGE_FOLLOW_LOST_MS 200U
+#define DPT_TASK2_EDGE_FOLLOW_RECOVERY_MS 30U
+#define DPT_TASK2_EDGE_FOLLOW_ACCEL_MMPS2 100.0f
 /* 任务三几何与衔接限制：A 点车头朝 B 启动，再由陀螺仪对准 AC；左转角度为正。 */
 #define DPT_TASK3_START_FROM_AB 1U /* 约定的初始摆放方向：A 点朝 B。 */
 #define DPT_TASK3_SPAN_MM 1000.0f
@@ -89,7 +121,7 @@
 #define DPT_TASK3_APPROACH_MM 100.0f
 #define DPT_TASK3_MIN_MMPS 60.0f /* 捕获黑线阶段仍使用独立的 50 毫米/秒速度。 */
 #define DPT_TASK3_TURN_MMPS 80.0f
-/* A/B/C/D 均使用完整几何目标，不再叠加少转角度。 */
+/* 基础任务三使用完整几何目标；任务四 B 点微调见下方独立参数。 */
 #define DPT_TASK3_CAPTURE_MMPS 50.0f
 #define DPT_TASK3_TIMEOUT_MS 40000U
 #define DPT_TASK3_ENTRY_WINDOW_MM 120.0f
@@ -108,8 +140,30 @@
 #define DPT_TASK3_TURN_SLOW_DEG 15.0f
 #define DPT_TASK3_TURN_MIN_MMPS 35.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
-#define DPT_TASK4_DIAGONAL_MMPS 250.0f /* V11：仅任务四，240→250；终点降速与捕线限制保留。 */
-#define DPT_TASK4_ARC_MMPS 220.0f /* V11：正常巡线200→220；边缘仍限120，寻线不提速。 */
+#define DPT_TASK4_MAX_CMD 2200 /* V14：仅任务四1800→2200；轮速/堵转/反向等保护阈值保留。 */
+/* V19：独立的低速边缘巡线预算；失线500ms/位移/角度预算不变。 */
+#define DPT_TASK4_EDGE_FOLLOW 1U
+#define DPT_TASK4_EDGE_FOLLOW_MMPS 70.0f
+#define DPT_TASK4_EDGE_FOLLOW_DIFF_MMPS 50.0f /* 最外单探头20/120；两轮仍前进。 */
+#define DPT_TASK4_EDGE_FOLLOW_MM 120.0f
+#define DPT_TASK4_EDGE_FOLLOW_MS 2500U
+#define DPT_TASK4_EDGE_FOLLOW_DEG 45.0f
+#define DPT_TASK4_ROLLING_ENTRY 1U /* V18：C/D原窗口见线即低速预转，连续确认后计点；对正后直接捕线。 */
+#define DPT_TASK4_CONTINUOUS 1U /* V18：A/B/C/D正常换段连续运动，第四圈终点或故障停车。 */
+#define DPT_TASK4_TURN_MMPS 100.0f /* 两轮前进时恢复足够差速；接近目标角仍降速。 */
+#define DPT_TASK4_TURN_INNER_MMPS 20.0f
+#define DPT_TASK4_TURN_LIMIT_MM 120.0f /* 双轮前进转向的位移预算；4秒转向时限保留。 */
+#define DPT_TASK4_DIAGONAL_MMPS 270.0f /* V13：250→270，仅任务四正常直线；终点降速保留。 */
+#define DPT_TASK4_ARC_MMPS 240.0f /* V13：220→240，仅正常巡线；入弧50、边缘120，寻线不提速。 */
+#define DPT_TASK4_BD_TURN_RELIEF_DEG 3.0f /* V12：仅 B→BD 少左转3°，BD 直线保持同一目标。 */
+/* V13：捕线后先低速入弧；参数是软件验证初值，稳定性需真实场地确认。 */
+#define DPT_TASK4_ARC_ENTRY_MS 1500U
+#define DPT_TASK4_ARC_ENTRY_MIN_MS 200U
+#define DPT_TASK4_ARC_ENTRY_CONFIRM_MS 60U
+#define DPT_TASK4_ARC_ENTRY_MM 60.0f
+#define DPT_TASK4_ARC_ENTRY_DEG 25.0f
+#define DPT_TASK4_ARC_ENTRY_MMPS 50.0f
+#define DPT_TASK4_ARC_ENTRY_DIFF_MMPS 10.0f /* 40/60mm/s，对应160mm轮距下约400mm半径。 */
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。
  * 已授权的全白桥接使用下方 500 毫秒预算；恢复需连续有效 30 毫秒。

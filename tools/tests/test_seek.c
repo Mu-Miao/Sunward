@@ -9,6 +9,7 @@ static void seek_start(unsigned task)
  else {
   setup();line_inputs=15;hold();hold();hold();hold();calibrate();enable();press_key();
   assert(app()->route.motion==MOVE_TASK4 && app()->runtime.state==RUNNING);
+  app()->route.task3.config.continuous_motion=0; /* Retained stationary recovery profile. */
   assert(app()->route.task3.config.white_seek_ms==500 && app()->route.task3.config.vertex_seek_ms==3000);
  }
 }
@@ -422,6 +423,11 @@ int main(void)
  /* No valid history, all-black and separated-black patterns never authorize positive search. */
  for(unsigned task=3;task<=4;task++)for(unsigned pattern=0;pattern<3;pattern++) {
   seek_start(task);reach_phase(T3_ARC);
+  if(pattern==0) {
+   /* Explicitly remove history: V13 normally seeds it at the confirmed handoff. */
+   app()->route.task3.arc_valid_seen=0;
+   memset(&app()->route.task3_trace,0,sizeof app()->route.task3_trace);
+  }
   if(pattern) {line_inputs=9;step(10,0,0);}
   line_inputs=pattern==0?15:(pattern==1?0:5);step(10,0,0);
   assert(a==0 && b==0 && !app()->route.task3.loss_seek);

@@ -17,6 +17,17 @@ void CarWheel_Clear(CarAppContext *app)
     }
 }
 
+void CarWheel_Retarget(CarAppContext *app, const float previous[2])
+{
+    /* 仅在上一个轮目标下降时缩小积分，避免高速积分顶到新下限；
+       不增加积分、不发零驱动，反向/堵转计时保持不变。 */
+    for (unsigned i = 0; i < 2U; ++i) {
+        float target = app->route.targets[i], prior = previous[i];
+        if (target > 0.0f && prior > 0.0f && target < prior)
+            app->wheel.items[i].integral *= target / prior;
+    }
+}
+
 void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
 {
     Wheel *w = &app->wheel.items[i];
@@ -24,6 +35,9 @@ void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
     float measured = direction * w->velocity;
     float target = direction * app->route.targets[i];
     int limit = (app->route.motion == MOVE_TEST || app->route.motion == MOVE_HEADING || CarRoute_IsDistance(app->route.motion)) ? DPT_MAX_CMD : DPT_MANUAL_MAX_CMD;
+    /* 任务二、四独立放宽轮速跟踪余量，不放宽其他任务的限幅与下方保护。 */
+    if (app->route.motion == MOVE_TASK4) limit = DPT_TASK4_MAX_CMD;
+    else if (app->route.motion == MOVE_TASK2) limit = DPT_TASK2_MAX_CMD;
     if (w->velocity > 350.0f || w->velocity < -350.0f) {
         CarApp_Stop(app, FAST, wheel_name[i]); return;
     }
@@ -47,6 +61,8 @@ void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
 
 int CarWheel_ConfigValid(void)
 {
+    if (DPT_TASK4_MAX_CMD < DPT_MAX_CMD || DPT_TASK4_MAX_CMD > 2400) return 0;
+    if (DPT_TASK2_MAX_CMD < DPT_MAX_CMD || DPT_TASK2_MAX_CMD > 2400) return 0;
     for (unsigned i = 0; i < 2U; ++i)
         if (kp[i] <= 0.0f || ki[i] < 0.0f || ki[i] > 100.0f || cpr[i] <= 0.0f)
             return 0;
