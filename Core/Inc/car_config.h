@@ -47,11 +47,11 @@
 #define DPT_DISTANCE_BRAKE_TIMEOUT_MS 1500U
 /* 一米直行任务参数，与 GO20 的二十厘米测试分别配置。 */
 #define DPT_ROUTE_MM 1000.0f
-#define DPT_ROUTE_CRUISE_MMPS 240.0f /* 任务一 V2：单独提速，任务二/三/四保持原配置。 */
+#define DPT_ROUTE_CRUISE_MMPS 270.0f /* 任务一 V3：正常直行再提速，保留转向/寻线配置。 */
 #define DPT_ROUTE_MAX_CMD 2200 /* 沿用已通过场地测试的轮速 PI 跟踪余量。 */
 #define DPT_ROUTE_START_MMPS 40.0f
 #define DPT_ROUTE_ACCEL_MMPS2 200.0f
-#define DPT_ROUTE_SLOW_MM 160.0f /* 终点前16cm开始减速，保留40mm/s末速和停稳确认。 */
+#define DPT_ROUTE_SLOW_MM 180.0f /* 提前18cm减速；保持原速度/减速区间比例与40mm/s末速。 */
 #define DPT_ROUTE_TIMEOUT_MS 13500U
 #define DPT_ROUTE_SIGNAL_MS 500U
 /* C10B 的 KEY_U 接 PA0，高电平表示按下；每次操作前必须先稳定松开。 */
@@ -73,10 +73,10 @@
  * 速度与输出上限参考任务四 V19 的正常段配置，但任务二保留自己的四段状态机。 */
 #define DPT_TASK2_STRAIGHT_MM 1000.0f
 #define DPT_TASK2_ARC_MM 1256.0f /* 实测 BC 半圆全白出口对应平均编码器里程约 1256 毫米，独立半圆测试参数保持原值。 */
-#define DPT_TASK2_STRAIGHT_MMPS 270.0f
-#define DPT_TASK2_ARC_MMPS 240.0f /* 半圆巡线沿用任务四弧段速度；差速仍按 DPT_LINE_CRUISE_MMPS 缩放。 */
+#define DPT_TASK2_STRAIGHT_MMPS 280.0f
+#define DPT_TASK2_ARC_MMPS 250.0f /* 半圆巡线沿用任务四弧段速度；差速仍按 DPT_LINE_CRUISE_MMPS 缩放。 */
 #define DPT_TASK2_START_MMPS 50.0f
-#define DPT_TASK2_ACCEL_MMPS2 150.0f
+#define DPT_TASK2_ACCEL_MMPS2 180.0f
 #define DPT_TASK2_MAX_CMD 2200 /* 与任务四相同的轮速 PI 输出上限；其他任务仍为 DPT_MAX_CMD。 */
 #define DPT_TASK2_EDGE_MMPS 160.0f /* 仅最外侧探头压线时降速，沿用任务四的边缘降速机制。 */
 #define DPT_TASK2_TIMEOUT_MS 45000U /* 开发阶段的故障超时保护；任务二验收用时要求不超过 30 秒。 */
@@ -157,8 +157,9 @@
 #define DPT_TASK4_TURN_MMPS 100.0f /* 两轮前进时恢复足够差速；接近目标角仍降速。 */
 #define DPT_TASK4_TURN_INNER_MMPS 20.0f
 #define DPT_TASK4_TURN_LIMIT_MM 120.0f /* 双轮前进转向的位移预算；4秒转向时限保留。 */
-#define DPT_TASK4_DIAGONAL_MMPS 270.0f /* V13：250→270，仅任务四正常直线；终点降速保留。 */
-#define DPT_TASK4_ARC_MMPS 240.0f /* V13：220→240，仅正常巡线；入弧50、边缘120，寻线不提速。 */
+#define DPT_TASK4_DIAGONAL_MMPS 280.0f /* V20：仅正常直线提速，基础/历史配置不变。 */
+#define DPT_TASK4_ACCEL_MMPS2 180.0f /* 任务三取得该配置副本，半圆及恢复加速度仍为100。 */
+#define DPT_TASK4_ARC_MMPS 250.0f /* V20：仅常规巡线；EDGE、入弧、边缘、寻线速度不变。 */
 #define DPT_TASK4_BD_TURN_RELIEF_DEG 3.0f /* V12：仅 B→BD 少左转3°，BD 直线保持同一目标。 */
 /* V13：捕线后先低速入弧；参数是软件验证初值，稳定性需真实场地确认。 */
 #define DPT_TASK4_ARC_ENTRY_MS 1500U

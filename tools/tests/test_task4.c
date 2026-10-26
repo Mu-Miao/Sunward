@@ -8,7 +8,7 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 V19 EDGE")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 V20 EDGE")==0);
 }
 static void task4_start(void)
 {
@@ -80,14 +80,14 @@ static void robust_regression(void)
  CarTask3Config c=CarTask4_Config();
  assert(c.lost_ms==200U && c.recovery_ms==30U);
  assert(c.arc_acceleration_mmps2==100);
- assert(c.diagonal_mmps==270 && c.arc_mmps==240 && CarTask3_ConfigValid(&c));
+ assert(c.diagonal_mmps==280 && c.arc_mmps==250 && c.acceleration_mmps2==180 && CarTask3_ConfigValid(&c));
  c.diagonal_mmps=281;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();
  assert(CarRoute_FigureEightBaseConfig().lost_ms==100U && CarRoute_FigureEightBaseConfig().recovery_ms==30U);
  /* The faster inner-probe correction stays positive and below the 350mm/s guard;
     outer-probe slowdown is independently retained below. */
  robust_arc();line_inputs=11;step(10,177,176);
- assert(fabsf(app()->route.base-240)<.01f);
- assert(fabsf(app()->route.targets[0]-163.2f)<.01f && fabsf(app()->route.targets[1]-316.8f)<.01f);
+ assert(fabsf(app()->route.base-250)<.01f);
+ assert(fabsf(app()->route.targets[0]-170.0f)<.01f && fabsf(app()->route.targets[1]-330.0f)<.01f);
  for(unsigned pattern=1;pattern<15;pattern++) {
   robust_arc();line_inputs=pattern;step(10,177,176);
   if(app()->line.valid) {
@@ -179,7 +179,7 @@ static void pwm22_straight(void)
  task4_start();until_lap_phase(0,T3_DIAGONAL);
  app()->route.task3.phase_ms=ms-2000U;line_inputs=15;
  step(10,177,176);
- assert(app()->runtime.state==RUNNING && app()->route.base==270);
+ assert(app()->runtime.state==RUNNING && app()->route.base==280);
  assert(a==2200 && b==-2200);
 }
 

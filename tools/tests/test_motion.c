@@ -301,14 +301,14 @@ int main(void){
  /* 1m route keeps its goal, speed and deadline separate from GO20/manual configuration. */
  setup();enable();cmd("GO100!");assert(CarApp_TestContext()->runtime.state!=RUNNING&&!led_on&&!beep_on);
  setup();calibrate();enable();cmd("V200!TIME1!GO100!");
- assert(CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.motion==MOVE_ROUTE&&CarApp_TestContext()->route.goal==1000&&CarApp_TestContext()->route.cruise==240&&CarApp_TestContext()->route.slow==160&&CarApp_TestContext()->route.run_duration==13500);
+ assert(CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.motion==MOVE_ROUTE&&CarApp_TestContext()->route.goal==1000&&CarApp_TestContext()->route.cruise==270&&CarApp_TestContext()->route.slow==180&&CarApp_TestContext()->route.run_duration==13500);
  assert(CarApp_TestContext()->route.targets[0]==40&&CarApp_TestContext()->route.targets[1]==40&&!CarApp_TestContext()->signal.active&&!signals);
  step(10,120,120);assert(CarApp_TestContext()->route.base>40&&CarApp_TestContext()->route.base<=42.1f);
  for(int i=0;i<40;i++)step(10,300,300);
  assert(CarApp_TestContext()->route.base>120&&CarApp_TestContext()->route.base<125&&CarApp_TestContext()->route.distance_mm[0]>40);
  float travelled=CarApp_TestContext()->route.distance_mm[0];uint32_t started=CarApp_TestContext()->route.start_ms;
  cmd("GO20!GO100!");assert(CarApp_TestContext()->route.distance_mm[0]==travelled&&CarApp_TestContext()->route.goal==1000&&CarApp_TestContext()->route.start_ms==started);
- for(int i=0;i<60;i++)step(10,300,300);assert(CarApp_TestContext()->route.base==240);
+ for(int i=0;i<80;i++)step(10,300,300);assert(CarApp_TestContext()->route.base==270);
  gz=886;step(10,300,300);assert(CarApp_TestContext()->route.targets[0]>CarApp_TestContext()->route.targets[1]);gz=-424;
  int slow_seen=0, floor_seen_1m=0;
  for(int i=0;i<1100&&CarApp_TestContext()->runtime.state==RUNNING;i++){

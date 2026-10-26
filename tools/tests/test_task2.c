@@ -396,7 +396,7 @@ int main(void){
  for(int i=0;i<50;i++)step(10,0,0);
  assert(CarApp_TestContext()->runtime.state==DONE&&!CarApp_TestContext()->signal.active&&signals==4);
  for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
- assert(strcmp(oled_lines[0],"TASK 2 V22 T4LINE")==0&&strstr(oled_lines[2],"DONE DA T"));
+ assert(strcmp(oled_lines[0],"TASK 2 V23 FAST")==0&&strstr(oled_lines[2],"DONE DA T"));
  /* Task2 only: 2200 PWM headroom; other distance modes keep 1800. */
  pwm_cap();
  /* Straight->arc handoff keeps PI state, scaled to the slower target. */
@@ -506,7 +506,7 @@ int main(void){
  cmd("STOP!");assert(CarApp_TestContext()->route.elapsed_ms==300);
  assert(sizeof CarCommand_Banner-1<=160);
  (void)head;
- puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; Task2 270/240mm/s continuous legs with Task4-parity arc handling (70mm/s takeover at capture, fixed +-50 outermost, 500ms/20mm/12deg white and 35mm/18deg gap bridges, 30ms recovery, 60ms/200ms promotion, ramp resume, 120mm/2.5s/45deg fault bounds), Task4 PI retarget and 2200 PWM cap; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
+ puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; Task2 280/250mm/s continuous legs with Task4-parity arc handling (70mm/s takeover at capture, fixed +-50 outermost, 500ms/20mm/12deg white and 35mm/18deg gap bridges, 30ms recovery, 60ms/200ms promotion, ramp resume, 120mm/2.5s/45deg fault bounds), Task4 PI retarget and 2200 PWM cap; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
  printf("TRACE hash=%016llx events=%llu\n",(unsigned long long)trace_hash,(unsigned long long)trace_events);
  return 0;
 }

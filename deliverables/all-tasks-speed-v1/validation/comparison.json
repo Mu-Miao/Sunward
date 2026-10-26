@@ -1,0 +1,76 @@
+{
+  "baseline_commit": "2850bfb73ff34dd624e703744207831eccf885f1",
+  "simulation_only": true,
+  "physical_results_claimed": false,
+  "schedule_ms": {
+    "task1": {
+      "before": 6040,
+      "after": 5730,
+      "reduction": 310
+    },
+    "task2": {
+      "before": 20370,
+      "after": 19700,
+      "reduction": 670
+    },
+    "task3": {
+      "before": 31570,
+      "after": 30730,
+      "reduction": 840
+    },
+    "task4": {
+      "before": 125650,
+      "after": 122290,
+      "reduction": 3360
+    }
+  },
+  "changed_firmware_source_files": [
+    "Core/Src/car_task4.c",
+    "Core/Src/car_ui.c",
+    "Core/Inc/car_config.h"
+  ],
+  "unchanged_control_sources": [
+    "car_app.c",
+    "car_route.c",
+    "car_task3.c",
+    "car_task3_port.c",
+    "car_line.c",
+    "car_heading.c",
+    "car_pi.c",
+    "car_wheel.c"
+  ],
+  "changed_macros": {
+    "DPT_TASK4_DIAGONAL_MMPS": [
+      "270.0f",
+      "280.0f"
+    ],
+    "DPT_TASK4_ARC_MMPS": [
+      "240.0f",
+      "250.0f"
+    ],
+    "DPT_TASK2_STRAIGHT_MMPS": [
+      "270.0f",
+      "280.0f"
+    ],
+    "DPT_ROUTE_CRUISE_MMPS": [
+      "240.0f",
+      "270.0f"
+    ],
+    "DPT_ROUTE_SLOW_MM": [
+      "160.0f",
+      "180.0f"
+    ],
+    "DPT_TASK2_ARC_MMPS": [
+      "240.0f",
+      "250.0f"
+    ],
+    "DPT_TASK2_ACCEL_MMPS2": [
+      "150.0f",
+      "180.0f"
+    ],
+    "DPT_TASK4_ACCEL_MMPS2": [
+      null,
+      "180.0f"
+    ]
+  }
+}
