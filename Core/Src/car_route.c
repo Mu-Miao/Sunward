@@ -13,7 +13,7 @@ static void task2_edge_reset(CarRouteState *r)
     r->edge_follow_diff = 0.0f;
 }
 
-CarTask3Config CarRoute_Task3Config(void)
+CarTask3Config CarRoute_FigureEightBaseConfig(void)
 {
     CarTask3Config c = CarTask3_DefaultConfig();
     c.start_from_ab = DPT_TASK3_START_FROM_AB;
@@ -34,6 +34,15 @@ CarTask3Config CarRoute_Task3Config(void)
     c.vertex_seek_ms = DPT_TASK3_VERTEX_SEEK_MS; c.vertex_seek_mm = DPT_TASK3_VERTEX_SEEK_MM;
     c.recovery_ms = 30U;
     c.settle_ms = DPT_DISTANCE_SETTLE_MS; c.brake_timeout_ms = DPT_DISTANCE_BRAKE_TIMEOUT_MS;
+    return c;
+}
+
+/* 任务三独立取得任务四已验证配置的副本；不经四圈包装器。
+ * 共用基础配置由上方函数提供，避免Task3/Task4配置互相调用递归。 */
+CarTask3Config CarRoute_Task3Config(void)
+{
+    CarTask3Config c = CarTask4_Config();
+    c.deadline_ms = DPT_TASK3_TIMEOUT_MS;
     return c;
 }
 

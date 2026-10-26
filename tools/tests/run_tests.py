@@ -8,7 +8,7 @@ import tempfile
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--project', type=Path, default=Path(__file__).resolve().parents[2])
-suites = ['motion', 'task2', 'task3', 'task4', 'seek', 'turn', 'heading', 'entry', 'continuous', 'preview', 'edge']
+suites = ['motion', 'task2', 'task3', 'task4', 'seek', 'turn', 'heading', 'entry', 'continuous', 'preview', 'edge', 'task3_edge']
 parser.add_argument('--suite', action='append', choices=suites, help='Run selected suites; defaults to all')
 parser.add_argument('--sanitize', action='store_true', help='Enable ASan and UBSan')
 args = parser.parse_args()

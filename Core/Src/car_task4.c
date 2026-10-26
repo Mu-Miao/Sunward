@@ -6,7 +6,7 @@
 
 CarTask3Config CarTask4_Config(void)
 {
-    CarTask3Config config = CarRoute_Task3Config();
+    CarTask3Config config = CarRoute_FigureEightBaseConfig();
     config.diagonal_mmps = DPT_TASK4_DIAGONAL_MMPS;
     config.arc_mmps = DPT_TASK4_ARC_MMPS;
     config.bd_turn_relief_deg = DPT_TASK4_BD_TURN_RELIEF_DEG;

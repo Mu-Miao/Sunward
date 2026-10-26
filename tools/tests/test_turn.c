@@ -83,12 +83,12 @@ static void b_relief_regression(void)
  for(unsigned n=0;n<4;n++) {c.bd_turn_relief_deg=invalid[n];assert(!CarTask3_ConfigValid(&c));}
  c.bd_turn_relief_deg=0;assert(CarTask3_ConfigValid(&c));
  c.bd_turn_relief_deg=5;assert(CarTask3_ConfigValid(&c));
- assert(CarRoute_Task3Config().bd_turn_relief_deg==0);
+ assert(CarRoute_FigureEightBaseConfig().bd_turn_relief_deg==0);
 }
 int main(void)
 {
  assert(CarTask3_ConfigValid(&(CarTask3Config){0})==0);
- CarTask3Config c=CarRoute_Task3Config();assert(CarTask3_ConfigValid(&c));
+ CarTask3Config c=CarRoute_FigureEightBaseConfig();assert(CarTask3_ConfigValid(&c));
  assert(c.align_tolerance_deg==3);
  CarTask3Config unified=CarTask4_Config();
  assert(unified.align_tolerance_deg==3 && unified.b_align_tolerance_deg==3 && unified.d_align_tolerance_deg==3);
@@ -250,7 +250,7 @@ int main(void)
  dcfg.d_align_tolerance_deg=NAN;assert(!CarTask3_ConfigValid(&dcfg));
  dcfg.d_align_tolerance_deg=4;assert(!CarTask3_ConfigValid(&dcfg));
  dcfg=CarTask4_Config();dcfg.d_full_align=2;assert(!CarTask3_ConfigValid(&dcfg));
- assert(!CarRoute_Task3Config().d_full_align);
+ assert(!CarRoute_FigureEightBaseConfig().d_full_align);
  puts("PASS: Task4 B-only 3-degree relief through turn/settle/BD and yaw wrap; full A/C/D and vertex-search headings; unified 3-degree tolerance, original turn budgets, fixed references and off-centre capture. Software only.");
  return 0;
 }

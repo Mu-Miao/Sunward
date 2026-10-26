@@ -128,7 +128,7 @@ static void edge_diagnostics_regression(void)
  CarTask3Phase phases[]={T3_DIAGONAL,T3_VERTEX_SEEK,T3_VERTEX_SEEK,T3_CAPTURE,T3_CAPTURE,T3_ARC};
  for(unsigned k=0;k<6;k++) {
   task3_start();CarAppContext *c=app();CarTask3 *t=&c->route.task3;
-  t->config=CarRoute_Task3Config(); /* Exercise the production D-seek budgets. */
+  t->config=CarRoute_FigureEightBaseConfig(); /* Exercise the historical D-seek budgets. */
   assert(!c->route.edge_trace.seen && !c->route.vertex_trace.seen);
   t->leg=k>=3?3U:2U;t->phase=phases[k];t->leg_start_mm=0;
   float distance=k==0?t->diagonal_mm+t->config.entry_window_mm+1:
@@ -201,7 +201,7 @@ static void diagnostic_logging_regression(void)
 static void bd_distance_regression(void)
 {
  for(unsigned task=3;task<=4;task++)for(unsigned leg=0;leg<=2;leg+=2) {
-  CarTask3Config cfg=task==4?CarTask4_Config():CarRoute_Task3Config();
+  CarTask3Config cfg=task==4?CarTask4_Config():CarRoute_FigureEightBaseConfig();
   assert(cfg.bd_full_distance==0);
   /* Retain coverage of the optional historical full-distance gate. */
   cfg.bd_full_distance=task==4;cfg.start_from_ab=0;cfg.rolling_entry=cfg.continuous_motion=0;

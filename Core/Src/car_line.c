@@ -54,13 +54,13 @@ void CarLine_SetTargets(CarAppContext *app, uint32_t now, float base)
         return;
     }
     app->line.invalid_seen = 0U;
-    /* 任务二、四：探头明显偏到边缘时降速，保留原纠偏方向和差速比例。 */
-    if ((app->route.motion == MOVE_TASK4 || app->route.motion == MOVE_TASK2) &&
+    /* 任务二及八字任务：边缘降速；任务三使用任务四同一巡线配置。 */
+    if ((CarMotion_IsFigureEight(app->route.motion) || app->route.motion == MOVE_TASK2) &&
         (app->line.error >= 2.0f || app->line.error <= -2.0f)) {
-        float edge = app->route.motion == MOVE_TASK4 ? DPT_TASK4_EDGE_MMPS : DPT_TASK2_EDGE_MMPS;
+        float edge = app->route.motion == MOVE_TASK2 ? DPT_TASK2_EDGE_MMPS : DPT_TASK4_EDGE_MMPS;
         if (base > edge) base = edge;
     }
-    if (app->route.motion == MOVE_TASK4 || app->route.motion == MOVE_TASK2) app->route.base = base;
+    if (CarMotion_IsFigureEight(app->route.motion) || app->route.motion == MOVE_TASK2) app->route.base = base;
     app->line.diff = DPT_LINE_GAIN * app->line.error * base / DPT_LINE_CRUISE_MMPS;
     float limit = DPT_LINE_MAX_DIFF * base / DPT_LINE_CRUISE_MMPS;
     if (app->line.diff > limit) app->line.diff = limit;

@@ -41,10 +41,10 @@ typedef struct {
     /* 0 关闭入弧预转向；任务四在捕线后低速建立弧向，再交给正常巡线。 */
     uint32_t arc_entry_ms, arc_entry_min_ms, arc_entry_confirm_ms;
     float arc_entry_mm, arc_entry_deg, arc_entry_mmps, arc_entry_diff_mmps, arc_entry_line_gain;
-    uint8_t rolling_entry; /* C/D连续低速换段，省去入弧前两次停稳；默认0保留任务三流程。 */
+    uint8_t rolling_entry; /* C/D连续低速换段，省去入弧前两次停稳；默认0保留历史停稳流程。 */
     uint8_t continuous_motion; /* 所有正常换段均滚动通过，最后一圈仍停稳完成。 */
     float turn_inner_mmps; /* continuous_motion下转向内轮也保持正目标。 */
-    uint8_t edge_follow; /* 任务四确认捕线后先低速巡线，内侧稳定才提速。 */
+    uint8_t edge_follow; /* 八字任务确认捕线后先低速巡线，内侧稳定才提速。 */
     float edge_follow_mmps, edge_follow_diff_mmps, edge_follow_mm, edge_follow_deg;
     uint32_t edge_follow_ms;
 } CarTask3Config;

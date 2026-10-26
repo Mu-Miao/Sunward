@@ -109,6 +109,8 @@
 #define DPT_TASK2_EDGE_FOLLOW_RECOVERY_MS 30U
 #define DPT_TASK2_EDGE_FOLLOW_ACCEL_MMPS2 100.0f
 /* 任务三几何与衔接限制：A 点车头朝 B 启动，再由陀螺仪对准 AC；左转角度为正。 */
+/* 基础几何配置仍供任务四继承；任务三最终运行配置取任务四副本，单独覆盖40秒。 */
+#define DPT_TASK3_MAX_CMD 2200 /* 任务三同样使用V19轮速跟踪余量。 */
 #define DPT_TASK3_START_FROM_AB 1U /* 约定的初始摆放方向：A 点朝 B。 */
 #define DPT_TASK3_SPAN_MM 1000.0f
 #define DPT_TASK3_RADIUS_MM 400.0f

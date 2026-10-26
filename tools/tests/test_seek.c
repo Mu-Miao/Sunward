@@ -5,7 +5,7 @@
 
 static void seek_start(unsigned task)
 {
- if(task==3) {task3_start();app()->route.task3.config=CarRoute_Task3Config();}
+ if(task==3) {task3_start();app()->route.task3.config=CarRoute_FigureEightBaseConfig();}
  else {
   setup();line_inputs=15;hold();hold();hold();hold();calibrate();enable();press_key();
   assert(app()->route.motion==MOVE_TASK4 && app()->runtime.state==RUNNING);
@@ -163,7 +163,7 @@ static void history_gap_regression(void)
  step(10,0,0);assert(app()->runtime.state==LINE_LOST && a==0 && b==0);
  line_inputs=13;for(unsigned n=0;n<5;n++)step(10,0,0);assert(app()->runtime.state==LINE_LOST);
  CarTask3Config c=CarTask4_Config();assert(c.history_gap);c.history_gap=2;assert(!CarTask3_ConfigValid(&c));
- assert(!CarRoute_Task3Config().history_gap);
+ assert(!CarRoute_FigureEightBaseConfig().history_gap);
  puts("PASS: real arc-entry counts, CB/DA inner-probe gap recovery, two trusted raw frames, frozen side/trend/curve direction, chatter rejection, no duplicate recovery count, arc history reset, inner-gap timeout latch and HIST telemetry. Software only.");
 }
 static void measured_da_gap_regression(void)
@@ -228,7 +228,7 @@ static void measured_da_gap_regression(void)
  CarTask3Config c=CarTask4_Config();assert(c.da_outer_gap && c.da_gap_mm==35 && c.da_gap_deg==18 && c.white_seek_ms==500);
  c.da_gap_mm=NAN;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();c.da_gap_mm=36;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.da_gap_deg=19;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();c.da_outer_gap=2;assert(!CarTask3_ConfigValid(&c));
- assert(!CarRoute_Task3Config().da_outer_gap);
+ assert(!CarRoute_FigureEightBaseConfig().da_outer_gap);
  puts("PASS: measured-spacing DA-only outer-probe bridge, mirrored 140/20 targets, synthetic recovery beyond old 20mm/12deg, trusted-direction retention, 30ms confirmation and ramp, fixed 500ms/35mm/18deg bounds, inner-probe scope, fault priority, no restart and GAP telemetry. Synthetic inputs, not physical coverage acceptance.");
 }
 static void gap_regression(void)
@@ -249,9 +249,9 @@ static void gap_regression(void)
   assert(app()->runtime.state==RUNNING && !app()->route.task3.loss_seek && !app()->route.task3.lost_seen);
   assert(app()->route.targets[0]>0 && app()->route.targets[1]>0 && app()->route.base<=50.01f);
   assert(app()->route.start_ms==start && app()->route.task3.leg_start_mm==origin && app()->route.task4.ac_reference_deg==reference);
-  /* This edge-specific sweep does not change Task3's two-wheel bridge. */
+  /* Task3 now uses Task4's outer-to-inner sweep even with the historical core fixture. */
   seek_arc(3);line_inputs=side?7:14;step(10,177,176);line_inputs=15;step(10,0,0);
-  assert(app()->route.targets[0]>0 && app()->route.targets[1]>0 && app()->route.base==40);
+  assert(app()->route.targets[0]>0 && app()->route.targets[1]>0 && app()->route.base==50);
  }
  /* A sweep cannot bypass any existing fault boundary or restart after F7. */
  for(unsigned side=0;side<2;side++)for(unsigned limit=0;limit<4;limit++) {
@@ -267,7 +267,7 @@ static void gap_regression(void)
   line_inputs=side?11:13;for(unsigned n=0;n<10;n++)step(10,0,0);
   assert(app()->runtime.state==LINE_LOST && a==0 && b==0);
  }
- puts("PASS: Task4 mirrored outer-to-inner probe gap sweeps, positive inner drive, retained direction under unconfirmed glitches, 30ms recovery, all original budgets and no restart; Task3 bridge unchanged. Synthetic inputs only.");
+ puts("PASS: Task4 mirrored outer-to-inner probe gap sweeps, positive inner drive, retained direction under unconfirmed glitches, 30ms recovery, all original budgets and no restart; Task3 now shares the sweep. Synthetic inputs only.");
 }
 static void reverse_regression(void)
 {
@@ -312,14 +312,14 @@ int main(void)
  reverse_regression();
  gap_regression();
  extended_task4_regression();
- CarTask3Config c=CarRoute_Task3Config();assert(CarTask3_ConfigValid(&c));
+ CarTask3Config c=CarRoute_FigureEightBaseConfig();assert(CarTask3_ConfigValid(&c));
  assert(c.white_seek_ms==300 && CarTask4_Config().white_seek_ms==500);
  c.white_seek_ms=500;assert(CarTask3_ConfigValid(&c));
  c.white_seek_ms=501;assert(!CarTask3_ConfigValid(&c));
- c=CarRoute_Task3Config();c.white_seek_mm=21;assert(!CarTask3_ConfigValid(&c));
- c=CarRoute_Task3Config();c.white_seek_deg=13;assert(!CarTask3_ConfigValid(&c));
- c=CarRoute_Task3Config();c.vertex_seek_ms=3001;assert(!CarTask3_ConfigValid(&c));
- c=CarRoute_Task3Config();c.vertex_seek_mm=NAN;assert(!CarTask3_ConfigValid(&c));
+ c=CarRoute_FigureEightBaseConfig();c.white_seek_mm=21;assert(!CarTask3_ConfigValid(&c));
+ c=CarRoute_FigureEightBaseConfig();c.white_seek_deg=13;assert(!CarTask3_ConfigValid(&c));
+ c=CarRoute_FigureEightBaseConfig();c.vertex_seek_ms=3001;assert(!CarTask3_ConfigValid(&c));
+ c=CarRoute_FigureEightBaseConfig();c.vertex_seek_mm=NAN;assert(!CarTask3_ConfigValid(&c));
  /* Full single/four-lap route under actual default config, without field dynamics claims. */
  for(unsigned task=3;task<=4;task++) {
   seek_start(task);

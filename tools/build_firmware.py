@@ -113,13 +113,15 @@ def main():
         elif kind==1: eof+=1; assert n==len(rows)-1
     assert eof==1 and min(memory)==0x08000000 and max(memory)<0x08040000
     image=bytes(memory.get(a,255) for a in range(min(memory),max(memory)+1))
-    assert b'TASK 4 V19 EDGE' in image and b'TASK 3 V3 GYRO' in image
+    assert b'TASK 4 V19 EDGE' in image and b'TASK 3 V4 EDGE' in image
     assert b'TASK 2 V22 T4LINE' in image and b'FW=T2V22' in image
     assert 0x20000000 < int.from_bytes(image[:4], 'little') <= 0x2000C000
     reset=int.from_bytes(image[4:8], 'little')
     assert reset & 1 and 0x08000000 <= (reset & ~1) < 0x08040000
-    manifest={'base_branch':'codex/task4-v14-rolling',
-        'base_commit':'f2802b6bf4152c0142424c0d71640e7091490cd5',
+    manifest={'base_branch':'main',
+        'base_commit':'4c516f08a1a215a9e11f860531db7c200157862d',
+        'task3_title':'TASK 3 V4 EDGE', 'task3_laps':1, 'task3_timeout_ms':40000,
+        'task3_profile':'Task4 V19 EDGE copy; independent40s; no lap wrapper', 'task3_max_cmd':2200,
         'task4_title':'TASK 4 V19 EDGE', 'units_compiled':len(SOURCES),
         'diagonal_mmps':270, 'arc_mmps':240, 'entry_mmps':50, 'task4_max_cmd':2200,
         'task2_title':'TASK 2 V22 T4LINE', 'task2_fw_tag':'T2V22',

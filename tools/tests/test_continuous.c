@@ -305,7 +305,7 @@ int main(void)
  c=CarTask4_Config();c.turn_inner_mmps=0;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.turn_inner_mmps=NAN;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.turn_travel_limit_mm=121;assert(!CarTask3_ConfigValid(&c));
- assert(!CarRoute_Task3Config().continuous_motion && CarRoute_Task3Config().turn_travel_limit_mm==80);
+ assert(!CarRoute_FigureEightBaseConfig().continuous_motion && CarRoute_FigureEightBaseConfig().turn_travel_limit_mm==80);
  integral_transfer_regression();handoff_regression();four_lap_regression();dual_turn_regression();moving_recovery_regression();fault_regression();
  puts("PASS: production Task4 continuous A/B/C/D and3 rolling lap joins, both wheels positive through16 turns, no normal zero-drive handoffs, final settled completion, bounded moving recovery/search and retained fault stops. Software only.");
  return 0;

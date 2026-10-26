@@ -234,7 +234,7 @@ static void scheduler_regression(void)
 int main(void)
 {
  CarTask3Config c=CarTask4_Config();assert(CarTask3_ConfigValid(&c));
- assert(c.edge_follow && !CarRoute_Task3Config().edge_follow);
+ assert(c.edge_follow && !CarRoute_FigureEightBaseConfig().edge_follow);
  for(unsigned bad=0;bad<7;bad++) {
   c=CarTask4_Config();
   if(bad==0)c.edge_follow=2;

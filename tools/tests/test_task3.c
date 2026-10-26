@@ -14,7 +14,16 @@ static void task3_start(void)
  assert(app()->runtime.state==RUNNING&&app()->route.motion==MOVE_TASK3);
  assert(!app()->runtime.bluetooth_on && wp[0]==0 && wp[1]==0);
  assert(app()->route.run_duration==40000U && signals==1);
- /* Retain pre-seek profile for legacy protection regressions; test_seek runs defaults. */
+ /* Historical parked profile; test_task3_edge runs untouched production defaults. */
+ CarTask3Config legacy=CarRoute_FigureEightBaseConfig();
+ CarTask3Input input=CarTask3Port_Input(app(),ms,1,0,0);CarTask3Output output;
+ memset(&app()->route.task3,0,sizeof app()->route.task3);
+ assert(CarTask3_Start(&app()->route.task3,&legacy,&input));
+ app()->route.task3.pending_start_signal=0; /* Initial A was already signalled. */
+ app()->route.start_ms=ms;CarWheel_Clear(app());
+ CarTask3_Update(&app()->route.task3,&input,&output);CarTask3Port_Apply(app(),&output,ms);
+ step(10,0,0);
+ /* Retain pre-seek profile for historical protection regressions. */
  app()->route.task3.config.white_seek_ms=app()->route.task3.config.vertex_seek_ms=0;
  app()->route.task3.config.recovery_ms=0;
 }
@@ -122,12 +131,12 @@ int CAR_TASK3_TEST_MAIN(void)
  assert(app()->runtime.state==DONE && app()->route.task3.phase==T3_DONE && signals==5 && a==0 && b==0);
  assert(app()->route.elapsed_ms<40000 && app()->route.leg==3U && rp[0]==wp[0] && wp[1]==0);
  for(unsigned i=0;i<50;i++)step(10,0,0);
- assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 V3 GYRO")==0);
+ assert(signals==5 && !app()->signal.active && strcmp(oled_lines[0],"TASK 3 V4 EDGE")==0);
  assert(strstr(oled_lines[2],"DONE DA T"));for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
  /* Task-specific faster schedule, with unchanged half-circle speed/deadline. */
- assert(CarRoute_Task3Config().diagonal_mmps==240 && CarRoute_Task3Config().arc_mmps==200);
- assert(CarRoute_Task3Config().turn_mmps==80 && CarRoute_Task3Config().capture_mmps==50);
- assert(CarRoute_Task3Config().deadline_ms==40000U);
+ assert(CarRoute_FigureEightBaseConfig().diagonal_mmps==240 && CarRoute_FigureEightBaseConfig().arc_mmps==200);
+ assert(CarRoute_FigureEightBaseConfig().turn_mmps==80 && CarRoute_FigureEightBaseConfig().capture_mmps==50);
+ assert(CarRoute_FigureEightBaseConfig().deadline_ms==40000U);
  uint32_t old_schedule=target_follow_lap(1),new_schedule=target_follow_lap(0);
  assert(app()->runtime.state==DONE && signals==5 && new_schedule<36000U);
  assert(new_schedule+4000U<old_schedule);
@@ -154,8 +163,8 @@ int CAR_TASK3_TEST_MAIN(void)
   assert(app()->runtime.state==LINE_LOST && app()->route.task3.fault==T3_LOST && fabsf(progress()-182)<.01f && a==0 && b==0);
  }
  /* A faster diagonal ramp does not bleed into an arc, and invalid new config fails closed. */
- CarTask3Config c=CarRoute_Task3Config();c.arc_acceleration_mmps2=0;assert(!CarTask3_ConfigValid(&c));
- c=CarRoute_Task3Config();c.arc_acceleration_mmps2=NAN;assert(!CarTask3_ConfigValid(&c));
+ CarTask3Config c=CarRoute_FigureEightBaseConfig();c.arc_acceleration_mmps2=0;assert(!CarTask3_ConfigValid(&c));
+ c=CarRoute_FigureEightBaseConfig();c.arc_acceleration_mmps2=NAN;assert(!CarTask3_ConfigValid(&c));
  task3_start();reach_phase(T3_DIAGONAL);line_inputs=15;app()->route.task3.phase_ms=ms-1000;
  step(10,0,0);assert(fabsf(app()->route.base-201.5f)<.05f);
  /* Busy new button press cancels; held press cannot restart. */

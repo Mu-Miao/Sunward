@@ -197,7 +197,7 @@ static void monitor_flow_motor(int a_cmd,int b_cmd)
 
 static void rolling_regression(void)
 {
- assert(CarTask4_Config().rolling_entry && !CarRoute_Task3Config().rolling_entry);
+ assert(CarTask4_Config().rolling_entry && !CarRoute_FigureEightBaseConfig().rolling_entry);
  CarTask3Config bad=CarTask4_Config();bad.rolling_entry=2;assert(!CarTask3_ConfigValid(&bad));
  for(unsigned diagonal=0;diagonal<=2;diagonal+=2) {
   CarTask3Config c=CarTask4_Config();c.start_from_ab=0;c.edge_follow=0;
@@ -280,7 +280,7 @@ static void rolling_regression(void)
 int main(void)
 {
  CarTask3Config c=CarTask4_Config();assert(CarTask3_ConfigValid(&c));
- assert(CarRoute_Task3Config().arc_entry_ms==0);
+ assert(CarRoute_FigureEightBaseConfig().arc_entry_ms==0);
  c.arc_entry_ms=1501;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.arc_entry_confirm_ms=c.lost_ms;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.arc_entry_diff_mmps=NAN;assert(!CarTask3_ConfigValid(&c));

@@ -82,7 +82,7 @@ static void robust_regression(void)
  assert(c.arc_acceleration_mmps2==100);
  assert(c.diagonal_mmps==270 && c.arc_mmps==240 && CarTask3_ConfigValid(&c));
  c.diagonal_mmps=281;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();
- assert(CarRoute_Task3Config().lost_ms==100U && CarRoute_Task3Config().recovery_ms==30U);
+ assert(CarRoute_FigureEightBaseConfig().lost_ms==100U && CarRoute_FigureEightBaseConfig().recovery_ms==30U);
  /* The faster inner-probe correction stays positive and below the 350mm/s guard;
     outer-probe slowdown is independently retained below. */
  robust_arc();line_inputs=11;step(10,177,176);
@@ -99,7 +99,7 @@ static void robust_regression(void)
  c.recovery_ms=29;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.recovery_ms=c.lost_ms;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.lost_ms=251;assert(!CarTask3_ConfigValid(&c));
- c=CarRoute_Task3Config();c.recovery_ms=0;c.lost_ms=101;assert(!CarTask3_ConfigValid(&c));
+ c=CarRoute_FigureEightBaseConfig();c.recovery_ms=0;c.lost_ms=101;assert(!CarTask3_ConfigValid(&c));
  /* A dropout longer than the old 100ms gate can recover, always stopped until confirmed. */
  robust_arc();line_inputs=15;
  for(unsigned n=0;n<12;n++) {step(10,0,0);assert(app()->runtime.state==RUNNING && a==0 && b==0);}
@@ -188,13 +188,13 @@ static void output_limit_regression(void)
  assert(DPT_MAX_CMD==1800 && DPT_TASK4_MAX_CMD==2200 && DPT_TASK2_MAX_CMD==2200 && DPT_MANUAL_MAX_CMD==3000);
  assert(CarWheel_ConfigValid());
  /* Exercise every existing mode: the raised caps must not leak into
-    Task1/3/line or change the separate manual limits. Both PI outputs saturate here. */
+    Task1/line or change the separate manual limits. Both PI outputs saturate here. */
  task4_start();
  const Motion modes[]={MOVE_TEST,MOVE_HEADING,MOVE_DISTANCE,MOVE_ROUTE,MOVE_LINE,
   MOVE_TASK2,MOVE_TASK3,MOVE_TASK4,MOVE_FORWARD,MOVE_BACK,MOVE_LEFT,MOVE_RIGHT};
  for(unsigned n=0;n<sizeof modes/sizeof modes[0];n++) {
   app()->route.motion=modes[n];CarWheel_Clear(app());
-  int expected=(n==5||n==7)?2200:(n<8?1800:3000);
+  int expected=(n==5||n==6||n==7)?2200:(n<8?1800:3000);
   for(unsigned w=0;w<2;w++) {
    app()->route.targets[w]=270;app()->wheel.items[w].velocity=60;
    CarWheel_Control(app(),w,.01f);
@@ -239,7 +239,7 @@ static void output_limit_regression(void)
   for(unsigned n=0;n<5;n++)step(10,0,0);
   assert(app()->runtime.state==expected && a==0 && b==0);
  }
- puts("PASS: Task4-only 2200 cap, unchanged 1800/3000 mode isolation, PI anti-windup/release and zero target, real scheduler output above1800, all retained fault stops and no restart. Software only.");
+ puts("PASS: Task2/3/4 2200 caps, unchanged Task1/line/manual limits, PI anti-windup/release and zero target, real scheduler output above1800, all retained fault stops and no restart. Software only.");
 }
 
 int main(void)
@@ -247,7 +247,7 @@ int main(void)
  output_limit_regression();
  robust_regression();
  CarTask3Config c=CarTask4_Config();assert(CarTask3_ConfigValid(&c) && c.deadline_ms==80000U);
- assert(CarRoute_Task3Config().deadline_ms==40000U);
+ assert(CarRoute_FigureEightBaseConfig().deadline_ms==40000U);
  task4_select();hold();assert(app()->button.selected_motion==MOVE_ROUTE);
  setup();queue(0,"TASK4!");step(10,0,0);assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  enable();press_key();assert(app()->runtime.state!=RUNNING); /* Cannot start without CAL. */
