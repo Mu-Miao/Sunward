@@ -571,7 +571,8 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                             if (app->route.motion == MOVE_ROUTE || app->route.motion == MOVE_LINE || app->route.motion == MOVE_TASK2) {
                                 float start = app->route.motion == MOVE_TASK2 ? DPT_TASK2_START_MMPS :
                                     (app->route.motion == MOVE_LINE ? DPT_LINE_START_MMPS : DPT_ROUTE_START_MMPS);
-                                float accel = app->route.motion == MOVE_TASK2 ? DPT_TASK2_ACCEL_MMPS2 : DPT_ROUTE_ACCEL_MMPS2;
+                                float accel = app->route.motion == MOVE_TASK2 ? DPT_TASK2_ACCEL_MMPS2 :
+                                    (app->route.motion == MOVE_LINE ? DPT_LINE_ACCEL_MMPS2 : DPT_ROUTE_ACCEL_MMPS2);
                                 float ramp = start + accel * ((float)(uint32_t)(now - app->route.start_ms) / 1000.0f);
                                 if (base > ramp) base = ramp;
                             }
@@ -594,6 +595,10 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                             app->route.targets[LEFT] = base - app->heading.diff;
                             app->route.targets[RIGHT] = base + app->heading.diff;
                         }
+                        /* 任务一终点减速时按新目标缩减旧积分，避免高速段积分拖慢降速；
+                           不清除反转/堵转计时，不改其他任务的积分处理。 */
+                        if (app->route.motion == MOVE_ROUTE && app->route.base < previous_base - 0.001f)
+                            CarWheel_Retarget(app, previous_targets);
                         /* 弧入口的降速重定向已由 arc_line 内部完成，避免积分被缩放两次。 */
                         if (app->route.motion == MOVE_TASK2 && !app->route.edge_follow &&
                             app->route.cruise != previous_cruise && app->route.base < previous_base - 0.5f)

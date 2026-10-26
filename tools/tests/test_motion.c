@@ -301,19 +301,19 @@ int main(void){
  /* 1m route keeps its goal, speed and deadline separate from GO20/manual configuration. */
  setup();enable();cmd("GO100!");assert(CarApp_TestContext()->runtime.state!=RUNNING&&!led_on&&!beep_on);
  setup();calibrate();enable();cmd("V200!TIME1!GO100!");
- assert(CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.motion==MOVE_ROUTE&&CarApp_TestContext()->route.goal==1000&&CarApp_TestContext()->route.cruise==120&&CarApp_TestContext()->route.slow==100&&CarApp_TestContext()->route.run_duration==13500);
+ assert(CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.motion==MOVE_ROUTE&&CarApp_TestContext()->route.goal==1000&&CarApp_TestContext()->route.cruise==240&&CarApp_TestContext()->route.slow==160&&CarApp_TestContext()->route.run_duration==13500);
  assert(CarApp_TestContext()->route.targets[0]==40&&CarApp_TestContext()->route.targets[1]==40&&!CarApp_TestContext()->signal.active&&!signals);
- step(10,120,120);assert(CarApp_TestContext()->route.base>40&&CarApp_TestContext()->route.base<=41.1f);
+ step(10,120,120);assert(CarApp_TestContext()->route.base>40&&CarApp_TestContext()->route.base<=42.1f);
  for(int i=0;i<40;i++)step(10,300,300);
- assert(CarApp_TestContext()->route.base>80&&CarApp_TestContext()->route.base<83&&CarApp_TestContext()->route.distance_mm[0]>40);
+ assert(CarApp_TestContext()->route.base>120&&CarApp_TestContext()->route.base<125&&CarApp_TestContext()->route.distance_mm[0]>40);
  float travelled=CarApp_TestContext()->route.distance_mm[0];uint32_t started=CarApp_TestContext()->route.start_ms;
  cmd("GO20!GO100!");assert(CarApp_TestContext()->route.distance_mm[0]==travelled&&CarApp_TestContext()->route.goal==1000&&CarApp_TestContext()->route.start_ms==started);
- for(int i=0;i<40;i++)step(10,300,300);assert(CarApp_TestContext()->route.base==120);
+ for(int i=0;i<60;i++)step(10,300,300);assert(CarApp_TestContext()->route.base==240);
  gz=886;step(10,300,300);assert(CarApp_TestContext()->route.targets[0]>CarApp_TestContext()->route.targets[1]);gz=-424;
  int slow_seen=0, floor_seen_1m=0;
  for(int i=0;i<1100&&CarApp_TestContext()->runtime.state==RUNNING;i++){
   step(10,300,300);
-  if(CarApp_TestContext()->route.distance_mm[0]>905&&CarApp_TestContext()->route.base<115)slow_seen=1;
+  if(CarApp_TestContext()->route.distance_mm[0]>845&&CarApp_TestContext()->route.base<235)slow_seen=1;
   if(CarApp_TestContext()->route.distance_mm[0]>970&&CarApp_TestContext()->route.base==40)floor_seen_1m=1;
   assert(CarApp_TestContext()->route.targets[0]>=0&&CarApp_TestContext()->route.targets[1]>=0&&fabsf(CarApp_TestContext()->heading.diff)<=15.01f);
  }
@@ -370,7 +370,7 @@ int main(void){
  }
  /* Timer wrap is valid for the 1m deadline and the once-only 500ms signal. */
  setup();calibrate();enable();ms=0xfffffff0U;CarApp_TestContext()->runtime.on_ms=ms-200U;CarApp_TestContext()->power.sample_ms=ms;CarApp_TestContext()->ui.motion_log_ms=CarApp_TestContext()->ui.heading_log_ms=ms;CarApp_TestContext()->runtime.old_ms=ms;
- cmd("GO100!");step(10,120,120);assert(CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.base<=41.1f);
+ cmd("GO100!");step(10,120,120);assert(CarApp_TestContext()->runtime.state==RUNNING&&CarApp_TestContext()->route.base<=42.1f);
  for(int i=0;i<1100&&CarApp_TestContext()->runtime.state==RUNNING;i++)step(10,300,300);assert(CarApp_TestContext()->runtime.state==BRAKING);
  for(int i=0;i<21;i++)step(10,0,0);assert(signals==1&&CarApp_TestContext()->signal.active);
  ms=0xfffffff0U;CarApp_TestContext()->signal.ms=ms;CarApp_TestContext()->runtime.old_ms=ms;CarApp_TestContext()->power.sample_ms=ms;CarApp_TestContext()->ui.motion_log_ms=CarApp_TestContext()->ui.heading_log_ms=ms;

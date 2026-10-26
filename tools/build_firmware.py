@@ -113,13 +113,19 @@ def main():
         elif kind==1: eof+=1; assert n==len(rows)-1
     assert eof==1 and min(memory)==0x08000000 and max(memory)<0x08040000
     image=bytes(memory.get(a,255) for a in range(min(memory),max(memory)+1))
+    assert b'TASK 1 V2 FAST' in image
     assert b'TASK 4 V19 EDGE' in image and b'TASK 3 V4 EDGE' in image
     assert b'TASK 2 V22 T4LINE' in image and b'FW=T2V22' in image
     assert 0x20000000 < int.from_bytes(image[:4], 'little') <= 0x2000C000
     reset=int.from_bytes(image[4:8], 'little')
     assert reset & 1 and 0x08000000 <= (reset & ~1) < 0x08040000
-    manifest={'base_branch':'main',
-        'base_commit':'4c516f08a1a215a9e11f860531db7c200157862d',
+    manifest={'base_branch':'codex/task3-edge-one-lap',
+        'base_commit':'e95c2dcfe01fcf4579e5ff086fed8f0f9342a192',
+        'task1_title':'TASK 1 V2 FAST', 'task1_goal_mm':1000,
+        'task1_cruise_mmps':240, 'task1_start_mmps':40, 'task1_accel_mmps2':200,
+        'task1_slow_mm':160, 'task1_max_cmd':2200, 'task1_timeout_ms':13500,
+        'task1_settle_ms':200, 'task1_brake_timeout_ms':1500,
+        'task1_min_mmps':40, 'task1_signal_ms':500,
         'task3_title':'TASK 3 V4 EDGE', 'task3_laps':1, 'task3_timeout_ms':40000,
         'task3_profile':'Task4 V19 EDGE copy; independent40s; no lap wrapper', 'task3_max_cmd':2200,
         'task4_title':'TASK 4 V19 EDGE', 'units_compiled':len(SOURCES),

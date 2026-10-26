@@ -188,13 +188,13 @@ static void output_limit_regression(void)
  assert(DPT_MAX_CMD==1800 && DPT_TASK4_MAX_CMD==2200 && DPT_TASK2_MAX_CMD==2200 && DPT_MANUAL_MAX_CMD==3000);
  assert(CarWheel_ConfigValid());
  /* Exercise every existing mode: the raised caps must not leak into
-    Task1/line or change the separate manual limits. Both PI outputs saturate here. */
+    line or change the separate manual limits. Both PI outputs saturate here. */
  task4_start();
  const Motion modes[]={MOVE_TEST,MOVE_HEADING,MOVE_DISTANCE,MOVE_ROUTE,MOVE_LINE,
   MOVE_TASK2,MOVE_TASK3,MOVE_TASK4,MOVE_FORWARD,MOVE_BACK,MOVE_LEFT,MOVE_RIGHT};
  for(unsigned n=0;n<sizeof modes/sizeof modes[0];n++) {
   app()->route.motion=modes[n];CarWheel_Clear(app());
-  int expected=(n==5||n==6||n==7)?2200:(n<8?1800:3000);
+  int expected=(n==3||n==5||n==6||n==7)?2200:(n<8?1800:3000);
   for(unsigned w=0;w<2;w++) {
    app()->route.targets[w]=270;app()->wheel.items[w].velocity=60;
    CarWheel_Control(app(),w,.01f);
@@ -239,7 +239,7 @@ static void output_limit_regression(void)
   for(unsigned n=0;n<5;n++)step(10,0,0);
   assert(app()->runtime.state==expected && a==0 && b==0);
  }
- puts("PASS: Task2/3/4 2200 caps, unchanged Task1/line/manual limits, PI anti-windup/release and zero target, real scheduler output above1800, all retained fault stops and no restart. Software only.");
+ puts("PASS: Task1/2/3/4 2200 caps, unchanged line/manual limits, PI anti-windup/release and zero target, real scheduler output above1800, all retained fault stops and no restart. Software only.");
 }
 
 int main(void)

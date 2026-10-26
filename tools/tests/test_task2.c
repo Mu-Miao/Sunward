@@ -298,6 +298,9 @@ static void pwm_cap(void){
  assert(CarApp_TestContext()->wheel.items[0].command==DPT_TASK2_MAX_CMD);
  CarApp_TestContext()->route.motion=MOVE_ROUTE;CarApp_TestContext()->wheel.items[0].integral=0;
  CarWheel_Control(CarApp_TestContext(),0,.01f);
+ assert(CarApp_TestContext()->wheel.items[0].command==DPT_ROUTE_MAX_CMD);
+ CarApp_TestContext()->route.motion=MOVE_DISTANCE;CarApp_TestContext()->wheel.items[0].integral=0;
+ CarWheel_Control(CarApp_TestContext(),0,.01f);
  assert(CarApp_TestContext()->wheel.items[0].command==DPT_MAX_CMD);
  assert(DPT_TASK2_MAX_CMD>DPT_MAX_CMD&&CarWheel_ConfigValid());
 }

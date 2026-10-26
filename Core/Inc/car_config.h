@@ -47,10 +47,11 @@
 #define DPT_DISTANCE_BRAKE_TIMEOUT_MS 1500U
 /* 一米直行任务参数，与 GO20 的二十厘米测试分别配置。 */
 #define DPT_ROUTE_MM 1000.0f
-#define DPT_ROUTE_CRUISE_MMPS 120.0f
+#define DPT_ROUTE_CRUISE_MMPS 240.0f /* 任务一 V2：单独提速，任务二/三/四保持原配置。 */
+#define DPT_ROUTE_MAX_CMD 2200 /* 沿用已通过场地测试的轮速 PI 跟踪余量。 */
 #define DPT_ROUTE_START_MMPS 40.0f
-#define DPT_ROUTE_ACCEL_MMPS2 100.0f
-#define DPT_ROUTE_SLOW_MM 100.0f
+#define DPT_ROUTE_ACCEL_MMPS2 200.0f
+#define DPT_ROUTE_SLOW_MM 160.0f /* 终点前16cm开始减速，保留40mm/s末速和停稳确认。 */
 #define DPT_ROUTE_TIMEOUT_MS 13500U
 #define DPT_ROUTE_SIGNAL_MS 500U
 /* C10B 的 KEY_U 接 PA0，高电平表示按下；每次操作前必须先稳定松开。 */
@@ -62,6 +63,7 @@
 #define DPT_LINE_MM (400.0f * 3.1415926f)
 #define DPT_LINE_CRUISE_MMPS 200.0f
 #define DPT_LINE_START_MMPS 50.0f
+#define DPT_LINE_ACCEL_MMPS2 100.0f /* 独立半圆保持原来的100，避免随任务一提速。 */
 #define DPT_LINE_GAIN 64.0f
 #define DPT_LINE_MAX_DIFF 80.0f
 #define DPT_LINE_TIMEOUT_MS 45000U

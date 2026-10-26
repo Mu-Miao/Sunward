@@ -35,10 +35,11 @@ void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
     float measured = direction * w->velocity;
     float target = direction * app->route.targets[i];
     int limit = (app->route.motion == MOVE_TEST || app->route.motion == MOVE_HEADING || CarRoute_IsDistance(app->route.motion)) ? DPT_MAX_CMD : DPT_MANUAL_MAX_CMD;
-    /* 任务二、三、四分别设置轮速跟踪限幅；下方保护保持生效。 */
+    /* 任务一至四分别设置轮速跟踪限幅；下方保护保持生效。 */
     if (app->route.motion == MOVE_TASK4) limit = DPT_TASK4_MAX_CMD;
     else if (app->route.motion == MOVE_TASK2) limit = DPT_TASK2_MAX_CMD;
     else if (app->route.motion == MOVE_TASK3) limit = DPT_TASK3_MAX_CMD;
+    else if (app->route.motion == MOVE_ROUTE) limit = DPT_ROUTE_MAX_CMD;
     if (w->velocity > 350.0f || w->velocity < -350.0f) {
         CarApp_Stop(app, FAST, wheel_name[i]); return;
     }
@@ -62,6 +63,7 @@ void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
 
 int CarWheel_ConfigValid(void)
 {
+    if (DPT_ROUTE_MAX_CMD < DPT_MAX_CMD || DPT_ROUTE_MAX_CMD > 2400) return 0;
     if (DPT_TASK3_MAX_CMD < DPT_MAX_CMD || DPT_TASK3_MAX_CMD > 2400) return 0;
     if (DPT_TASK4_MAX_CMD < DPT_MAX_CMD || DPT_TASK4_MAX_CMD > 2400) return 0;
     if (DPT_TASK2_MAX_CMD < DPT_MAX_CMD || DPT_TASK2_MAX_CMD > 2400) return 0;
