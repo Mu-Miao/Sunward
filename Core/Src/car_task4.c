@@ -10,6 +10,7 @@ CarTask3Config CarTask4_Config(void)
     config.diagonal_mmps = DPT_TASK4_DIAGONAL_MMPS;
     config.arc_mmps = DPT_TASK4_ARC_MMPS;
     config.acceleration_mmps2 = DPT_TASK4_ACCEL_MMPS2;
+    config.approach_mm = DPT_TASK4_APPROACH_MM;
     config.bd_turn_relief_deg = DPT_TASK4_BD_TURN_RELIEF_DEG;
     config.arc_entry_ms = DPT_TASK4_ARC_ENTRY_MS;
     config.arc_entry_min_ms = DPT_TASK4_ARC_ENTRY_MIN_MS;

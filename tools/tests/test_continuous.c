@@ -57,7 +57,7 @@ static void four_lap_regression(void)
   int counts[2];
   for(unsigned w=0;w<2;w++) {
    float target=app()->route.targets[w];
-   if(t->phase!=T3_FINAL_BRAKE)assert(target>0 && target<=336);
+   if(t->phase!=T3_FINAL_BRAKE)assert(target>0 && target<=415);
    residue[w]+=target*.01f*(w?DPT_RIGHT_CPR:DPT_LEFT_CPR)/(DPT_CIRC_M*1000);
    counts[w]=(int)residue[w];residue[w]-=counts[w];
   }

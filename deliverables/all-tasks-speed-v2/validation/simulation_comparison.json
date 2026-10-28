@@ -1,0 +1,26 @@
+{
+  "base_commit": "26914dfcce951d8c06a2980cbf1d4120a41314a6",
+  "software_simulation_only": true,
+  "schedule_ms": {
+    "task1": {
+      "v1": 5730,
+      "v2": 5020,
+      "reduction": 710
+    },
+    "task2": {
+      "v1": 19700,
+      "v2": 17180,
+      "reduction": 2520
+    },
+    "task3": {
+      "v1": 30730,
+      "v2": 28370,
+      "reduction": 2360
+    },
+    "task4": {
+      "v1": 122290,
+      "v2": 112850,
+      "reduction": 9440
+    }
+  }
+}

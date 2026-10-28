@@ -424,7 +424,7 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
     if (CarMotion_IsFigureEight(app->route.motion)) {
         if (app->runtime.state != RUNNING || !app->route.tracking) return;
         for (unsigned i = 0; i < 2U; ++i) {
-            if (fabsf(app->wheel.items[i].velocity) > 350.0f) {
+            if (fabsf(app->wheel.items[i].velocity) > CarWheel_SpeedLimit(app->route.motion)) {
                 CarApp_Stop(app, FAST, i == LEFT ? 'L' : 'R');
                 return;
             }
@@ -535,9 +535,9 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                 float previous_cruise = app->route.cruise;
                 float previous_targets[2] = {app->route.targets[LEFT], app->route.targets[RIGHT]};
                 if (app->route.tracking && (app->runtime.state == RUNNING || app->runtime.state == BRAKING)) {
-                    if (app->wheel.items[LEFT].velocity > 350.0f || app->wheel.items[LEFT].velocity < -350.0f)
+                    if (fabsf(app->wheel.items[LEFT].velocity) > CarWheel_SpeedLimit(app->route.motion))
                         CarApp_Stop(app, FAST, 'L');
-                    else if (app->wheel.items[RIGHT].velocity > 350.0f || app->wheel.items[RIGHT].velocity < -350.0f)
+                    else if (fabsf(app->wheel.items[RIGHT].velocity) > CarWheel_SpeedLimit(app->route.motion))
                         CarApp_Stop(app, FAST, 'R');
                     else {
                         for (unsigned i = 0; i < 2U; ++i) {
@@ -564,7 +564,12 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                         if (CarRoute_IsDistance(app->route.motion)) {
                             base = app->route.cruise;
                             float remaining = app->route.motion == MOVE_TASK2 ? DPT_DISTANCE_SLOW_MM : app->route.goal - (app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f;
-                            if (remaining < app->route.slow) {
+                            if (app->route.motion == MOVE_TASK2 && !CarRoute_IsArc(app)) {
+                                float progress = (app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f - app->route.leg_start;
+                                float end_remaining = DPT_TASK2_STRAIGHT_MM - progress;
+                                if (end_remaining < DPT_TASK2_APPROACH_MM)
+                                    base = fmaxf(DPT_TASK2_APPROACH_MIN_MMPS, app->route.cruise * fmaxf(end_remaining, 0.0f) / DPT_TASK2_APPROACH_MM);
+                            } else if (remaining < app->route.slow) {
                                 base = app->route.cruise * remaining / app->route.slow;
                                 if (base < DPT_DISTANCE_MIN_MMPS) base = DPT_DISTANCE_MIN_MMPS;
                             }
@@ -601,7 +606,7 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                             CarWheel_Retarget(app, previous_targets);
                         /* 弧入口的降速重定向已由 arc_line 内部完成，避免积分被缩放两次。 */
                         if (app->route.motion == MOVE_TASK2 && !app->route.edge_follow &&
-                            app->route.cruise != previous_cruise && app->route.base < previous_base - 0.5f)
+                            (app->route.cruise != previous_cruise || !CarRoute_IsArc(app)) && app->route.base < previous_base - 0.5f)
                             CarWheel_Retarget(app, previous_targets);
                     }
                 }

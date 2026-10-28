@@ -7,21 +7,21 @@ static void all_line_patterns(void)
  const Motion modes[]={MOVE_TASK2,MOVE_TASK3,MOVE_TASK4};float peak=0;
  for(unsigned m=0;m<3;m++)for(unsigned raw=0;raw<16;raw++) {
   setup();app()->runtime.state=RUNNING;app()->route.motion=modes[m];
-  line_inputs=raw;CarLine_Decode(app());CarLine_SetTargets(app(),ms,250);
+  line_inputs=raw;CarLine_Decode(app());CarLine_SetTargets(app(),ms,300);
   if(!app()->line.valid)continue;
   for(unsigned w=0;w<2;w++) {
-   float t=app()->route.targets[w];assert(t>0 && t<=330.01f);
+   float t=app()->route.targets[w];assert(t>0 && t<=396.01f);
    if(t>peak)peak=t;
   }
  }
- assert(fabsf(peak-330)<.01f);
- printf("Normal arc raw-pattern target peak: %.1f mm/s; measured-speed FAST guard remains350.\n",peak);
+ assert(fabsf(peak-396)<.01f);
+ printf("Normal arc raw-pattern target peak: %.1f mm/s; competition FAST guard500; other modes350.\n",peak);
 }
 static void preserved_budgets(void)
 {
  CarTask3Config three=CarRoute_Task3Config(),four=CarTask4_Config();
- assert(three.diagonal_mmps==280 && three.arc_mmps==250 && three.acceleration_mmps2==180);
- assert(four.diagonal_mmps==280 && four.arc_mmps==250 && four.acceleration_mmps2==180);
+ assert(three.diagonal_mmps==400 && three.arc_mmps==300 && three.acceleration_mmps2==250);
+ assert(four.diagonal_mmps==400 && four.arc_mmps==300 && four.acceleration_mmps2==250);
  assert(three.deadline_ms==40000 && four.deadline_ms==80000 && DPT_TASK4_TIMEOUT_MS==160000);
  for(unsigned n=0;n<2;n++) {
   CarTask3Config *c=n?&four:&three;
@@ -34,18 +34,47 @@ static void preserved_budgets(void)
   assert(c->da_gap_mm==35 && c->da_gap_deg==18 && c->recovery_ms==30);
   assert(c->arc_acceleration_mmps2==100 && CarTask3_ConfigValid(c));
  }
- /* Do not widen the existing validated core configuration ceiling. */
- four.diagonal_mmps=281;assert(!CarTask3_ConfigValid(&four));
- four=CarTask4_Config();four.arc_mmps=251;assert(!CarTask3_ConfigValid(&four));
+ /* Reject values beyond this experimental profile; recovery budgets stay fixed. */
+ four.diagonal_mmps=401;assert(!CarTask3_ConfigValid(&four));
+ four=CarTask4_Config();four.arc_mmps=301;assert(!CarTask3_ConfigValid(&four));
  assert(DPT_TASK2_EDGE_FOLLOW_MMPS==70 && DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS==50);
- assert(DPT_ROUTE_CRUISE_MMPS==270 && DPT_ROUTE_SLOW_MM==180);
- assert(DPT_ROUTE_CRUISE_MMPS/DPT_ROUTE_SLOW_MM==1.5f);
- assert(DPT_ROUTE_MAX_CMD==2200 && DPT_TASK2_MAX_CMD==2200 && DPT_TASK3_MAX_CMD==2200 && DPT_TASK4_MAX_CMD==2200);
+ assert(DPT_ROUTE_CRUISE_MMPS==400 && DPT_ROUTE_SLOW_MM==300);
+ assert(DPT_ROUTE_CRUISE_MMPS/DPT_ROUTE_SLOW_MM<1.5f);
+ assert(DPT_ROUTE_MAX_CMD==3600 && DPT_TASK2_MAX_CMD==3600 && DPT_TASK3_MAX_CMD==3600 && DPT_TASK4_MAX_CMD==3600);
  assert(DPT_TASK2_TIMEOUT_MS==45000 && DPT_ROUTE_TIMEOUT_MS==13500);
+}
+static void speed_limit_isolation(void)
+{
+ const Motion modes[]={MOVE_ROUTE,MOVE_TASK2,MOVE_TASK3,MOVE_TASK4,MOVE_TEST,MOVE_HEADING,MOVE_DISTANCE,MOVE_LINE,MOVE_FORWARD,MOVE_BACK,MOVE_LEFT,MOVE_RIGHT};
+ for(unsigned n=0;n<sizeof modes/sizeof modes[0];n++)for(unsigned wheel=0;wheel<2;wheel++) {
+  setup();enable();app()->runtime.state=RUNNING;app()->route.motion=modes[n];
+  float limit=n<4?500:350;assert(CarWheel_SpeedLimit(modes[n])==limit);
+  app()->route.targets[wheel]=200;app()->wheel.items[wheel].velocity=limit-1;
+  CarWheel_Control(app(),wheel,.01f);assert(app()->runtime.state==RUNNING);
+  app()->wheel.items[wheel].velocity=limit+1;CarWheel_Control(app(),wheel,.01f);
+  assert(app()->runtime.state==FAST && a==0 && b==0);
+  step(10,0,0);assert(app()->runtime.state==FAST && a==0 && b==0);
+ }
+}
+static void task2_approach(void)
+{
+ task_start();app()->route.start_ms=ms-5000;line_inputs=15;
+ const float distances[]={800,880,970},expected[]={400,300,160};
+ for(unsigned n=0;n<3;n++) {
+  app()->route.distance_mm[0]=app()->route.distance_mm[1]=distances[n];
+  if(n==1)for(unsigned w=0;w<2;w++)app()->wheel.items[w].integral=3200;
+  step(10,0,0);
+  assert(app()->runtime.state==RUNNING && app()->route.leg==0 && signals==0);
+  assert(app()->route.base==expected[n] && app()->route.targets[0]>0 && app()->route.targets[1]>0);
+  if(n==1)for(unsigned w=0;w<2;w++)assert(fabsf(app()->wheel.items[w].integral-2400)<.01f);
+ }
+ line_inputs=9;for(unsigned n=0;n<4;n++)step(10,0,0);
+ assert(app()->route.leg==1 && signals==1 && app()->route.edge_follow);
+ assert(app()->route.base==70 && app()->route.targets[0]>0 && app()->route.targets[1]>0);
 }
 int main(void)
 {
- all_line_patterns();preserved_budgets();
- puts("PASS: all valid arc patterns stay within330mm/s targets; unchanged EDGE/turn/search budgets, deadlines, PWM and core speed ceilings.");
+ all_line_patterns();preserved_budgets();speed_limit_isolation();task2_approach();
+ puts("PASS: arc target peak396; competition500/other350 FAST isolation, latch/no restart; Task2 moving approach and integral reduction; fixed EDGE/turn/search budgets and deadlines.");
  return 0;
 }

@@ -1,6 +1,7 @@
 /* 轮速测量与保护。左TIM8正、右TIM4负；PI输出提交由CarApp统一完成。 */
 #include "car_internal.h"
 #include "car_pi.h"
+#include <math.h>
 
 static const float kp[2] = {DPT_LEFT_KP, DPT_RIGHT_KP};
 static const float ki[2] = {DPT_LEFT_KI, DPT_RIGHT_KI};
@@ -28,6 +29,12 @@ void CarWheel_Retarget(CarAppContext *app, const float previous[2])
     }
 }
 
+float CarWheel_SpeedLimit(Motion motion)
+{
+    return motion == MOVE_ROUTE || motion == MOVE_TASK2 || CarMotion_IsFigureEight(motion)
+        ? DPT_COMPETITION_MAX_MMPS : 350.0f;
+}
+
 void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
 {
     Wheel *w = &app->wheel.items[i];
@@ -40,7 +47,8 @@ void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
     else if (app->route.motion == MOVE_TASK2) limit = DPT_TASK2_MAX_CMD;
     else if (app->route.motion == MOVE_TASK3) limit = DPT_TASK3_MAX_CMD;
     else if (app->route.motion == MOVE_ROUTE) limit = DPT_ROUTE_MAX_CMD;
-    if (w->velocity > 350.0f || w->velocity < -350.0f) {
+    float speed_limit = CarWheel_SpeedLimit(app->route.motion);
+    if (w->velocity > speed_limit || w->velocity < -speed_limit) {
         CarApp_Stop(app, FAST, wheel_name[i]); return;
     }
     if (measured < -5.0f) w->bad_sign_us += app->runtime.dt_us;
@@ -63,10 +71,12 @@ void CarWheel_Control(CarAppContext *app, unsigned i, float seconds)
 
 int CarWheel_ConfigValid(void)
 {
-    if (DPT_ROUTE_MAX_CMD < DPT_MAX_CMD || DPT_ROUTE_MAX_CMD > 2400) return 0;
-    if (DPT_TASK3_MAX_CMD < DPT_MAX_CMD || DPT_TASK3_MAX_CMD > 2400) return 0;
-    if (DPT_TASK4_MAX_CMD < DPT_MAX_CMD || DPT_TASK4_MAX_CMD > 2400) return 0;
-    if (DPT_TASK2_MAX_CMD < DPT_MAX_CMD || DPT_TASK2_MAX_CMD > 2400) return 0;
+    if (!isfinite(DPT_COMPETITION_MAX_MMPS) || DPT_COMPETITION_MAX_MMPS < 450.0f ||
+        DPT_COMPETITION_MAX_MMPS > 500.0f || DPT_COMPETITION_MAX_CMD > 3600) return 0;
+    if (DPT_ROUTE_MAX_CMD < DPT_MAX_CMD || DPT_ROUTE_MAX_CMD > DPT_COMPETITION_MAX_CMD) return 0;
+    if (DPT_TASK3_MAX_CMD < DPT_MAX_CMD || DPT_TASK3_MAX_CMD > DPT_COMPETITION_MAX_CMD) return 0;
+    if (DPT_TASK4_MAX_CMD < DPT_MAX_CMD || DPT_TASK4_MAX_CMD > DPT_COMPETITION_MAX_CMD) return 0;
+    if (DPT_TASK2_MAX_CMD < DPT_MAX_CMD || DPT_TASK2_MAX_CMD > DPT_COMPETITION_MAX_CMD) return 0;
     for (unsigned i = 0; i < 2U; ++i)
         if (kp[i] <= 0.0f || ki[i] < 0.0f || ki[i] > 100.0f || cpr[i] <= 0.0f)
             return 0;

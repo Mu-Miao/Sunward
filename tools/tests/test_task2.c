@@ -69,7 +69,7 @@ int LabUART_TakeRxFaultPort(LabUART_Port c){int n=faults[c];faults[c]=0;return n
 uint32_t LabUART_RxErrors(void){return 0;}uint32_t LabUART_TxDropped(void){return full_tx?1:0;}
 uint32_t LabUART_RxErrorsPort(LabUART_Port c){(void)c;return 0;}
 uint32_t LabUART_TxDroppedPort(LabUART_Port c){(void)c;return full_tx?1:0;}
-static void motor(int aa,int bb){assert(aa>=-3000&&aa<=3000&&bb>=-3000&&bb<=3000);trace_event('m');trace_bytes(&aa,sizeof aa);trace_bytes(&bb,sizeof bb);a=aa;b=bb;}
+static void motor(int aa,int bb){assert(aa>=-3600&&aa<=3600&&bb>=-3600&&bb<=3600);trace_event('m');trace_bytes(&aa,sizeof aa);trace_bytes(&bb,sizeof bb);a=aa;b=bb;}
 void TaskOLED_Begin(uint32_t n){assert(n==72000000U);}
 int TaskOLED_SetLines(const char *const text[4]){
  trace_event('o');for(unsigned i=0;i<4;i++)trace_bytes(text[i],strlen(text[i])+1U);
@@ -310,12 +310,14 @@ static void retarget_regression(void){
  CarApp_TestContext()->route.start_ms=ms-5000U; /* past the Task2 ramp */
  CarApp_TestContext()->route.distance_mm[0]=CarApp_TestContext()->route.distance_mm[1]=
   CarApp_TestContext()->route.leg_start+DPT_TASK2_STRAIGHT_MM-10;
- for(unsigned w=0;w<2;w++)CarApp_TestContext()->wheel.items[w].integral=1800;
+ CarApp_TestContext()->route.base=160;
+ CarApp_TestContext()->route.targets[0]=CarApp_TestContext()->route.targets[1]=160;
+ for(unsigned w=0;w<2;w++)CarApp_TestContext()->wheel.items[w].integral=3500;
  line_inputs=9;
  for(int i=0;i<4;i++)step(10,0,0);
  assert(CarApp_TestContext()->route.leg==1&&CarApp_TestContext()->route.cruise==DPT_TASK2_ARC_MMPS);
  for(unsigned w=0;w<2;w++){
-  assert(fabsf(CarApp_TestContext()->wheel.items[w].integral-1800.0f*DPT_TASK2_EDGE_FOLLOW_MMPS/DPT_TASK2_STRAIGHT_MMPS)<.01f);
+  assert(fabsf(CarApp_TestContext()->wheel.items[w].integral-3500.0f*DPT_TASK2_EDGE_FOLLOW_MMPS/DPT_TASK2_APPROACH_MIN_MMPS)<.01f);
   assert(CarApp_TestContext()->wheel.items[w].command==DPT_TASK2_MAX_CMD);
  }
 }
@@ -396,8 +398,8 @@ int main(void){
  for(int i=0;i<50;i++)step(10,0,0);
  assert(CarApp_TestContext()->runtime.state==DONE&&!CarApp_TestContext()->signal.active&&signals==4);
  for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
- assert(strcmp(oled_lines[0],"TASK 2 V23 FAST")==0&&strstr(oled_lines[2],"DONE DA T"));
- /* Task2 only: 2200 PWM headroom; other distance modes keep 1800. */
+ assert(strcmp(oled_lines[0],"TASK 2 V24 FAST")==0&&strstr(oled_lines[2],"DONE DA T"));
+ /* Competition PWM headroom; GO20 retains1800. */
  pwm_cap();
  /* Straight->arc handoff keeps PI state, scaled to the slower target. */
  retarget_regression();
@@ -486,7 +488,7 @@ int main(void){
  for(int fault=0;fault<7;fault++){
   task_start();
   if(fault==0){CarApp_TestContext()->route.start_ms=ms-DPT_TASK2_TIMEOUT_MS;trace_poll(tick);assert(CarApp_TestContext()->runtime.state==TIMEOUT);}
-  if(fault==1){step(10,1100,100);assert(CarApp_TestContext()->runtime.state==FAST);}
+  if(fault==1){step(10,2000,100);assert(CarApp_TestContext()->runtime.state==FAST);}
   if(fault==2){step(20,100,100);assert(CarApp_TestContext()->runtime.state==GAP);}
   if(fault==3){bat=1100;for(int i=0;i<10;i++)step(10,100,100);assert(CarApp_TestContext()->runtime.state==LOW);}
   if(fault==4){adc_fail=1;for(int i=0;i<10;i++)step(10,100,100);assert(CarApp_TestContext()->runtime.state==ADC_BAD);}
@@ -506,7 +508,7 @@ int main(void){
  cmd("STOP!");assert(CarApp_TestContext()->route.elapsed_ms==300);
  assert(sizeof CarCommand_Banner-1<=160);
  (void)head;
- puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; Task2 280/250mm/s continuous legs with Task4-parity arc handling (70mm/s takeover at capture, fixed +-50 outermost, 500ms/20mm/12deg white and 35mm/18deg gap bridges, 30ms recovery, 60ms/200ms promotion, ramp resume, 120mm/2.5s/45deg fault bounds), Task4 PI retarget and 2200 PWM cap; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
+ puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; Task2 400/300mm/s continuous legs with Task4-parity arc handling (70mm/s takeover at capture, fixed +-50 outermost, 500ms/20mm/12deg white and 35mm/18deg gap bridges, 30ms recovery, 60ms/200ms promotion, ramp resume, 120mm/2.5s/45deg fault bounds), Task4 PI retarget and 3600 PWM cap; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
  printf("TRACE hash=%016llx events=%llu\n",(unsigned long long)trace_hash,(unsigned long long)trace_events);
  return 0;
 }

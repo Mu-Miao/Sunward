@@ -8,7 +8,7 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 V20 EDGE")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 V21 EDGE")==0);
 }
 static void task4_start(void)
 {
@@ -52,7 +52,7 @@ static uint32_t target_follow_four(int prior_profile)
   int counts[2];
   for(unsigned j=0;j<2;j++) {
    float cpr=j?DPT_RIGHT_CPR:DPT_LEFT_CPR;
-   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=280.01f);
+   assert(app()->route.targets[j]>=0 && app()->route.targets[j]<=415.01f);
    residue[j]+=app()->route.targets[j]*.01f*cpr/(DPT_CIRC_M*1000);
    counts[j]=(int)residue[j];residue[j]-=counts[j];
   }
@@ -70,7 +70,7 @@ static void until_lap_phase(unsigned lap,CarTask3Phase phase)
 static void robust_arc(void)
 {
  task4_start();until_lap_phase(0,T3_ARC);
- app()->route.task3.phase_ms=ms-2000U;
+ app()->route.task3.phase_ms=ms-3000U;
  app()->route.task4.resume_pending=app()->route.task4.resume_active=0;
  line_inputs=9;step(10,177,176);
  assert(app()->route.base==DPT_TASK4_ARC_MMPS);
@@ -80,19 +80,19 @@ static void robust_regression(void)
  CarTask3Config c=CarTask4_Config();
  assert(c.lost_ms==200U && c.recovery_ms==30U);
  assert(c.arc_acceleration_mmps2==100);
- assert(c.diagonal_mmps==280 && c.arc_mmps==250 && c.acceleration_mmps2==180 && CarTask3_ConfigValid(&c));
- c.diagonal_mmps=281;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();
+ assert(c.diagonal_mmps==400 && c.arc_mmps==300 && c.acceleration_mmps2==250 && CarTask3_ConfigValid(&c));
+ c.diagonal_mmps=401;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();
  assert(CarRoute_FigureEightBaseConfig().lost_ms==100U && CarRoute_FigureEightBaseConfig().recovery_ms==30U);
- /* The faster inner-probe correction stays positive and below the 350mm/s guard;
+ /* The faster inner-probe correction stays positive and below the competition500mm/s guard;
     outer-probe slowdown is independently retained below. */
  robust_arc();line_inputs=11;step(10,177,176);
- assert(fabsf(app()->route.base-250)<.01f);
- assert(fabsf(app()->route.targets[0]-170.0f)<.01f && fabsf(app()->route.targets[1]-330.0f)<.01f);
+ assert(fabsf(app()->route.base-300)<.01f);
+ assert(fabsf(app()->route.targets[0]-204.0f)<.01f && fabsf(app()->route.targets[1]-396.0f)<.01f);
  for(unsigned pattern=1;pattern<15;pattern++) {
   robust_arc();line_inputs=pattern;step(10,177,176);
   if(app()->line.valid) {
    assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
-   assert(app()->route.targets[0]<=336 && app()->route.targets[1]<=336);
+   assert(app()->route.targets[0]<=415 && app()->route.targets[1]<=415);
    if(fabsf(app()->line.error)>=2)assert(app()->route.base==120);
   } else assert(app()->route.targets[0]==0 && app()->route.targets[1]==0);
  }
@@ -177,15 +177,15 @@ static void robust_regression(void)
 static void pwm22_straight(void)
 {
  task4_start();until_lap_phase(0,T3_DIAGONAL);
- app()->route.task3.phase_ms=ms-2000U;line_inputs=15;
+ app()->route.task3.phase_ms=ms-3000U;line_inputs=15;
  step(10,177,176);
- assert(app()->runtime.state==RUNNING && app()->route.base==280);
- assert(a==2200 && b==-2200);
+ assert(app()->runtime.state==RUNNING && app()->route.base==400);
+ assert(a==3600 && b==-3600);
 }
 
 static void output_limit_regression(void)
 {
- assert(DPT_MAX_CMD==1800 && DPT_TASK4_MAX_CMD==2200 && DPT_TASK2_MAX_CMD==2200 && DPT_MANUAL_MAX_CMD==3000);
+ assert(DPT_MAX_CMD==1800 && DPT_TASK4_MAX_CMD==3600 && DPT_TASK2_MAX_CMD==3600 && DPT_MANUAL_MAX_CMD==3000);
  assert(CarWheel_ConfigValid());
  /* Exercise every existing mode: the raised caps must not leak into
     line or change the separate manual limits. Both PI outputs saturate here. */
@@ -194,7 +194,7 @@ static void output_limit_regression(void)
   MOVE_TASK2,MOVE_TASK3,MOVE_TASK4,MOVE_FORWARD,MOVE_BACK,MOVE_LEFT,MOVE_RIGHT};
  for(unsigned n=0;n<sizeof modes/sizeof modes[0];n++) {
   app()->route.motion=modes[n];CarWheel_Clear(app());
-  int expected=(n==3||n==5||n==6||n==7)?2200:(n<8?1800:3000);
+  int expected=(n==3||n==5||n==6||n==7)?3600:(n<8?1800:3000);
   for(unsigned w=0;w<2;w++) {
    app()->route.targets[w]=270;app()->wheel.items[w].velocity=60;
    CarWheel_Control(app(),w,.01f);
@@ -204,11 +204,11 @@ static void output_limit_regression(void)
  /* The retained conditional integrator must freeze at the new cap and
     unwind as feedback catches up, rather than sticking at maximum output. */
  app()->route.motion=MOVE_TASK4;CarWheel_Clear(app());
- app()->route.targets[0]=270;app()->wheel.items[0].velocity=230;app()->wheel.items[0].integral=2100;
+ app()->route.targets[0]=270;app()->wheel.items[0].velocity=230;app()->wheel.items[0].integral=3500;
  CarWheel_Control(app(),0,.01f);
- assert(app()->wheel.items[0].command==2200 && app()->wheel.items[0].integral==2100);
+ assert(app()->wheel.items[0].command==3600 && app()->wheel.items[0].integral==3500);
  app()->wheel.items[0].velocity=300;CarWheel_Control(app(),0,.01f);
- assert(app()->wheel.items[0].command<2200 && app()->wheel.items[0].integral<2100);
+ assert(app()->wheel.items[0].command<3600 && app()->wheel.items[0].integral<3500);
  app()->route.targets[0]=0;CarWheel_Control(app(),0,.01f);
  assert(app()->wheel.items[0].command==0 && app()->wheel.items[0].integral==0);
  /* Start with >1800 actually committed to the mock motor, then prove
@@ -239,7 +239,7 @@ static void output_limit_regression(void)
   for(unsigned n=0;n<5;n++)step(10,0,0);
   assert(app()->runtime.state==expected && a==0 && b==0);
  }
- puts("PASS: Task1/2/3/4 2200 caps, unchanged line/manual limits, PI anti-windup/release and zero target, real scheduler output above1800, all retained fault stops and no restart. Software only.");
+ puts("PASS: Task1/2/3/4 3600 caps, unchanged line/manual limits, PI anti-windup/release and zero target, real scheduler output above1800, all retained fault stops and no restart. Software only.");
 }
 
 int main(void)

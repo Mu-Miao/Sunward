@@ -113,25 +113,25 @@ def main():
         elif kind==1: eof+=1; assert n==len(rows)-1
     assert eof==1 and min(memory)==0x08000000 and max(memory)<0x08040000
     image=bytes(memory.get(a,255) for a in range(min(memory),max(memory)+1))
-    assert b'TASK 1 V3 FAST' in image
-    assert b'TASK 4 V20 EDGE' in image and b'TASK 3 V5 EDGE' in image
-    assert b'TASK 2 V23 FAST' in image and b'FW=T2V23' in image
+    assert b'TASK 1 V4 FAST' in image
+    assert b'TASK 4 V21 EDGE' in image and b'TASK 3 V6 EDGE' in image
+    assert b'TASK 2 V24 FAST' in image and b'FW=T2V24' in image
     assert 0x20000000 < int.from_bytes(image[:4], 'little') <= 0x2000C000
     reset=int.from_bytes(image[4:8], 'little')
     assert reset & 1 and 0x08000000 <= (reset & ~1) < 0x08040000
-    manifest={'base_branch':'main',
-        'base_commit':'2850bfb73ff34dd624e703744207831eccf885f1',
-        'task1_title':'TASK 1 V3 FAST', 'task1_goal_mm':1000,
-        'task1_cruise_mmps':270, 'task1_start_mmps':40, 'task1_accel_mmps2':200,
-        'task1_slow_mm':180, 'task1_max_cmd':2200, 'task1_timeout_ms':13500,
+    manifest={'base_branch':'codex/all-tasks-speed-v1',
+        'base_commit':'26914dfcce951d8c06a2980cbf1d4120a41314a6',
+        'task1_title':'TASK 1 V4 FAST', 'task1_goal_mm':1000,
+        'task1_cruise_mmps':400, 'task1_start_mmps':40, 'task1_accel_mmps2':300,
+        'task1_slow_mm':300, 'task1_max_cmd':3600, 'task1_timeout_ms':13500,
         'task1_settle_ms':200, 'task1_brake_timeout_ms':1500,
         'task1_min_mmps':40, 'task1_signal_ms':500,
-        'task3_title':'TASK 3 V5 EDGE', 'task3_laps':1, 'task3_timeout_ms':40000,
-        'task3_profile':'Task4 V20 EDGE copy; independent40s; no lap wrapper', 'task3_max_cmd':2200,
-        'task4_title':'TASK 4 V20 EDGE', 'units_compiled':len(SOURCES),
-        'diagonal_mmps':280, 'arc_mmps':250, 'diagonal_accel_mmps2':180, 'entry_mmps':50, 'task4_max_cmd':2200,
-        'task2_title':'TASK 2 V23 FAST', 'task2_fw_tag':'T2V23',
-        'task2_straight_mmps':280, 'task2_arc_mmps':250, 'task2_accel_mmps2':180, 'task2_max_cmd':2200,
+        'task3_title':'TASK 3 V6 EDGE', 'task3_laps':1, 'task3_timeout_ms':40000,
+        'task3_profile':'Task4 V21 EDGE copy; independent40s; no lap wrapper', 'task3_max_cmd':3600,
+        'task4_title':'TASK 4 V21 EDGE', 'units_compiled':len(SOURCES),
+        'diagonal_mmps':400, 'arc_mmps':300, 'diagonal_accel_mmps2':250, 'approach_mm':180, 'entry_mmps':50, 'task4_max_cmd':3600,
+        'task2_title':'TASK 2 V24 FAST', 'task2_fw_tag':'T2V24',
+        'task2_straight_mmps':400, 'task2_arc_mmps':300, 'task2_accel_mmps2':250, 'task2_approach_mm':160, 'task2_approach_min_mmps':160, 'task2_max_cmd':3600,
         'task2_edge_follow_mmps':70, 'task2_edge_follow_diff_mmps':50,
         'task2_edge_follow_entry':'capture-at-arc-entry', 'task2_edge_follow_exit_ms':60,
         'task2_edge_follow_min_ms':200, 'task2_edge_follow_capture_mmps':50,
@@ -146,6 +146,8 @@ def main():
         'white_seek_ms':500, 'continuous_motion':True, 'turn_inner_mmps':20, 'turn_outer_mmps':100,
         'turn_limit_mm':120, 'turn_limit_ms':4000,
         'hex_checksum_eof_titles_vectors_valid':True, 'size':size,
+        'competition_speed_guard_mmps':500, 'other_modes_speed_guard_mmps':350,
+        'measurement_reference':'2026-10-28 suspended-wheel PWM sweep: full7200 L1130/R1155mmps; not loaded ground speed',
         'field_verified':False, 'flashed':False,
         'sha256':{n:hashlib.sha256((out/n).read_bytes()).hexdigest() for n in ['Sunward.elf','Sunward.hex']},
         'source_sha256':{n:hashlib.sha256((ROOT/n).read_bytes()).hexdigest() for n in
