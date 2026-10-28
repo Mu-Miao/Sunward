@@ -30,7 +30,7 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         const char *title = "TASK 1 V4 FAST";
         if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V21 EDGE";
         else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V6 EDGE";
-        else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 V25 FAST";
+        else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 V26 ARC";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
         else if (app->route.motion == MOVE_DISTANCE) title = "TEST GO20";
         else if (app->route.motion == MOVE_HEADING) title = "TEST GO";
@@ -171,7 +171,7 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         char msg[128];
         int n;
         if (app->button.selected_motion == MOVE_LINE || app->route.motion == MOVE_LINE || app->button.selected_motion == MOVE_TASK2 || app->route.motion == MOVE_TASK2 || CarMotion_IsFigureEight(app->button.selected_motion) || CarMotion_IsFigureEight(app->route.motion)) {
-            const char *fw = app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK2 ? " FW=T2V25" : "";
+            const char *fw = app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK2 ? " FW=T2V26" : "";
             n = snprintf(msg, sizeof msg, "LINE RAW=%u%u%u%u E100=%d C=%d VALID=%u CENTER=%u MODE=%s SEG=%u EF=%u%s\r\n",
                 (unsigned)app->line.raw[0], (unsigned)app->line.raw[1], (unsigned)app->line.raw[2], (unsigned)app->line.raw[3],
                 CarMath_Round(app->line.error * 100.0f), CarMath_Round(app->line.diff), (unsigned)app->line.valid, (unsigned)app->line.center_ready,

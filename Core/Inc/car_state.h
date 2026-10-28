@@ -131,6 +131,14 @@ typedef struct {
     float edge_follow_lost_mm;
     float edge_follow_lost_yaw;
     float edge_follow_diff;
+    float task2_arc_exit_heading;
+    struct {
+        uint8_t seen;
+        uint32_t entry_ms;
+        float nominal_heading, reference_heading, entry_yaw;
+        float entry_targets[2], entry_velocity[2], entry_integral[2];
+        float left_mm, right_mm, wheel_yaw_deg, gyro_delta_deg;
+    } task2_straight;
     CarTask3 task3;
     CarTask4 task4;
     struct {

@@ -44,6 +44,10 @@ void CarApp_Stop(CarAppContext *app, TestState why, char faulty)
             if (why == TIMEOUT) app->route.task3.fault = T3_TIMEOUT;
         }
     }
+    if (app->route.motion==MOVE_TASK2 && app->route.task3.phase!=T3_IDLE) {
+        if (why==BRAKING || why==DONE) app->route.task3.phase=T3_IDLE;
+        else if (app->route.task3.phase!=T3_FAULT) CarTask3_Cancel(&app->route.task3);
+    }
     app->runtime.state = why;
     app->runtime.fault_wheel = faulty;
     if (completed_route) {
@@ -142,6 +146,7 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     app->route.motion = MOVE_NONE;
     memset(&app->route.task3, 0, sizeof app->route.task3);
     memset(&app->route.task4, 0, sizeof app->route.task4);
+    memset(&app->route.task2_straight, 0, sizeof app->route.task2_straight);
     memset(&app->route.task3_trace, 0, sizeof app->route.task3_trace);
     memset(&app->route.reverse_trace, 0, sizeof app->route.reverse_trace);
     memset(&app->route.vertex_trace, 0, sizeof app->route.vertex_trace);

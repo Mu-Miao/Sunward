@@ -109,12 +109,14 @@ def summarize(d):
         'state_name': STATES[rt['state']] if rt['state'] < len(STATES) else 'UNKNOWN',
         'heading': select(d['heading'], 'phase angle reference error gyro_angle bias bias_rate fusion_active fusion_learning wheel_rate samples io_us'),
         'line': select(d['line'], 'raw valid count error sample_ms'),
-        'route': select(r, 'motion distance_mm targets base elapsed_ms start_ms'),
+        'route': select(r, 'motion leg leg_start distance_mm targets base elapsed_ms start_ms'),
+        'task2_straight': r.get('task2_straight'),
+        'gyro_rate_dps': d['heading'].get('previous_gyro_rate'),
         'task3': select(t, 'phase fault leg start_heading_deg leg_start_mm phase_start_mm phase_ms lost_seen loss_seek gap_seek loss_limits loss_duration_ms loss_distance_mm loss_turn_deg') |
                  {k: t[k] for k in ('entry_yaw_deg', 'entry_diff_mmps', 'edge_follow_active', 'resume_start_mmps') if k in t},
         'phase_name': PHASES[t['phase']] if t['phase'] < len(PHASES) else 'UNKNOWN',
         'task4': r['task4'],
-        'wheel': [select(w, 'velocity command integral bad_sign_us') for w in d['wheel']['items']],
+        'wheel': [select(w, 'velocity command integral bad_sign_us stall_us') for w in d['wheel']['items']],
         'power': d['power'],
         'button': select(d['button'], 'raw stable armed action selected_motion events'),
         'reverse_trace': r['reverse_trace'], 'edge_trace': r['edge_trace'],
@@ -149,11 +151,12 @@ def main():
     parser.add_argument('--probe', default='ATK-D62E11F3')
     parser.add_argument('--target', default='stm32f103rc')
     parser.add_argument('--hz', type=float, default=20)
+    parser.add_argument('--frequency', type=int, default=1000000)
     parser.add_argument('--seconds', type=float, default=0, help='0: until STOP or Ctrl-C')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--layout-only', action='store_true')
     args = parser.parse_args()
-    if not (0 < args.hz <= 50) or args.seconds < 0:
+    if not (0 < args.hz <= 50) or args.seconds < 0 or not (100000 <= args.frequency <= 4000000):
         parser.error('Require 0 < hz <= 50 and seconds >= 0')
     layout = Layout(args.elf)
     if args.layout_only:
@@ -177,7 +180,8 @@ def main():
     signal.signal(signal.SIGTERM, request_stop)
     session = ConnectHelper.session_with_chosen_probe(
         blocking=False, unique_id=args.probe, options={
-            'target_override': args.target, 'frequency': 4000000,
+            'target_override': args.target, 'frequency': args.frequency,
+            'cmsis_dap.deferred_transfers': False,
             'connect_mode': 'attach', 'resume_on_disconnect': False,
             'no_config': True, 'cache.enable_memory': False,
             'cache.enable_register': False, 'auto_unlock': False,

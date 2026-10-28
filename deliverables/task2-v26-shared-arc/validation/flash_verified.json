@@ -1,0 +1,12 @@
+{
+  "flashed": true,
+  "verified_flash_bytes": 60204,
+  "elf": "/Users/mzh/Desktop/\u8f66\u8f66/output/TASK2_V26_SHARED_ARC_2026-10-28/Sunward.elf",
+  "elf_sha256": "5f60fc199b67e29e83f1500bc1e43bccac36ca4bcba36dbbe9fd4c007bb71528",
+  "hex_sha256": "3571af3c4d0e5ad7e04fd7c9016d713959ae9180dd88ebf4b9721cad41b1b43f",
+  "core": "RUNNING",
+  "enable_off": true,
+  "instance_bytes": 1060,
+  "task_started": false,
+  "time": "2026-10-28T16:31:32.990409+08:00"
+}

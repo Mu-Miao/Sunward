@@ -115,12 +115,12 @@ def main():
     image=bytes(memory.get(a,255) for a in range(min(memory),max(memory)+1))
     assert b'TASK 1 V4 FAST' in image
     assert b'TASK 4 V21 EDGE' in image and b'TASK 3 V6 EDGE' in image
-    assert b'TASK 2 V25 FAST' in image and b'FW=T2V25' in image
+    assert b'TASK 2 V26 ARC' in image and b'FW=T2V26' in image
     assert 0x20000000 < int.from_bytes(image[:4], 'little') <= 0x2000C000
     reset=int.from_bytes(image[4:8], 'little')
     assert reset & 1 and 0x08000000 <= (reset & ~1) < 0x08040000
     manifest={'base_branch':'codex/all-tasks-speed-v2',
-        'base_commit':'588a969ef06ebbc0d0bc15aee14f1f6c0b8a2cce',
+        'base_commit':'b49096b886a3ad9e179cbb0c85d14d7418180d1c',
         'task1_title':'TASK 1 V4 FAST', 'task1_goal_mm':1000,
         'task1_cruise_mmps':400, 'task1_start_mmps':40, 'task1_accel_mmps2':300,
         'task1_slow_mm':300, 'task1_max_cmd':3600, 'task1_timeout_ms':13500,
@@ -130,8 +130,12 @@ def main():
         'task3_profile':'Task4 V21 EDGE copy; independent40s; no lap wrapper', 'task3_max_cmd':3600,
         'task4_title':'TASK 4 V21 EDGE', 'units_compiled':len(SOURCES),
         'diagonal_mmps':400, 'arc_mmps':300, 'diagonal_accel_mmps2':250, 'approach_mm':180, 'entry_mmps':50, 'task4_max_cmd':3600,
-        'task2_title':'TASK 2 V25 FAST', 'task2_fw_tag':'T2V25',
+        'task2_title':'TASK 2 V26 ARC', 'task2_fw_tag':'T2V26',
         'task2_straight_mmps':400, 'task2_arc_mmps':300, 'task2_accel_mmps2':250, 'task2_ab_approach':False, 'task2_approach_scope':'CD only', 'task2_approach_mm':160, 'task2_approach_min_mmps':160, 'task2_max_cmd':3600,
+        'task2_arc_engine':'CarTask3_Update + CarTask3Port_Apply',
+        'task2_cd_reference':'latched actual gyro heading at confirmed C',
+        'task2_cd_accel_mmps2':250, 'task2_cd_start_mmps':50, 'task2_edge_mmps':120,
+        'task2_online_gyro_bias_learning':False,
         'task2_edge_follow_mmps':70, 'task2_edge_follow_diff_mmps':50,
         'task2_edge_follow_entry':'capture-at-arc-entry', 'task2_edge_follow_exit_ms':60,
         'task2_edge_follow_min_ms':200, 'task2_edge_follow_capture_mmps':50,

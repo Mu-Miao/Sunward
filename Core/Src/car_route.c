@@ -67,6 +67,7 @@ void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now)
     app->route.leg_start = 0.0f;
     app->route.elapsed_ms = 0U;
     task2_edge_reset(&app->route);
+    memset(&app->route.task2_straight, 0, sizeof app->route.task2_straight);
     app->route.motion = MOVE_NONE;    app->route.tracking = 0U;
     app->route.distance_mm[LEFT] = app->route.distance_mm[RIGHT] = 0.0f;
     app->route.goal = app->button.selected_motion == MOVE_LINE ? DPT_LINE_MM :
@@ -122,6 +123,8 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
                 app->route.distance_mm[i] = 0.0f;
             }
             if (requested == MOVE_TASK2) {
+                memset(&app->route.task2_straight, 0, sizeof app->route.task2_straight);
+                memset(&app->route.task3, 0, sizeof app->route.task3);
                 app->route.leg = app->route.edge_seen = 0U;
                 app->route.leg_start = 0.0f;
                 app->route.start_heading = app->heading.reference;
@@ -168,6 +171,43 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
     }
 }
 
+static void task2_next_leg(CarAppContext *app, uint32_t now, float travelled)
+{
+    /* 换段保持连续运动：不停车、不清 PI，下一拍由降速重定向缩减积分。 */
+    app->route.edge_seen = app->line.invalid_seen = 0U;
+    task2_edge_reset(&app->route);
+    if (app->route.leg == 3U) { CarApp_Stop(app, BRAKING, '-'); return; }
+    ++app->route.leg;
+    app->route.leg_start = travelled;
+    if (!CarRoute_IsArc(app)) app->route.task3.phase = T3_IDLE;
+    /* 弧入口已捕线：本拍立即按任务四方式低速接管，不再等外沿探头确认。 */
+    app->route.edge_follow_pending = CarRoute_IsArc(app) ? 1U : 0U;
+    app->signal.ms = now;
+    CarSignal_Set(app, 1); /* 经过 B、C、D 时触发声光提示，提示本身不暂停路线执行。 */
+    app->route.cruise = CarRoute_IsArc(app) ? DPT_TASK2_ARC_MMPS : DPT_TASK2_STRAIGHT_MMPS;
+    app->heading.reference = app->route.leg == 1U || app->route.leg == 2U ?
+        CarMath_WrapDegrees(app->route.start_heading + 180.0f) : app->route.start_heading;
+    if (CarRoute_IsArc(app)) app->route.task2_arc_exit_heading = app->heading.reference;
+    if (app->route.leg == 2U) {
+        /* C点已确认出线：保存当前陀螺坐标，不再追回名义180度。 */
+        app->route.task2_straight.seen = 1U;
+        app->route.task2_straight.entry_ms = now;
+        app->route.task2_straight.nominal_heading = app->heading.reference;
+        app->route.task2_straight.reference_heading = app->heading.angle;
+        app->route.task2_straight.entry_yaw = app->heading.angle;
+        app->heading.reference = app->heading.angle;
+        for (unsigned w=0;w<2;w++) {
+            app->route.task2_straight.entry_targets[w] = app->route.targets[w];
+            app->route.task2_straight.entry_velocity[w] = app->wheel.items[w].velocity;
+            app->route.task2_straight.entry_integral[w] = app->wheel.items[w].integral;
+        }
+    }
+    app->heading.error = CarMath_WrapDegrees(app->heading.reference - app->heading.angle);
+    app->heading.diff = DPT_HEADING_GAIN * app->heading.error;
+    if (app->heading.diff > DPT_HEADING_MAX_DIFF) app->heading.diff = DPT_HEADING_MAX_DIFF;
+    if (app->heading.diff < -DPT_HEADING_MAX_DIFF) app->heading.diff = -DPT_HEADING_MAX_DIFF;
+}
+
 void CarRoute_UpdateTask2(CarAppContext *app, uint32_t now)
 {
     if (app->route.motion != MOVE_TASK2 || app->runtime.state != RUNNING) return;
@@ -176,33 +216,12 @@ void CarRoute_UpdateTask2(CarAppContext *app, uint32_t now)
     int arc = CarRoute_IsArc(app);
     float length = arc ? DPT_TASK2_ARC_MM : DPT_TASK2_STRAIGHT_MM;
     float window = arc ? DPT_TASK2_EXIT_WINDOW_MM : DPT_TASK2_ENTRY_WINDOW_MM;
-    int expected_edge;
-    if (!arc) expected_edge = app->line.valid;
-    else {
-        /* 每段入口已把参考航向设为本段出口切线，弧末只接受该方向的短暂全白。 */
-        float error = CarMath_WrapDegrees(app->heading.reference - app->heading.angle);
-        expected_edge = app->line.count == 0U && error >= -DPT_TASK2_END_ANGLE_DEG && error <= DPT_TASK2_END_ANGLE_DEG;
-    }
+    if (arc) return; /* Arc point detection belongs to the common controller. */
+    int expected_edge=app->line.valid;
     if (progress >= length - window && progress <= length + window && expected_edge) {
         if (!app->route.edge_seen) { app->route.edge_seen = 1U; app->route.edge_ms = now; }
         if ((uint32_t)(now - app->route.edge_ms) >= DPT_TASK2_EDGE_MS) {
-            /* 换段保持连续运动：不停车、不清 PI，下一拍由降速重定向缩减积分。 */
-            app->route.edge_seen = app->line.invalid_seen = 0U;
-            task2_edge_reset(&app->route);
-            if (app->route.leg == 3U) { CarApp_Stop(app, BRAKING, '-'); return; }
-            ++app->route.leg;
-            app->route.leg_start = travelled;
-            /* 弧入口已捕线：本拍立即按任务四方式低速接管，不再等外沿探头确认。 */
-            app->route.edge_follow_pending = CarRoute_IsArc(app) ? 1U : 0U;
-            app->signal.ms = now;
-            CarSignal_Set(app, 1); /* 经过 B、C、D 时触发声光提示，提示本身不暂停路线执行。 */
-            app->route.cruise = CarRoute_IsArc(app) ? DPT_TASK2_ARC_MMPS : DPT_TASK2_STRAIGHT_MMPS;
-            app->heading.reference = app->route.leg == 1U || app->route.leg == 2U ?
-                CarMath_WrapDegrees(app->route.start_heading + 180.0f) : app->route.start_heading;
-            app->heading.error = CarMath_WrapDegrees(app->heading.reference - app->heading.angle);
-            app->heading.diff = DPT_HEADING_GAIN * app->heading.error;
-            if (app->heading.diff > DPT_HEADING_MAX_DIFF) app->heading.diff = DPT_HEADING_MAX_DIFF;
-            if (app->heading.diff < -DPT_HEADING_MAX_DIFF) app->heading.diff = -DPT_HEADING_MAX_DIFF;
+            task2_next_leg(app,now,travelled);
             return;
         }
     } else app->route.edge_seen = 0U;
@@ -225,197 +244,86 @@ int CarRoute_UsesHeading(CarAppContext *app)
  return !CarMotion_IsFigureEight(app->route.motion) && app->route.motion != MOVE_LINE && !CarRoute_IsArc(app);
 }
 
-static float task2_arc_clamp(float diff, float limit)
+/* Thin adapter: Task2 BC/DA both turn right, using the actual Task3/4 arc core. */
+static void task2_line_history(CarAppContext *app, const CarTask3Input *i, int before)
 {
-    if (diff > limit) return limit;
-    if (diff < -limit) return -limit;
-    return diff;
-}
-
-static void task2_arc_output(CarAppContext *app, float speed, float diff)
-{
-    CarRouteState *r = &app->route;
-    r->base = speed;
-    app->line.diff = diff;
-    r->targets[LEFT] = speed + diff;
-    r->targets[RIGHT] = speed - diff;
-}
-
-static void task2_arc_zero(CarAppContext *app, float *base)
-{
-    app->runtime.drive(0, 0);
-    CarWheel_Clear(app);
-    app->route.targets[LEFT] = app->route.targets[RIGHT] = app->line.diff = 0.0f;
-    app->route.base = *base = 0.0f;
-}
-
-/* 全白桥接输出，与任务四 T3_ARC 的两种分支对应：
-   跟随中冻结最后差速并降到捕线速度；已交回常规巡线时用 40 毫米/秒、
-   DA/历史单探头空档用 140/20 扫过探头盲区。 */
-static void task2_arc_seek_output(CarAppContext *app, float *base, int following)
-{
-    CarRouteState *r = &app->route;
-    if (following) {
-        float speed = DPT_TASK2_EDGE_FOLLOW_CAPTURE_MMPS;
-        float limit = fminf(DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS, speed - DPT_TASK4_TURN_INNER_MMPS);
-        float diff = task2_arc_clamp(r->edge_follow_diff, limit);
-        task2_arc_output(app, speed, diff);
-        *base = speed;
-        return;
+    if (before && !i->line_valid && !app->route.task3_trace.lost_seen) {
+        app->route.task3_trace.lost_seen=1U; app->route.task3_trace.lost_ms=i->now_ms;
+        app->route.task3_trace.lost_arc_number=app->route.leg==1U?1U:2U;
+        float e=app->route.task3_trace.valid_error;
+        if (fabsf(e)<0.5f && app->route.task3_trace.previous_seen) e-=app->route.task3_trace.previous_error;
+        app->route.task3_trace.lost_direction=fabsf(e)>=0.5f?(e>0?1:-1):1;
+        app->route.task3_trace.lost_yaw=i->yaw_deg;
+        memcpy(app->route.task3_trace.lost_raw,app->line.raw,4U);
+        for(unsigned w=0;w<2;w++) {
+            app->route.task3_trace.targets[w]=app->route.targets[w];
+            app->route.task3_trace.velocity[w]=app->wheel.items[w].velocity;
+        }
     }
-    float direction = r->edge_follow_diff >= 0.0f ? 1.0f : -1.0f;
-    if (fabsf(r->edge_follow_diff) < 0.5f)
-        direction = app->line.error >= 0.0f ? 1.0f : -1.0f;
-    if (r->edge_follow_gap_seek) {
-        float outer = DPT_TASK2_EDGE_FOLLOW_GAP_OUTER_MMPS;
-        float inner = DPT_TASK2_EDGE_FOLLOW_GAP_INNER_MMPS;
-        task2_arc_output(app, (outer + inner) * 0.5f, (outer - inner) * 0.5f * direction);
-        *base = (outer + inner) * 0.5f;
-    } else {
-        float speed = DPT_TASK2_EDGE_FOLLOW_SEEK_MMPS;
-        task2_arc_output(app, speed, speed * 0.4f * direction);
-        *base = speed;
+    if (!before && i->line_valid && !app->route.task3.lost_seen) {
+        if (app->route.task3_trace.valid_seen) {
+            memcpy(app->route.task3_trace.previous_raw,app->route.task3_trace.valid_raw,4U);
+            app->route.task3_trace.previous_error=app->route.task3_trace.valid_error;
+            app->route.task3_trace.previous_seen=1U;
+        }
+        memcpy(app->route.task3_trace.valid_raw,app->line.raw,4U);
+        app->route.task3_trace.valid_error=i->line_error;
+        app->route.task3_trace.valid_diff=app->line.diff;
+        app->route.task3_trace.valid_seen=1U;
     }
 }
 
-/* 任务二弧段巡线，逐项沿用任务四 V19 的 T3_ARC 弧内逻辑：
-   弧入口捕线后立即以 70 毫米/秒接管，最外侧单探头固定 ±50，内侧稳定后提速；
-   全白按 500 毫秒/20 毫米/12 度桥接（DA 可信外侧 35 毫米/18 度），
-   非全白无效图样立即停输出；恢复需连续 30 毫秒有效线。
-   返回 1 表示本拍已按弧内逻辑写完目标速度。 */
 static int task2_arc_line(CarAppContext *app, uint32_t now, float *base, const float previous[2])
 {
-    CarRouteState *r = &app->route;
-    if (!DPT_TASK2_EDGE_FOLLOW || r->motion != MOVE_TASK2 || !(r->leg & 1U)) return 0;
-    const CarLineState *l = &app->line;
-    float travelled = (r->distance_mm[LEFT] + r->distance_mm[RIGHT]) * 0.5f;
-    int outermost = l->valid && l->count == 1U && (l->black[0] || l->black[3]);
-    int single = l->valid && l->count == 1U;
-    int entered = 0;
-
-    /* 与任务四一致：只在弧入口捕线时接管一次，之后由常规巡线接管提速。 */
-    if (!r->edge_follow && r->edge_follow_pending) {
-        r->edge_follow = 1U;
-        r->edge_follow_pending = r->edge_follow_exit_seen = 0U;
-        r->edge_follow_ms = now;
-        r->edge_follow_start_mm = travelled;
-        r->edge_follow_yaw = app->heading.angle;
-        r->edge_follow_diff = 0.0f;
-        r->edge_follow_resume = 0U;
-        r->edge_follow_lost = r->edge_follow_loss_seek = r->edge_follow_gap_seek =
-            r->edge_follow_recovery = 0U;
-        entered = 1;
+    CarRouteState *r=&app->route;
+    if (r->motion!=MOVE_TASK2 || !(r->leg&1U)) return 0;
+    CarTask3Input input=CarTask3Port_Input(app,now,1,0,0);
+    int entered=r->edge_follow_pending;
+    if (entered) {
+        CarTask3Config config=CarTask4_Config();
+        config.arc_mm=DPT_TASK2_ARC_MM; config.arc_mmps=DPT_TASK2_ARC_MMPS;
+        config.deadline_ms=DPT_TASK2_TIMEOUT_MS;
+        memset(&r->task3_trace,0,sizeof r->task3_trace);
+        if (!CarTask3_BeginArc(&r->task3,&config,&input,r->task2_arc_exit_heading,-1)) {
+            CarApp_Stop(app,CarTask3Port_StopState(r->task3.fault),'-'); return 1;
+        }
+        r->edge_follow_pending=0U;
+        r->edge_follow_start_mm=input.distance_mm;
     }
-    if (l->valid) {
-        r->edge_follow_valid = 1U;
-        if (outermost) r->edge_follow_outer = 1U;
-        if (single) r->edge_follow_side = 1U;
-        app->line.invalid_seen = 0U;
+    task2_line_history(app,&input,1);
+    CarTask3Output output; CarTask3_Update(&r->task3,&input,&output);
+    if (entered) output.retarget_integrals=1U;
+    if (r->task3.phase==T3_FAULT) {
+        TestState why=CarTask3Port_StopState(r->task3.fault);
+        if (r->task3.fault==T3_LOST && app->line.count!=0U) why=LINE_BAD;
+        task2_edge_reset(r); CarApp_Stop(app,why,'-'); return 1;
     }
-
-    /* 跟随预算与任务四一致：超时/超程/超角直接停车，不带着旧差速继续跑。 */
-    if (r->edge_follow && !entered &&
-        ((uint32_t)(now - r->edge_follow_ms) >= DPT_TASK2_EDGE_FOLLOW_MS ||
-         travelled - r->edge_follow_start_mm >= DPT_TASK2_EDGE_FOLLOW_MM ||
-         fabsf(CarMath_WrapDegrees(app->heading.angle - r->edge_follow_yaw)) > DPT_TASK2_EDGE_FOLLOW_DEG)) {
-        task2_edge_reset(r);
-        CarApp_Stop(app, LINE_BAD, '-');
+    /* Core already confirmed distance + exit heading + stable white for C/A. */
+    if (r->task3.phase==T3_FINAL_BRAKE) {
+        task2_next_leg(app,now,input.distance_mm);
+        if (app->runtime.state==RUNNING) {
+            r->base=*base=DPT_TASK2_START_MMPS;
+            r->targets[LEFT]=r->targets[RIGHT]=r->base;
+        }
         return 1;
     }
-
-    if (!l->valid) {
-        if (!r->edge_follow_lost) {
-            r->edge_follow_lost = 1U;
-            r->edge_follow_lost_ms = now;
-            r->edge_follow_lost_mm = travelled;
-            r->edge_follow_lost_yaw = app->heading.angle;
-            r->edge_follow_loss_seek = r->edge_follow_valid && l->count == 0U;
-            r->edge_follow_gap_seek = r->edge_follow_loss_seek &&
-                ((r->leg == 3U && r->edge_follow_outer) || r->edge_follow_side);
-            r->edge_follow_recovery = 0U;
-        }
-        if (l->count != 0U) r->edge_follow_loss_seek = r->edge_follow_gap_seek = 0U;
-        uint32_t budget = r->edge_follow_loss_seek ? DPT_TASK2_EDGE_FOLLOW_WHITE_MS
-                                                   : DPT_TASK2_EDGE_FOLLOW_LOST_MS;
-        float lost_travel = travelled - r->edge_follow_lost_mm;
-        int limits = (uint32_t)(now - r->edge_follow_lost_ms) >= budget;
-        if (r->edge_follow_loss_seek) {
-            if (lost_travel < -5.0f ||
-                lost_travel >= (r->edge_follow_gap_seek ? DPT_TASK2_EDGE_FOLLOW_GAP_MM
-                                                        : DPT_TASK2_EDGE_FOLLOW_WHITE_MM))
-                limits = 1;
-            if (fabsf(CarMath_WrapDegrees(app->heading.angle - r->edge_follow_lost_yaw)) >
-                (r->edge_follow_gap_seek ? DPT_TASK2_EDGE_FOLLOW_GAP_DEG
-                                         : DPT_TASK2_EDGE_FOLLOW_WHITE_DEG))
-                limits = 1;
-        }
-        if (limits) {
-            int white = r->edge_follow_loss_seek != 0U;
-            task2_edge_reset(r);
-            CarApp_Stop(app, white ? LINE_LOST : LINE_BAD, '-');
-            return 1;
-        }
-        if (!r->edge_follow_loss_seek) {
-            /* 全黑或分裂图样：与任务四一样先停输出，预算到点再判故障。 */
-            task2_arc_zero(app, base);
-            return 1;
-        }
-        task2_arc_seek_output(app, base, r->edge_follow);
-        return 1;
-    }
-
-    /* 恢复确认与任务四一致：连续 30 毫秒有效线；未确认前继续桥接输出。 */
-    if (r->edge_follow_lost) {
-        if (!r->edge_follow_recovery) {
-            r->edge_follow_recovery = 1U;
-            r->edge_follow_recovery_ms = now;
-        }
-        if ((uint32_t)(now - r->edge_follow_recovery_ms) < DPT_TASK2_EDGE_FOLLOW_RECOVERY_MS) {
-            if (!r->edge_follow_loss_seek) task2_arc_zero(app, base);
-            else task2_arc_seek_output(app, base, r->edge_follow);
-            return 1;
-        }
-        r->edge_follow_lost = r->edge_follow_recovery = r->edge_follow_loss_seek =
-            r->edge_follow_gap_seek = 0U;
-    }
-
-    if (r->edge_follow) {
-        if (!entered) {
-            if (!outermost) {
-                if (!r->edge_follow_exit_seen) {
-                    r->edge_follow_exit_seen = 1U;
-                    r->edge_follow_exit_ms = now;
-                }
-            } else r->edge_follow_exit_seen = 0U;
-            if (r->edge_follow_exit_seen &&
-                (uint32_t)(now - r->edge_follow_exit_ms) >= DPT_TASK2_EDGE_FOLLOW_EXIT_MS &&
-                (uint32_t)(now - r->edge_follow_ms) >= DPT_TASK2_EDGE_FOLLOW_MIN_MS) {
-                r->edge_follow = r->edge_follow_exit_seen = 0U;
-                r->edge_follow_resume = 1U;
-                r->edge_follow_resume_ms = now;
-            }
-        }
-        if (r->edge_follow) {
-            float speed = DPT_TASK2_EDGE_FOLLOW_MMPS;
-            float limit = fminf(DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS, speed - DPT_TASK4_TURN_INNER_MMPS);
-            float diff = outermost ? copysignf(DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS, l->error) :
-                DPT_LINE_GAIN * l->error * speed / DPT_LINE_CRUISE_MMPS;
-            r->edge_follow_diff = task2_arc_clamp(diff, limit);
-            task2_arc_output(app, speed, r->edge_follow_diff);
-            *base = speed;
-            if (entered) CarWheel_Retarget(app, previous);
-            return 1;
-        }
-    }
-
-    /* 已交回常规巡线：按任务四弧段加速度从 70 提回弧段速度。 */
-    if (r->edge_follow_resume) {
-        float ramp = DPT_TASK2_EDGE_FOLLOW_MMPS + DPT_TASK2_EDGE_FOLLOW_ACCEL_MMPS2 *
-            (float)(uint32_t)(now - r->edge_follow_resume_ms) / 1000.0f;
-        if (*base > ramp) *base = ramp;
-        if (ramp >= r->cruise) r->edge_follow_resume = 0U;
-    }
-    CarLine_SetTargets(app, now, *base);
+    if (r->task3.phase!=T3_ARC) { CarApp_Stop(app,LINE_BAD,'-'); return 1; }
+    CarTask3Port_Apply(app,&output,now);
+    (void)previous; /* The shared output port performs retargeting exactly once. */
+    task2_line_history(app,&input,0);
+    r->edge_follow=r->task3.edge_follow_active;
+    r->edge_follow_resume=r->task3.resume_active;
+    r->edge_follow_valid=r->task3.arc_valid_seen;
+    r->edge_follow_outer=r->task3.arc_outer_valid; r->edge_follow_side=r->task3.arc_side_valid;
+    r->edge_follow_lost=r->task3.lost_seen; r->edge_follow_loss_seek=r->task3.loss_seek;
+    r->edge_follow_gap_seek=r->task3.gap_seek; r->edge_follow_recovery=r->task3.recovery_seen;
+    r->edge_follow_ms=r->task3.phase_ms; r->edge_follow_diff=r->task3.entry_diff_mmps;
+    r->edge_seen=r->task3.edge_seen; r->edge_ms=r->task3.edge_ms;
+    r->edge_follow_exit_seen=r->task3.edge_seen; r->edge_follow_exit_ms=r->task3.edge_ms;
+    r->edge_follow_resume_ms=r->task3.resume_ms;
+    r->edge_follow_lost_ms=r->task3.lost_start_ms; r->edge_follow_lost_mm=r->task3.lost_start_mm;
+    r->edge_follow_lost_yaw=r->task3.lost_yaw_deg; r->edge_follow_recovery_ms=r->task3.recovery_start_ms;
+    *base=r->base;
     return 1;
 }
 
@@ -541,8 +449,17 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                         CarApp_Stop(app, FAST, 'R');
                     else {
                         for (unsigned i = 0; i < 2U; ++i) {
-                            app->route.distance_mm[i] += CarWheel_Millimetres(i, CarMath_Delta16(count[i], app->route.distance_count[i]));
+                            float advance=CarWheel_Millimetres(i,CarMath_Delta16(count[i],app->route.distance_count[i]));
+                            app->route.distance_mm[i] += advance;
+                            if (app->route.motion==MOVE_TASK2 && app->route.leg==2U && app->route.task2_straight.seen) {
+                                if (i==LEFT) app->route.task2_straight.left_mm+=advance;
+                                else app->route.task2_straight.right_mm+=advance;
+                            }
                             app->route.distance_count[i] = count[i];
+                        }
+                        if (app->route.motion==MOVE_TASK2 && app->route.leg==2U && app->route.task2_straight.seen) {
+                            app->route.task2_straight.wheel_yaw_deg=(app->route.task2_straight.right_mm-app->route.task2_straight.left_mm)/DPT_TRACK_WIDTH_MM*57.2957795131f;
+                            app->route.task2_straight.gyro_delta_deg=CarMath_WrapDegrees(app->heading.angle-app->route.task2_straight.entry_yaw);
                         }
                         if (app->route.motion == MOVE_TASK2) CarRoute_UpdateTask2(app, now);
                         if (app->route.motion != MOVE_TASK2 && app->runtime.state == RUNNING && (!CarRoute_UsesLine(app) || app->line.valid) && (app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f >= app->route.goal)
@@ -579,7 +496,9 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                                     (app->route.motion == MOVE_LINE ? DPT_LINE_START_MMPS : DPT_ROUTE_START_MMPS);
                                 float accel = app->route.motion == MOVE_TASK2 ? DPT_TASK2_ACCEL_MMPS2 :
                                     (app->route.motion == MOVE_LINE ? DPT_LINE_ACCEL_MMPS2 : DPT_ROUTE_ACCEL_MMPS2);
-                                float ramp = start + accel * ((float)(uint32_t)(now - app->route.start_ms) / 1000.0f);
+                                uint32_t ramp_start=app->route.motion==MOVE_TASK2 && app->route.leg==2U && app->route.task2_straight.seen
+                                    ? app->route.task2_straight.entry_ms : app->route.start_ms;
+                                float ramp = start + accel * ((float)(uint32_t)(now - ramp_start) / 1000.0f);
                                 if (base > ramp) base = ramp;
                             }
                             app->route.base = base;
@@ -607,7 +526,8 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                             CarWheel_Retarget(app, previous_targets);
                         /* 弧入口的降速重定向已由 arc_line 内部完成，避免积分被缩放两次。 */
                         if (app->route.motion == MOVE_TASK2 && !app->route.edge_follow &&
-                            (app->route.cruise != previous_cruise || !CarRoute_IsArc(app)) && app->route.base < previous_base - 0.5f)
+                            (((app->route.cruise != previous_cruise || !CarRoute_IsArc(app)) && app->route.base < previous_base - 0.5f) ||
+                             (app->route.leg==2U && app->route.task2_straight.seen && app->route.task2_straight.entry_ms==now)))
                             CarWheel_Retarget(app, previous_targets);
                     }
                 }

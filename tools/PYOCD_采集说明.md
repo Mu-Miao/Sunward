@@ -10,7 +10,7 @@
 "/Users/mzh/Library/Application Support/pipx/venvs/pyocd/bin/python" tools/pyocd_capture.py
 ```
 
-默认使用 `ATK-D62E11F3`、`stm32f103rc`、4MHz SWD，每秒20次RAM采样。可用 `--seconds 5` 做短时连接核验，用 `--hz 10` 降低频率，或者用 `--layout-only` 仅离线检查ELF布局而不连接硬件。
+默认使用 `ATK-D62E11F3`、`stm32f103rc`、1MHz SWD（关闭CMSIS-DAP延迟传输），每秒20次RAM采样。可用 `--seconds 5` 做短时连接核验，用 `--hz 10` 降低频率，或者用 `--layout-only` 仅离线检查ELF布局而不连接硬件。
 
 脚本直接从当前 `build/Debug/Sunward.elf` 的DWARF解析 `instance` 布局，不把C结构偏移硬编码进采集器。连接后先逐字节核对ELF的所有FLASH加载段与板上内容；不匹配时拒绝解析RAM，防止拿错版本布局读出假数据。不会替用户重新下载固件。
 
@@ -29,3 +29,5 @@ VS Code手动查看航向时可用 `instance.heading.angle`、`instance.heading.
 
 
 历史接通记录见[main实验档案](https://github.com/Mu-Miao/Sunward/tree/main/docs/experiments)。
+
+任务二V26新增task2_straight及gyro_rate_dps记录；建议`--hz 10 --frequency 1000000`。V26 instance为1060字节，旧版996字节，必须先通过Flash比对才解析。

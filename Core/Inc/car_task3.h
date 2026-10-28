@@ -98,6 +98,9 @@ int CarTask3_ConfigValid(const CarTask3Config *config);
 CarTask3Config CarTask3_DefaultConfig(void);
 int CarTask3_Start(CarTask3 *route, const CarTask3Config *config,
     const CarTask3Input *input);
+/* 已捕线且仍在前进的半圆入口；turn_direction=-1右弯，+1左弯。 */
+int CarTask3_BeginArc(CarTask3 *route, const CarTask3Config *config,
+    const CarTask3Input *input, float exit_heading_deg, int turn_direction);
 void CarTask3_Update(CarTask3 *route, const CarTask3Input *input,
     CarTask3Output *output);
 void CarTask3_Cancel(CarTask3 *route);

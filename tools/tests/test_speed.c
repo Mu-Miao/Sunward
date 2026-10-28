@@ -60,7 +60,7 @@ static void task2_approach(void)
 {
  for(unsigned leg=0;leg<=2;leg+=2) {
   task_start();
-  if(leg==2){endpoint(0);endpoint(1);}
+  if(leg==2){endpoint(0);endpoint(1);app()->route.task2_straight.entry_ms=ms-5000;}
   app()->route.start_ms=ms-5000;line_inputs=15;
   app()->heading.angle=app()->heading.reference;
   const float distances[]={800,880,970},cd_expected[]={400,300,160};

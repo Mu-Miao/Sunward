@@ -233,6 +233,29 @@ int CarTask3_Start(CarTask3 *r, const CarTask3Config *c, const CarTask3Input *i)
     return 1;
 }
 
+int CarTask3_BeginArc(CarTask3 *r, const CarTask3Config *c,
+    const CarTask3Input *i, float exit_heading, int turn_direction)
+{
+    if (!r || !c || !i) return 0;
+    if (r->phase!=T3_IDLE && r->phase!=T3_DONE && r->phase!=T3_FAULT) return 0;
+    if (!config_valid(c) || !isfinite(exit_heading) || (turn_direction != -1 && turn_direction != 1)) {
+        fault(r, T3_CONFIG); return 0;
+    }
+    if (!input_valid(c, i) || !i->line_valid) { fault(r, T3_SENSOR); return 0; }
+    if (!i->enabled || i->stop_requested || i->protection_fault) { fault(r, T3_ABORT); return 0; }
+    memset(r, 0, sizeof *r); r->config = *c;
+    r->diagonal_mm = hypotf(c->span_mm, 2.0f*c->radius_mm);
+    r->diagonal_angle_deg = atan2f(2.0f*c->radius_mm,c->span_mm)*57.2957795131f;
+    r->leg = turn_direction < 0 ? 3U : 1U;
+    r->start_heading_deg = wrap(exit_heading-r->diagonal_angle_deg-(r->leg==1U?180.0f:0.0f));
+    r->phase = T3_ARC; r->start_ms = r->phase_ms = r->previous_ms = i->now_ms;
+    r->leg_start_mm = r->phase_start_mm = i->distance_mm;
+    r->entry_yaw_deg = i->yaw_deg; r->arc_valid_seen = 1U;
+    r->arc_outer_valid = i->outermost; r->arc_side_valid = i->side_probe;
+    r->edge_follow_active = c->edge_follow;
+    return 1;
+}
+
 void CarTask3_Cancel(CarTask3 *r) { if (r) fault(r, T3_ABORT); }
 
 int CarTask3_NextLap(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)

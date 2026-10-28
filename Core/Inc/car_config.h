@@ -82,7 +82,7 @@
 #define DPT_TASK2_APPROACH_MM 160.0f /* 仅CD末段预减速；AB保持巡航到捕线换段。 */
 #define DPT_TASK2_APPROACH_MIN_MMPS 160.0f /* 换段前保留前进目标，捕线/EDGE另有限速。 */
 #define DPT_TASK2_MAX_CMD 3600 /* 仅比赛模式放宽；GO20等保持旧限幅。 */
-#define DPT_TASK2_EDGE_MMPS 160.0f /* 仅最外侧探头压线时降速，沿用任务四的边缘降速机制。 */
+#define DPT_TASK2_EDGE_MMPS 120.0f /* 仅最外侧探头压线时降速，沿用任务四的边缘降速机制。 */
 #define DPT_TASK2_TIMEOUT_MS 45000U /* 开发阶段的故障超时保护；任务二验收用时要求不超过 30 秒。 */
 #define DPT_TASK2_ENTRY_WINDOW_MM 200.0f
 #define DPT_TASK2_EXIT_WINDOW_MM 200.0f
