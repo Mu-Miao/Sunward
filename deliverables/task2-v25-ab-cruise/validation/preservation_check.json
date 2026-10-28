@@ -1,0 +1,20 @@
+{
+  "base_commit": "588a969ef06ebbc0d0bc15aee14f1f6c0b8a2cce",
+  "all_config_macro_values_unchanged": true,
+  "motion_suite_trace_unchanged": [
+    [
+      "2dd39c4bf694273b",
+      "112449"
+    ],
+    [
+      "2dd39c4bf694273b",
+      "112449"
+    ]
+  ],
+  "task2_ab_approach": false,
+  "task2_cd_approach": true,
+  "task1_approach": true,
+  "all_tests": 28,
+  "flashed": false,
+  "field_verified": false
+}

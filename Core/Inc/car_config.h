@@ -79,7 +79,7 @@
 #define DPT_TASK2_ARC_MMPS 300.0f /* 半圆巡线沿用任务四弧段速度；差速仍按 DPT_LINE_CRUISE_MMPS 缩放。 */
 #define DPT_TASK2_START_MMPS 50.0f
 #define DPT_TASK2_ACCEL_MMPS2 250.0f
-#define DPT_TASK2_APPROACH_MM 160.0f /* 正常直线末段提前降速后再捕线。 */
+#define DPT_TASK2_APPROACH_MM 160.0f /* 仅CD末段预减速；AB保持巡航到捕线换段。 */
 #define DPT_TASK2_APPROACH_MIN_MMPS 160.0f /* 换段前保留前进目标，捕线/EDGE另有限速。 */
 #define DPT_TASK2_MAX_CMD 3600 /* 仅比赛模式放宽；GO20等保持旧限幅。 */
 #define DPT_TASK2_EDGE_MMPS 160.0f /* 仅最外侧探头压线时降速，沿用任务四的边缘降速机制。 */

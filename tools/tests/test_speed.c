@@ -58,23 +58,33 @@ static void speed_limit_isolation(void)
 }
 static void task2_approach(void)
 {
- task_start();app()->route.start_ms=ms-5000;line_inputs=15;
- const float distances[]={800,880,970},expected[]={400,300,160};
- for(unsigned n=0;n<3;n++) {
-  app()->route.distance_mm[0]=app()->route.distance_mm[1]=distances[n];
-  if(n==1)for(unsigned w=0;w<2;w++)app()->wheel.items[w].integral=3200;
-  step(10,0,0);
-  assert(app()->runtime.state==RUNNING && app()->route.leg==0 && signals==0);
-  assert(app()->route.base==expected[n] && app()->route.targets[0]>0 && app()->route.targets[1]>0);
-  if(n==1)for(unsigned w=0;w<2;w++)assert(fabsf(app()->wheel.items[w].integral-2400)<.01f);
+ for(unsigned leg=0;leg<=2;leg+=2) {
+  task_start();
+  if(leg==2){endpoint(0);endpoint(1);}
+  app()->route.start_ms=ms-5000;line_inputs=15;
+  app()->heading.angle=app()->heading.reference;
+  const float distances[]={800,880,970},cd_expected[]={400,300,160};
+  unsigned before=signals;
+  for(unsigned n=0;n<3;n++) {
+   app()->route.distance_mm[0]=app()->route.distance_mm[1]=app()->route.leg_start+distances[n];
+   if(n==1)for(unsigned w=0;w<2;w++)app()->wheel.items[w].integral=3200;
+   step(10,0,0);
+   assert(app()->runtime.state==RUNNING && app()->route.leg==leg && signals==(int)before);
+   float expected=leg==0?400:cd_expected[n];
+   assert(app()->route.base==expected && app()->route.targets[0]>0 && app()->route.targets[1]>0);
+   if(n==1)for(unsigned w=0;w<2;w++) {
+    float expected_i=leg==0?3200:2400;
+    assert(fabsf(app()->wheel.items[w].integral-expected_i)<.01f);
+   }
+  }
+  line_inputs=9;for(unsigned n=0;n<4;n++)step(10,0,0);
+  assert(app()->route.leg==leg+1 && signals==(int)before+1 && app()->route.edge_follow);
+  assert(app()->route.base==70 && app()->route.targets[0]>0 && app()->route.targets[1]>0);
  }
- line_inputs=9;for(unsigned n=0;n<4;n++)step(10,0,0);
- assert(app()->route.leg==1 && signals==1 && app()->route.edge_follow);
- assert(app()->route.base==70 && app()->route.targets[0]>0 && app()->route.targets[1]>0);
 }
 int main(void)
 {
  all_line_patterns();preserved_budgets();speed_limit_isolation();task2_approach();
- puts("PASS: arc target peak396; competition500/other350 FAST isolation, latch/no restart; Task2 moving approach and integral reduction; fixed EDGE/turn/search budgets and deadlines.");
+ puts("PASS: arc target peak396; competition500/other350 FAST isolation, latch/no restart; Task2 AB cruise until capture, CD approach/integral reduction; fixed EDGE/turn/search budgets and deadlines.");
  return 0;
 }

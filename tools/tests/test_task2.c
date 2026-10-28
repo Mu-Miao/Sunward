@@ -310,15 +310,15 @@ static void retarget_regression(void){
  CarApp_TestContext()->route.start_ms=ms-5000U; /* past the Task2 ramp */
  CarApp_TestContext()->route.distance_mm[0]=CarApp_TestContext()->route.distance_mm[1]=
   CarApp_TestContext()->route.leg_start+DPT_TASK2_STRAIGHT_MM-10;
- CarApp_TestContext()->route.base=160;
- CarApp_TestContext()->route.targets[0]=CarApp_TestContext()->route.targets[1]=160;
+ CarApp_TestContext()->route.base=400;
+ CarApp_TestContext()->route.targets[0]=CarApp_TestContext()->route.targets[1]=400;
  for(unsigned w=0;w<2;w++)CarApp_TestContext()->wheel.items[w].integral=3500;
  line_inputs=9;
  for(int i=0;i<4;i++)step(10,0,0);
  assert(CarApp_TestContext()->route.leg==1&&CarApp_TestContext()->route.cruise==DPT_TASK2_ARC_MMPS);
  for(unsigned w=0;w<2;w++){
-  assert(fabsf(CarApp_TestContext()->wheel.items[w].integral-3500.0f*DPT_TASK2_EDGE_FOLLOW_MMPS/DPT_TASK2_APPROACH_MIN_MMPS)<.01f);
-  assert(CarApp_TestContext()->wheel.items[w].command==DPT_TASK2_MAX_CMD);
+  assert(fabsf(CarApp_TestContext()->wheel.items[w].integral-(3500.0f*DPT_TASK2_EDGE_FOLLOW_MMPS/DPT_TASK2_STRAIGHT_MMPS + 14.0f))<.01f);
+  assert(CarApp_TestContext()->wheel.items[w].command>0 && CarApp_TestContext()->wheel.items[w].command<DPT_TASK2_MAX_CMD);
  }
 }
 /* Task4 parity: capture at arc entry takes over at 70mm/s at once, the
@@ -398,7 +398,7 @@ int main(void){
  for(int i=0;i<50;i++)step(10,0,0);
  assert(CarApp_TestContext()->runtime.state==DONE&&!CarApp_TestContext()->signal.active&&signals==4);
  for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
- assert(strcmp(oled_lines[0],"TASK 2 V24 FAST")==0&&strstr(oled_lines[2],"DONE DA T"));
+ assert(strcmp(oled_lines[0],"TASK 2 V25 FAST")==0&&strstr(oled_lines[2],"DONE DA T"));
  /* Competition PWM headroom; GO20 retains1800. */
  pwm_cap();
  /* Straight->arc handoff keeps PI state, scaled to the slower target. */

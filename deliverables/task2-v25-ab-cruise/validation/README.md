@@ -1,0 +1,1 @@
+28组主机回归通过。test_speed分别验证AB巡航与CD预减速，test_task1及motion保持任务一减速/停稳/声光。preservation_check.json记录全部配置宏值保持，以及motion套件两入口完整轨迹与588a969一致。ARM完整构建成功，main.c原10条未使用告警保留。布局离线解析，不访问或烧录硬件。

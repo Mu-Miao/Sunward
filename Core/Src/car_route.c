@@ -567,7 +567,8 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                             if (app->route.motion == MOVE_TASK2 && !CarRoute_IsArc(app)) {
                                 float progress = (app->route.distance_mm[LEFT] + app->route.distance_mm[RIGHT]) * 0.5f - app->route.leg_start;
                                 float end_remaining = DPT_TASK2_STRAIGHT_MM - progress;
-                                if (end_remaining < DPT_TASK2_APPROACH_MM)
+                                /* 仅CD预减速；AB保持巡航，确认B捕线后由EDGE接管。 */
+                                if (app->route.leg == 2U && end_remaining < DPT_TASK2_APPROACH_MM)
                                     base = fmaxf(DPT_TASK2_APPROACH_MIN_MMPS, app->route.cruise * fmaxf(end_remaining, 0.0f) / DPT_TASK2_APPROACH_MM);
                             } else if (remaining < app->route.slow) {
                                 base = app->route.cruise * remaining / app->route.slow;
