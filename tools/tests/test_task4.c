@@ -8,7 +8,7 @@ static void task4_select(void)
  setup();line_inputs=15;hold();hold();hold();hold();
  assert(app()->button.selected_motion==MOVE_TASK4 && app()->runtime.state!=RUNNING);
  assert(app()->route.goal>20280 && app()->route.goal<20300);
- assert(strcmp(oled_lines[0],"TASK 4 V21 EDGE")==0);
+ assert(strcmp(oled_lines[0],"TASK 4 V27 SMTH")==0);
 }
 static void task4_start(void)
 {
@@ -72,8 +72,9 @@ static void robust_arc(void)
  task4_start();until_lap_phase(0,T3_ARC);
  app()->route.task3.phase_ms=ms-3000U;
  app()->route.task4.resume_pending=app()->route.task4.resume_active=0;
- line_inputs=9;step(10,177,176);
- assert(app()->route.base==DPT_TASK4_ARC_MMPS);
+ line_inputs=9;
+ for(unsigned k=0;k<160 && app()->route.base<DPT_TASK4_ARC_MMPS;k++)step(10,177,176);
+ assert(app()->runtime.state==RUNNING && app()->route.base==DPT_TASK4_ARC_MMPS);
 }
 static void robust_regression(void)
 {
@@ -87,7 +88,9 @@ static void robust_regression(void)
     outer-probe slowdown is independently retained below. */
  robust_arc();line_inputs=11;step(10,177,176);
  assert(fabsf(app()->route.base-300)<.01f);
- assert(fabsf(app()->route.targets[0]-204.0f)<.01f && fabsf(app()->route.targets[1]-396.0f)<.01f);
+ assert(app()->route.targets[0]<app()->route.targets[1] && app()->route.targets[0]>0);
+ for(unsigned n=0;n<200;n++){ms+=10;CarLine_SetTargets(app(),ms,300);}
+ assert(app()->route.targets[0]>220 && app()->route.targets[1]<380);
  for(unsigned pattern=1;pattern<15;pattern++) {
   robust_arc();line_inputs=pattern;step(10,177,176);
   if(app()->line.valid) {
@@ -143,7 +146,9 @@ static void robust_regression(void)
   assert(fabsf(app()->route.base-120)<.01f);
   assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
   assert(side?app()->route.targets[0]<app()->route.targets[1]:app()->route.targets[0]>app()->route.targets[1]);
-  line_inputs=9;step(10,177,176);assert(app()->route.base==DPT_TASK4_ARC_MMPS);
+  line_inputs=9;step(10,177,176);assert(app()->route.base>120 && app()->route.base<=122.001f);
+  for(unsigned k=0;k<100 && app()->route.base<DPT_TASK4_ARC_MMPS;k++)step(10,177,176);
+  assert(app()->runtime.state==RUNNING && app()->route.base==DPT_TASK4_ARC_MMPS);
  }
  /* Heading-dependent turn speed; zero inner target and no reversed wheel. */
  task4_start();CarTask3Output o={.control=T3_TURN_FORWARD,.heading_deg=0,.left_mmps=80};

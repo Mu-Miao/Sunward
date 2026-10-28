@@ -108,7 +108,8 @@ def summarize(d):
         'runtime': select(rt, 'state old_tick old_ms dt_us fault_wheel bluetooth_on'),
         'state_name': STATES[rt['state']] if rt['state'] < len(STATES) else 'UNKNOWN',
         'heading': select(d['heading'], 'phase angle reference error gyro_angle bias bias_rate fusion_active fusion_learning wheel_rate samples io_us'),
-        'line': select(d['line'], 'raw valid count error sample_ms'),
+        'line': select(d['line'], 'raw valid count error sample_ms') |
+                ({'smooth': d['line']['smooth']} if 'smooth' in d['line'] else {}),
         'route': select(r, 'motion leg leg_start distance_mm targets base elapsed_ms start_ms'),
         'task2_straight': r.get('task2_straight'),
         'gyro_rate_dps': d['heading'].get('previous_gyro_rate'),

@@ -28,9 +28,9 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
             state_text = wheel_state;
         }
         const char *title = "TASK 1 V4 FAST";
-        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V21 EDGE";
-        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V6 EDGE";
-        else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 V26 ARC";
+        if (app->route.motion == MOVE_TASK4 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK4)) title = "TASK 4 V27 SMTH";
+        else if (app->route.motion == MOVE_TASK3 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK3)) title = "TASK 3 V27 SMTH";
+        else if (app->route.motion == MOVE_TASK2 || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_TASK2)) title = "TASK 2 V27 SMTH";
         else if (app->route.motion == MOVE_LINE || (app->route.motion == MOVE_NONE && app->button.selected_motion == MOVE_LINE)) title = "TEST HALF ARC";
         else if (app->route.motion == MOVE_DISTANCE) title = "TEST GO20";
         else if (app->route.motion == MOVE_HEADING) title = "TEST GO";
@@ -171,7 +171,9 @@ void CarUI_UpdateOLED(CarAppContext *app, uint32_t now, int enabled)
         char msg[128];
         int n;
         if (app->button.selected_motion == MOVE_LINE || app->route.motion == MOVE_LINE || app->button.selected_motion == MOVE_TASK2 || app->route.motion == MOVE_TASK2 || CarMotion_IsFigureEight(app->button.selected_motion) || CarMotion_IsFigureEight(app->route.motion)) {
-            const char *fw = app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK2 ? " FW=T2V26" : "";
+            const char *fw = app->route.motion == MOVE_TASK2 || app->button.selected_motion == MOVE_TASK2 ? " FW=T2V27" :
+                app->route.motion == MOVE_TASK3 || app->button.selected_motion == MOVE_TASK3 ? " FW=T3V27" :
+                app->route.motion == MOVE_TASK4 || app->button.selected_motion == MOVE_TASK4 ? " FW=T4V27" : "";
             n = snprintf(msg, sizeof msg, "LINE RAW=%u%u%u%u E100=%d C=%d VALID=%u CENTER=%u MODE=%s SEG=%u EF=%u%s\r\n",
                 (unsigned)app->line.raw[0], (unsigned)app->line.raw[1], (unsigned)app->line.raw[2], (unsigned)app->line.raw[3],
                 CarMath_Round(app->line.error * 100.0f), CarMath_Round(app->line.diff), (unsigned)app->line.valid, (unsigned)app->line.center_ready,

@@ -1,0 +1,12 @@
+{
+  "test": "V26 recorded longest uninterrupted trusted normal-arc sensor sequence; held100ms/frame at common300mmps, production controller evaluated every10ms",
+  "frames": 55,
+  "normal_diff_total_variation_v26": 1824.0,
+  "normal_diff_total_variation_v27": 1542.4,
+  "variation_reduction_percent": 15.438596491228063,
+  "normal_diff_max_change_per_10ms_v27": 16.0,
+  "physical_trajectory_verified": false,
+  "host_regression_groups": 32,
+  "instance_size": 1092,
+  "flashed": false
+}

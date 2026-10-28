@@ -9,12 +9,13 @@ static void all_line_patterns(void)
   setup();app()->runtime.state=RUNNING;app()->route.motion=modes[m];
   line_inputs=raw;CarLine_Decode(app());CarLine_SetTargets(app(),ms,300);
   if(!app()->line.valid)continue;
+  for(unsigned k=0;k<200;k++){ms+=10;CarLine_SetTargets(app(),ms,300);}
   for(unsigned w=0;w<2;w++) {
    float t=app()->route.targets[w];assert(t>0 && t<=396.01f);
    if(t>peak)peak=t;
   }
  }
- assert(fabsf(peak-396)<.01f);
+ assert(peak>=370 && peak<=390.01f);
  printf("Normal arc raw-pattern target peak: %.1f mm/s; competition FAST guard500; other modes350.\n",peak);
 }
 static void preserved_budgets(void)
@@ -85,6 +86,6 @@ static void task2_approach(void)
 int main(void)
 {
  all_line_patterns();preserved_budgets();speed_limit_isolation();task2_approach();
- puts("PASS: arc target peak396; competition500/other350 FAST isolation, latch/no restart; Task2 AB cruise until capture, CD approach/integral reduction; fixed EDGE/turn/search budgets and deadlines.");
+ puts("PASS: bounded normal arc targets; competition500/other350 FAST isolation, latch/no restart; Task2 AB cruise until capture, CD approach/integral reduction; fixed EDGE/turn/search budgets and deadlines.");
  return 0;
 }

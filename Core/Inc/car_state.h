@@ -83,6 +83,11 @@ typedef struct {
     uint32_t invalid_ms;
     float error;
     float diff;
+    struct {
+        uint8_t active;
+        uint32_t ms;
+        float previous_error, derivative, p_term, d_term, base, diff;
+    } smooth;
 } CarLineState;
 
 typedef struct {

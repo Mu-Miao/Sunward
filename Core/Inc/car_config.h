@@ -68,6 +68,13 @@
 #define DPT_LINE_ACCEL_MMPS2 100.0f /* 独立半圆保持原来的100，避免随任务一提速。 */
 #define DPT_LINE_GAIN 64.0f
 #define DPT_LINE_MAX_DIFF 80.0f
+/* V27: tasks 2/3/4 normal line control only; EDGE/search and wheel PI unchanged. */
+#define DPT_LINE_SMOOTH_KP 48.0f
+#define DPT_LINE_SMOOTH_KD 0.40f
+#define DPT_LINE_SMOOTH_D_TAU_S 0.050f
+#define DPT_LINE_SMOOTH_D_LIMIT 12.0f
+#define DPT_LINE_SMOOTH_DIFF_RATE 1600.0f /* mm/s of differential per second */
+#define DPT_LINE_SMOOTH_ACCEL 200.0f /* normal recovery acceleration, mm/s^2 */
 #define DPT_LINE_TIMEOUT_MS 45000U
 #define DPT_LINE_CENTER_MS 100U
 #define DPT_LINE_INVALID_MS 100U

@@ -77,6 +77,7 @@ void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now)
             2.0f * (hypotf(DPT_TASK3_SPAN_MM, 2.0f * DPT_TASK3_RADIUS_MM) + DPT_TASK3_ARC_MM);
     app->line.center_seen = app->line.center_ready = app->line.invalid_seen = 0U;
     app->line.diff = 0.0f;
+    CarLine_ResetControl(app);
     app->ui.button_log_ms = now - 1000U;
     app->ui.render_ms = now - 200U;
 }
@@ -143,6 +144,7 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
             app->route.run_duration = requested == MOVE_TASK2 ? DPT_TASK2_TIMEOUT_MS : requested == MOVE_ROUTE ? DPT_ROUTE_TIMEOUT_MS :
                 (requested == MOVE_LINE ? DPT_LINE_TIMEOUT_MS : DPT_DISTANCE_TIMEOUT_MS);
         }
+        CarLine_ResetControl(app);
         app->route.start_ms = app->route.switch_ms = now;
         app->route.switching = was_running;
         app->runtime.fault_wheel = '-';

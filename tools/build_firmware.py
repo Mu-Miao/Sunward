@@ -114,23 +114,28 @@ def main():
     assert eof==1 and min(memory)==0x08000000 and max(memory)<0x08040000
     image=bytes(memory.get(a,255) for a in range(min(memory),max(memory)+1))
     assert b'TASK 1 V4 FAST' in image
-    assert b'TASK 4 V21 EDGE' in image and b'TASK 3 V6 EDGE' in image
-    assert b'TASK 2 V26 ARC' in image and b'FW=T2V26' in image
+    assert b'TASK 4 V27 SMTH' in image and b'TASK 3 V27 SMTH' in image
+    assert b'TASK 2 V27 SMTH' in image and b'FW=T2V27' in image
     assert 0x20000000 < int.from_bytes(image[:4], 'little') <= 0x2000C000
     reset=int.from_bytes(image[4:8], 'little')
     assert reset & 1 and 0x08000000 <= (reset & ~1) < 0x08040000
-    manifest={'base_branch':'codex/all-tasks-speed-v2',
-        'base_commit':'b49096b886a3ad9e179cbb0c85d14d7418180d1c',
+    manifest={'base_branch':'codex/task234-smooth-v27',
+        'base_commit':'b5e0a1b',
+        'rollback_branch':'codex/v26-before-line-smoothing',
+        'line_control':'filtered PD + normal differential slew + rising-base ramp; wheel PI unchanged',
+        'line_kp':48, 'line_kd':0.40, 'line_d_tau_s':0.050, 'line_d_limit':12,
+        'line_diff_rate_mmps2':1600, 'line_recovery_accel_mmps2':200,
+        'line_integral_enabled':False, 'emergency_edge_and_loss_smoothing':False,
         'task1_title':'TASK 1 V4 FAST', 'task1_goal_mm':1000,
         'task1_cruise_mmps':400, 'task1_start_mmps':40, 'task1_accel_mmps2':300,
         'task1_slow_mm':300, 'task1_max_cmd':3600, 'task1_timeout_ms':13500,
         'task1_settle_ms':200, 'task1_brake_timeout_ms':1500,
         'task1_min_mmps':40, 'task1_signal_ms':500,
-        'task3_title':'TASK 3 V6 EDGE', 'task3_laps':1, 'task3_timeout_ms':40000,
-        'task3_profile':'Task4 V21 EDGE copy; independent40s; no lap wrapper', 'task3_max_cmd':3600,
-        'task4_title':'TASK 4 V21 EDGE', 'units_compiled':len(SOURCES),
+        'task3_title':'TASK 3 V27 SMTH', 'task3_laps':1, 'task3_timeout_ms':40000,
+        'task3_profile':'shared V27 normal PD and Task4 EDGE; independent40s; no lap wrapper', 'task3_max_cmd':3600,
+        'task4_title':'TASK 4 V27 SMTH', 'units_compiled':len(SOURCES),
         'diagonal_mmps':400, 'arc_mmps':300, 'diagonal_accel_mmps2':250, 'approach_mm':180, 'entry_mmps':50, 'task4_max_cmd':3600,
-        'task2_title':'TASK 2 V26 ARC', 'task2_fw_tag':'T2V26',
+        'task2_title':'TASK 2 V27 SMTH', 'task2_fw_tag':'T2V27',
         'task2_straight_mmps':400, 'task2_arc_mmps':300, 'task2_accel_mmps2':250, 'task2_ab_approach':False, 'task2_approach_scope':'CD only', 'task2_approach_mm':160, 'task2_approach_min_mmps':160, 'task2_max_cmd':3600,
         'task2_arc_engine':'CarTask3_Update + CarTask3Port_Apply',
         'task2_cd_reference':'latched actual gyro heading at confirmed C',

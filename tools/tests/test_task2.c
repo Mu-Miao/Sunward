@@ -398,7 +398,7 @@ int main(void){
  for(int i=0;i<50;i++)step(10,0,0);
  assert(CarApp_TestContext()->runtime.state==DONE&&!CarApp_TestContext()->signal.active&&signals==4);
  for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
- assert(strcmp(oled_lines[0],"TASK 2 V26 ARC")==0&&strstr(oled_lines[2],"DONE DA T"));
+ assert(strcmp(oled_lines[0],"TASK 2 V27 SMTH")==0&&strstr(oled_lines[2],"DONE DA T"));
  /* Competition PWM headroom; GO20 retains1800. */
  pwm_cap();
  /* Straight->arc handoff keeps PI state, scaled to the slower target. */

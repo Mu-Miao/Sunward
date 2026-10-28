@@ -31,3 +31,5 @@ VS Code手动查看航向时可用 `instance.heading.angle`、`instance.heading.
 历史接通记录见[main实验档案](https://github.com/Mu-Miao/Sunward/tree/main/docs/experiments)。
 
 任务二V26新增task2_straight及gyro_rate_dps记录；建议`--hz 10 --frequency 1000000`。V26 instance为1060字节，旧版996字节，必须先通过Flash比对才解析。
+
+V27新增line.smooth，包含active、ms、previous_error、derivative、p_term、d_term、base、diff。V27 instance为1092字节；V26为1060。必须使用匹配ELF并通过Flash核验；新固件未烧录时使用原V26 ELF。

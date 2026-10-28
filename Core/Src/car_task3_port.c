@@ -30,6 +30,8 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
     int arc_mode = CarMotion_IsFigureEight(app->route.motion) ||
         (app->route.motion == MOVE_TASK2 && CarRoute_IsArc(app));
     float previous_targets[2] = {app->route.targets[LEFT], app->route.targets[RIGHT]};
+    if (o->control != T3_FOLLOW_LINE || o->reset_controllers || app->runtime.state != RUNNING)
+        CarLine_ResetControl(app);
     app->route.targets[LEFT] = app->route.targets[RIGHT] = 0.0f;
     /* 整车已锁存故障时，之前计算的运动输出不得重新使电机启动。 */
     if (app->runtime.state != RUNNING) {
@@ -139,6 +141,9 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         app->route.base = base; app->line.diff = diff;
         app->heading.reference = o->heading_deg; app->heading.error = heading;
     } else if (o->control == T3_FOLLOW_LINE) {
+        /* Seed the normal controller from the actual prior mode output. */
+        app->route.targets[LEFT] = previous_targets[LEFT];
+        app->route.targets[RIGHT] = previous_targets[RIGHT];
         CarLine_SetTargets(app, now, o->base_mmps);
     }
     if (app->runtime.state == RUNNING && arc_mode &&
