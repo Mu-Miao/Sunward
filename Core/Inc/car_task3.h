@@ -9,7 +9,7 @@ typedef enum { T3_IDLE, T3_DIAGONAL, T3_VERTEX_BRAKE, T3_ALIGN,
 typedef enum { T3_OK, T3_CONFIG, T3_ABORT, T3_SENSOR, T3_TIMEOUT,
     T3_HEADING, T3_EDGE, T3_LOST, T3_TURN, T3_SETTLE, T3_DISTANCE } CarTask3Fault;
 typedef enum { T3_HALT, T3_HOLD_HEADING, T3_TURN_FORWARD,
-    T3_FOLLOW_LINE, T3_SEEK_LINE, T3_ENTER_ARC, T3_EDGE_FOLLOW } CarTask3Control;
+    T3_FOLLOW_LINE, T3_SEEK_LINE, T3_ENTER_ARC, T3_EDGE_FOLLOW, T3_SHORT_GAP } CarTask3Control;
 typedef enum { T3_NO_POINT, T3_POINT_A, T3_POINT_B,
     T3_POINT_C, T3_POINT_D } CarTask3Point;
 /* 失线预算触发位，仅作停车诊断；可同时触发多个限制。 */
@@ -47,12 +47,14 @@ typedef struct {
     uint8_t edge_follow; /* 八字任务确认捕线后先低速巡线，内侧稳定才提速。 */
     float edge_follow_mmps, edge_follow_diff_mmps, edge_follow_mm, edge_follow_deg;
     uint32_t edge_follow_ms;
+    uint32_t short_gap_ms; /* 0 disables; at most30ms white before original stable recovery. */
 } CarTask3Config;
 
 typedef struct {
     uint32_t now_ms, sample_age_ms;
     float distance_mm; /* 左右编码器的有符号平均里程，包含转向对正期间的移动。 */
     float yaw_deg, left_mmps, right_mmps;
+    float target_left_mmps, target_right_mmps; /* prior committed wheel targets, not measured speed */
     float line_error; /* 有效线的位置偏差，物理左负右正，范围 -3..3。 */
     uint8_t heading_ready, line_valid, black_count, centered;
     uint8_t outermost; /* 当前有效图样为最左或最右单探头。 */
@@ -91,7 +93,10 @@ typedef struct {
     float leg_start_mm, phase_start_mm;
     float entry_yaw_deg, entry_diff_mmps;
     uint8_t edge_follow_active;
-    float resume_start_mmps; /* 正常失线恢复用start；低速接管提速从当前基速起。 */
+    float resume_start_mmps; /* Normal recovery uses start; trusted short gaps retain the prior base. */
+    uint8_t normal_trusted, short_gap_active;
+    float short_gap_left_mmps, short_gap_right_mmps;
+    uint32_t short_gap_count; /* Diagnostic count; never used to extend a loss deadline. */
 } CarTask3;
 
 int CarTask3_ConfigValid(const CarTask3Config *config);

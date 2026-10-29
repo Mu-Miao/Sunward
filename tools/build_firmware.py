@@ -114,14 +114,14 @@ def main():
     assert eof==1 and min(memory)==0x08000000 and max(memory)<0x08040000
     image=bytes(memory.get(a,255) for a in range(min(memory),max(memory)+1))
     assert b'TASK 1 V4 FAST' in image
-    assert b'TASK 4 V28 TURN' in image and b'TASK 3 V28 TURN' in image
-    assert b'TASK 2 V28 TURN' in image and b'FW=T2V28' in image
+    assert b'TASK 4 V29 GAP' in image and b'TASK 3 V29 GAP' in image
+    assert b'TASK 2 V29 GAP' in image and b'FW=T2V29' in image
     assert 0x20000000 < int.from_bytes(image[:4], 'little') <= 0x2000C000
     reset=int.from_bytes(image[4:8], 'little')
     assert reset & 1 and 0x08000000 <= (reset & ~1) < 0x08040000
-    manifest={'base_branch':'codex/task234-corner-v28',
-        'base_commit':'832fbc835a682c69aaf0c8ed8e55749d00206b30',
-        'rollback_branch':'codex/v27-smooth-rollback',
+    manifest={'base_branch':'codex/task234-gap-v29',
+        'base_commit':'b4e20a26f47d7c85a56485c38f19d2b8f42e2441',
+        'rollback_branch':'codex/v28-99s-rollback',
         'line_control':'filtered PD + normal differential slew + rising-base ramp; wheel PI unchanged',
         'line_kp':48, 'line_kd':0.40, 'line_d_tau_s':0.050, 'line_d_limit':12,
         'line_diff_rate_mmps2':1600, 'line_recovery_accel_mmps2':200,
@@ -130,16 +130,19 @@ def main():
         'corner_slow_angle_deg':12, 'corner_final_min_diff_mmps':35,
         'captured_edge_base_mmps':80, 'captured_edge_diff_mmps':60,
         'invalid_line_capture_mmps':50,
+        'trusted_short_white_ms':30, 'short_gap_recovery_confirm_ms':30,
+        'short_gap_max_target_mmps':400, 'short_gap_min_base_mmps':150,
+        'short_gap_loss_budget_extended':False,
         'task1_title':'TASK 1 V4 FAST', 'task1_goal_mm':1000,
         'task1_cruise_mmps':400, 'task1_start_mmps':40, 'task1_accel_mmps2':300,
         'task1_slow_mm':300, 'task1_max_cmd':3600, 'task1_timeout_ms':13500,
         'task1_settle_ms':200, 'task1_brake_timeout_ms':1500,
         'task1_min_mmps':40, 'task1_signal_ms':500,
-        'task3_title':'TASK 3 V28 TURN', 'task3_laps':1, 'task3_timeout_ms':40000,
+        'task3_title':'TASK 3 V29 GAP', 'task3_laps':1, 'task3_timeout_ms':40000,
         'task3_profile':'V27 normal PD retained; V28 faster point turns and valid EDGE; independent40s', 'task3_max_cmd':3600,
-        'task4_title':'TASK 4 V28 TURN', 'units_compiled':len(SOURCES),
+        'task4_title':'TASK 4 V29 GAP', 'units_compiled':len(SOURCES),
         'diagonal_mmps':400, 'arc_mmps':300, 'diagonal_accel_mmps2':250, 'approach_mm':180, 'entry_mmps':50, 'task4_max_cmd':3600,
-        'task2_title':'TASK 2 V28 TURN', 'task2_fw_tag':'T2V28',
+        'task2_title':'TASK 2 V29 GAP', 'task2_fw_tag':'T2V29',
         'task2_straight_mmps':400, 'task2_arc_mmps':300, 'task2_accel_mmps2':250, 'task2_ab_approach':False, 'task2_approach_scope':'CD only', 'task2_approach_mm':160, 'task2_approach_min_mmps':160, 'task2_max_cmd':3600,
         'task2_arc_engine':'CarTask3_Update + CarTask3Port_Apply',
         'task2_cd_reference':'latched actual gyro heading at confirmed C',

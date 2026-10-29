@@ -13,6 +13,8 @@ CarTask3Input CarTask3Port_Input(const CarAppContext *app, uint32_t now,
     i.line_error = app->line.error;
     i.left_mmps = app->wheel.items[LEFT].velocity;
     i.right_mmps = app->wheel.items[RIGHT].velocity;
+    i.target_left_mmps = app->route.targets[LEFT];
+    i.target_right_mmps = app->route.targets[RIGHT];
     i.heading_ready = app->heading.phase == Y_READY;
     i.line_valid = app->line.valid;
     i.black_count = app->line.count;
@@ -100,6 +102,27 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         float diff = fmaxf(-limit, fminf(limit, (o->left_mmps - o->right_mmps) * 0.5f));
         app->route.targets[LEFT] = base + diff; app->route.targets[RIGHT] = base - diff;
         app->route.base = base; app->line.diff = diff;
+    } else if (o->control == T3_SHORT_GAP) {
+        const CarTask3 *t = &app->route.task3;
+        uint32_t age = (uint32_t)(now - t->lost_start_ms);
+        float base = (t->short_gap_left_mmps + t->short_gap_right_mmps) * 0.5f;
+        if (!arc_mode || t->phase != T3_ARC || !t->config.continuous_motion ||
+            !t->config.short_gap_ms || !t->short_gap_active || !t->lost_seen ||
+            !t->loss_seek || !t->arc_valid_seen || !t->config.white_seek_ms ||
+            !app->route.task3_trace.valid_seen || t->edge_follow_active ||
+            (!app->line.valid && app->line.count != 0U) ||
+            age > t->config.short_gap_ms + t->config.recovery_ms ||
+            (!app->line.valid && age >= t->config.short_gap_ms) ||
+            base < 150.0f || base > t->config.arc_mmps + 0.01f ||
+            t->short_gap_left_mmps < 20.0f || t->short_gap_right_mmps < 20.0f ||
+            t->short_gap_left_mmps > 400.0f || t->short_gap_right_mmps > 400.0f) {
+            app->runtime.drive(0, 0); CarWheel_Clear(app); return;
+        }
+        /* Keep only the last trusted targets. Wheel PI and all normal checks run. */
+        app->route.targets[LEFT] = t->short_gap_left_mmps;
+        app->route.targets[RIGHT] = t->short_gap_right_mmps;
+        app->route.base = base;
+        app->line.diff = (t->short_gap_left_mmps - t->short_gap_right_mmps) * 0.5f;
     } else if (o->control == T3_SEEK_LINE) {
         /* 仅核心已授权的弧段桥接及移动恢复确认；不伪造 valid，不续期预算。 */
         if (app->route.task3.phase != T3_ARC || !app->route.task3.loss_seek ||

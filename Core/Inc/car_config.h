@@ -200,6 +200,7 @@
 #define DPT_TASK4_DA_GAP_MM 35.0f
 #define DPT_TASK4_DA_GAP_DEG 18.0f
 #define DPT_TASK4_RECOVERY_MS 30U
+#define DPT_TASK4_SHORT_GAP_MS 30U /* trusted normal line only; original loss budgets still apply */
 #define DPT_TASK4_RESUME_MMPS 50.0f
 #define DPT_TASK4_RESUME_ACCEL_MMPS2 100.0f
 #define DPT_TASK4_EDGE_MMPS 120.0f

@@ -1,0 +1,31 @@
+{
+  "validation": "synthetic HAL/ideal encoders; not new field timing",
+  "groups": 36,
+  "input": "stable centered normal300mmps; one10ms all-white frame; original30ms stable recovery",
+  "v28": {
+    "first_white_targets": [
+      24,
+      56
+    ],
+    "first_white_pwm": [
+      0,
+      0
+    ],
+    "first_confirmed_recovery_base": 42
+  },
+  "v29": {
+    "first_white_targets": [
+      300,
+      300
+    ],
+    "positive_pwm_through_white_and_recovery": true,
+    "first_confirmed_recovery_base": 300
+  },
+  "real_feedback": {
+    "version": "V28",
+    "user_reported_total_seconds": 99,
+    "source": "direct user message on2026-10-29; no new pyOCD capture attached"
+  },
+  "flashed": false,
+  "field_verified": false
+}

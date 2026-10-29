@@ -279,7 +279,10 @@ void CarApp_Poll(uint32_t tick10_count)
                     if (tick10_count - app->runtime.old_tick != 1U || app->runtime.dt_us < 5000U || app->runtime.dt_us > 15000U)
                         CarApp_Stop(app, GAP, '-');
                     else if (!app->route.switching && (!CarRoute_UsesLine(app) || app->line.valid ||
-                        (app->route.motion == MOVE_TASK2 && app->route.edge_seen))) {
+                        (app->route.motion == MOVE_TASK2 && (app->route.edge_seen ||
+                         (app->route.task3.phase == T3_ARC && app->route.task3.short_gap_active &&
+                          app->route.task3.loss_seek && app->line.count == 0U &&
+                          app->route.targets[LEFT] > 0.0f && app->route.targets[RIGHT] > 0.0f))))) {
                         for (unsigned i = 0; i < 2U && app->runtime.state == RUNNING; ++i)
                             CarWheel_Control(app, i, seconds);
                         /* 两轮保护检查都通过后，才统一提交左右轮输出。 */

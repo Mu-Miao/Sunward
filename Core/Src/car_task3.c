@@ -12,6 +12,7 @@ static int positive(float a) { return isfinite(a) && a > 0.0f; }
 static int bounded_time(uint32_t t) { return t > 0U && t <= 80000U; }
 static int config_valid(const CarTask3Config *c)
 {
+    if (c->short_gap_ms && (c->short_gap_ms < 10U || c->short_gap_ms > 30U)) return 0;
     if (c->rolling_entry > 1U || c->continuous_motion > 1U || c->edge_follow > 1U) return 0;
     if (c->edge_follow &&
         (!positive(c->edge_follow_mmps) || c->edge_follow_mmps > 80.0f ||
@@ -87,7 +88,8 @@ static int config_valid(const CarTask3Config *c)
 static int input_valid(const CarTask3Config *c, const CarTask3Input *i)
 {
     return isfinite(i->distance_mm) && isfinite(i->yaw_deg) &&
-        isfinite(i->left_mmps) && isfinite(i->right_mmps) && i->heading_ready && i->continue_at_a <= 1U &&
+        isfinite(i->left_mmps) && isfinite(i->right_mmps) &&
+        isfinite(i->target_left_mmps) && isfinite(i->target_right_mmps) && i->heading_ready && i->continue_at_a <= 1U &&
         i->sample_age_ms <= c->sample_max_age_ms && i->black_count <= 4U &&
         (!i->line_valid || (i->black_count > 0U && i->black_count < 4U)) &&
         (!i->line_valid || (isfinite(i->line_error) && fabsf(i->line_error) <= 3.0f)) &&
@@ -100,6 +102,7 @@ static void fault(CarTask3 *r, CarTask3Fault f)
     r->phase = T3_FAULT;
     r->fault = f;
     r->pending_start_signal = 0U;
+    r->normal_trusted = r->short_gap_active = 0U;
 }
 static void phase(CarTask3 *r, CarTask3Phase p, const CarTask3Input *i, CarTask3Output *o)
 {
@@ -111,6 +114,7 @@ static void phase(CarTask3 *r, CarTask3Phase p, const CarTask3Input *i, CarTask3
     r->arc_outer_valid = r->gap_seek = 0U;
     r->arc_side_valid = 0U;
     r->edge_follow_active = 0U;
+    r->normal_trusted = r->short_gap_active = 0U;
     r->resume_start_mmps = 0.0f;
     o->control = T3_HALT;
     o->reset_controllers = 1U;
@@ -197,6 +201,24 @@ static void edge_follow_output(CarTask3 *r, const CarTask3Input *i,
     float diff = fmaxf(-limit, fminf(limit, r->entry_diff_mmps));
     o->control = T3_EDGE_FOLLOW; o->reset_controllers = 0U;
     o->base_mmps = base; o->left_mmps = base + diff; o->right_mmps = base - diff;
+}
+
+static int short_gap_eligible(const CarTask3 *r, const CarTask3Input *i)
+{
+    float base = (i->target_left_mmps + i->target_right_mmps) * 0.5f;
+    return r->config.short_gap_ms && r->config.continuous_motion && r->normal_trusted &&
+        !r->edge_follow_active && !r->resume_active && r->loss_seek &&
+        r->config.recovery_ms >= 30U && i->black_count == 0U &&
+        i->left_mmps > 20.0f && i->right_mmps > 20.0f &&
+        i->target_left_mmps >= 20.0f && i->target_right_mmps >= 20.0f &&
+        i->target_left_mmps <= 400.0f && i->target_right_mmps <= 400.0f &&
+        base >= 150.0f && base <= r->config.arc_mmps + 0.01f;
+}
+static void short_gap_output(const CarTask3 *r, CarTask3Output *o)
+{
+    o->control = T3_SHORT_GAP; o->reset_controllers = 0U;
+    o->left_mmps = r->short_gap_left_mmps; o->right_mmps = r->short_gap_right_mmps;
+    o->base_mmps = (o->left_mmps + o->right_mmps) * 0.5f;
 }
 
 int CarTask3_ConfigValid(const CarTask3Config *c) { return c && config_valid(c); }
@@ -419,7 +441,7 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
             fault(r, T3_HEADING);
         else if (progress > r->config.arc_mm + r->config.exit_window_mm) fault(r, T3_EDGE);
         else if (end_white) {
-            r->lost_seen = 0U;
+            r->lost_seen = r->short_gap_active = 0U;
             if (r->config.continuous_motion) {
                 o->control = T3_HOLD_HEADING; o->base_mmps = r->config.capture_mmps;
                 o->heading_deg = tangent_heading(r, 1);
@@ -449,8 +471,17 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                      (r->arc_side_valid && r->config.history_gap));
                 o->reset_controllers = !r->config.continuous_motion || !r->loss_seek;
                 o->retarget_integrals = r->config.continuous_motion && r->loss_seek;
+                r->short_gap_active = short_gap_eligible(r, i);
+                if (r->short_gap_active) {
+                    r->short_gap_left_mmps = i->target_left_mmps;
+                    r->short_gap_right_mmps = i->target_right_mmps;
+                    ++r->short_gap_count;
+                }
             }
-            if (r->lost_seen && !i->line_valid && i->black_count != 0U) r->loss_seek = r->gap_seek = 0U;
+            int short_was_active = r->short_gap_active;
+            if (r->lost_seen && !i->line_valid && i->black_count != 0U) {
+                r->loss_seek = r->gap_seek = r->short_gap_active = 0U;
+            }
             uint32_t budget = r->loss_seek ? r->config.white_seek_ms : r->config.lost_ms;
             float loss_travel = i->distance_mm - r->lost_start_mm;
             uint32_t loss_duration = (uint32_t)(i->now_ms - r->lost_start_ms);
@@ -471,8 +502,12 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                 r->loss_turn_deg = loss_turn;
                 fault(r, T3_LOST);
             } else if (!i->line_valid) {
+                /* A flicker after recovery began cannot renew the short window. */
+                if (r->recovery_seen || loss_duration >= r->config.short_gap_ms)
+                    r->short_gap_active = 0U;
                 r->recovery_seen = 0U;
-                if (r->loss_seek) {
+                if (r->short_gap_active) short_gap_output(r, o);
+                else if (r->loss_seek) {
                     /* 全白且本弧段有有效历史才允许低速桥接；不把 1111 伪装成有效线。 */
                     o->control = T3_SEEK_LINE;
                     o->base_mmps = r->config.seek_mmps;
@@ -481,6 +516,8 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                     if (edge_follow) edge_follow_output(r, i, o, 0);
                 } else o->reset_controllers = 1U;
             } else {
+                if (i->outermost || fabsf(i->line_error) >= 2.0f)
+                    r->short_gap_active = 0U;
                 int recovered = !r->lost_seen || r->config.recovery_ms == 0U;
                 if (!recovered) {
                     if (!r->recovery_seen) { r->recovery_seen = 1U; r->recovery_start_ms = i->now_ms; }
@@ -492,13 +529,16 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                         o->heading_deg = wrap(r->lost_yaw_deg + (r->leg == 1U ? 1.0f : -1.0f) *
                             fmaxf(loss_travel, 0.0f) / r->config.radius_mm * 57.2957795131f);
                         if (edge_follow) edge_follow_output(r, i, o, 0);
+                        if (r->short_gap_active) short_gap_output(r, o);
                     } else o->reset_controllers = 1U;
                 }
                 else {
                     if (r->lost_seen) {
                         r->resume_active = 1U; r->resume_ms = i->now_ms;
-                        r->resume_start_mmps = r->config.start_mmps;
+                        r->resume_start_mmps = r->short_gap_active ?
+                            (r->short_gap_left_mmps + r->short_gap_right_mmps) * 0.5f : r->config.start_mmps;
                     }
+                    r->short_gap_active = 0U;
                     r->lost_seen = r->recovery_seen = r->loss_seek = r->gap_seek = 0U;
                     r->arc_valid_seen = 1U;
                     r->arc_outer_valid = i->outermost;
@@ -527,6 +567,9 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
                     }
                 }
             }
+            /* Downgrade once to the original low-speed seek and retarget its PI. */
+            if (short_was_active && !r->short_gap_active && r->lost_seen &&
+                r->loss_seek && r->phase != T3_FAULT) o->retarget_integrals = 1U;
         }
     } else if (r->phase == T3_VERTEX_SEEK) {
         float tangent = wrap(r->start_heading_deg + r->diagonal_angle_deg + (r->leg == 2U ? 180.0f : 0.0f));
@@ -711,6 +754,8 @@ void CarTask3_Update(CarTask3 *r, const CarTask3Input *i, CarTask3Output *o)
         memset(o, 0, sizeof *o);
         o->reset_controllers = 1U;
     }
+    r->normal_trusted = r->phase == T3_ARC && o->control == T3_FOLLOW_LINE &&
+        i->line_valid && !i->outermost && !r->edge_follow_active && !r->lost_seen && !r->resume_active;
 }
 
 const char *CarTask3_LegName(const CarTask3 *r)

@@ -1,0 +1,8 @@
+frame=0 valid=1 base=300.0 targets=300.0/300.0 speed=300.0/299.9 pwm=973/1288 loss=0 recovery=0
+frame=1 valid=0 base=40.0 targets=24.0/56.0 speed=300.0/299.9 pwm=0/0 loss=1 recovery=0
+frame=2 valid=1 base=40.0 targets=24.0/56.0 speed=24.1/56.2 pwm=74/234 loss=1 recovery=1
+frame=3 valid=1 base=40.0 targets=24.0/56.0 speed=24.1/56.2 pwm=74/234 loss=1 recovery=1
+frame=4 valid=1 base=40.0 targets=24.0/56.0 speed=24.1/56.2 pwm=74/234 loss=1 recovery=1
+frame=5 valid=1 base=42.0 targets=42.0/42.0 speed=24.1/56.2 pwm=653/0 loss=0 recovery=0
+frame=6 valid=1 base=44.0 targets=44.0/44.0 speed=42.1/41.9 pwm=142/308 loss=0 recovery=0
+frame=7 valid=1 base=46.0 targets=46.0/46.0 speed=44.2/43.9 pwm=141/307 loss=0 recovery=0

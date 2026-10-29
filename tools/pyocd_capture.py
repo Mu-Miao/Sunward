@@ -114,7 +114,9 @@ def summarize(d):
         'task2_straight': r.get('task2_straight'),
         'gyro_rate_dps': d['heading'].get('previous_gyro_rate'),
         'task3': select(t, 'phase fault leg start_heading_deg leg_start_mm phase_start_mm phase_ms lost_seen loss_seek gap_seek loss_limits loss_duration_ms loss_distance_mm loss_turn_deg') |
-                 {k: t[k] for k in ('entry_yaw_deg', 'entry_diff_mmps', 'edge_follow_active', 'resume_start_mmps') if k in t},
+                 {k: t[k] for k in ('entry_yaw_deg', 'entry_diff_mmps', 'edge_follow_active', 'resume_start_mmps',
+                                             'normal_trusted', 'short_gap_active', 'short_gap_count',
+                                             'short_gap_left_mmps', 'short_gap_right_mmps') if k in t},
         'phase_name': PHASES[t['phase']] if t['phase'] < len(PHASES) else 'UNKNOWN',
         'task4': r['task4'],
         'wheel': [select(w, 'velocity command integral bad_sign_us stall_us') for w in d['wheel']['items']],
