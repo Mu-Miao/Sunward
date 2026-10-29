@@ -1,0 +1,26 @@
+{
+  "regression_groups": 40,
+  "distance_definition": "signed mean wheel encoder travel since first line loss",
+  "actual_task_configs": [
+    2,
+    3,
+    4
+  ],
+  "normal_white_distance_mm": 50,
+  "history_gap_distance_mm": 50,
+  "time_ms": 500,
+  "normal_angle_deg": 12,
+  "history_angle_deg": 18,
+  "recovery_ms": 30,
+  "short_white_ms": 30,
+  "task2_c_align_distance_mm": 60,
+  "below_boundary_test_mm": [
+    20,
+    35,
+    49.9
+  ],
+  "fault_boundary_test_mm": 50,
+  "synthetic_boundaries_only": true,
+  "flashed": false,
+  "field_verified": false
+}

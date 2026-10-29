@@ -37,7 +37,7 @@ static int config_valid(const CarTask3Config *c)
          !positive(c->arc_entry_mmps) || c->arc_entry_mmps > c->capture_mmps || c->arc_entry_mmps > 50.0f ||
          !positive(c->arc_entry_diff_mmps) || c->arc_entry_diff_mmps > c->arc_entry_mmps * 0.4f ||
          !positive(c->arc_entry_line_gain) || c->arc_entry_line_gain > c->arc_entry_mmps ||
-         c->lost_ms <= c->arc_entry_confirm_ms || !positive(c->white_seek_mm) || c->white_seek_mm > 20.0f ||
+         c->lost_ms <= c->arc_entry_confirm_ms || !positive(c->white_seek_mm) || c->white_seek_mm > 50.0f ||
          !positive(c->white_seek_deg) || c->white_seek_deg > 12.0f)) return 0;
     if (c->start_from_ab > 1U || c->bd_full_distance > 1U || c->b_full_align > 1U || c->d_full_align > 1U) return 0;
     if (c->b_full_align && (!positive(c->b_align_tolerance_deg) ||
@@ -47,11 +47,11 @@ static int config_valid(const CarTask3Config *c)
     if (c->d_full_align && (!positive(c->d_align_tolerance_deg) ||
         c->d_align_tolerance_deg > c->align_tolerance_deg)) return 0;
     if (c->da_outer_gap > 1U || c->history_gap > 1U || ((c->da_outer_gap || c->history_gap) &&
-        (!positive(c->da_gap_mm) || c->da_gap_mm < c->white_seek_mm || c->da_gap_mm > 35.0f ||
+        (!positive(c->da_gap_mm) || c->da_gap_mm < c->white_seek_mm || c->da_gap_mm > 50.0f ||
          !positive(c->da_gap_deg) || c->da_gap_deg < c->white_seek_deg || c->da_gap_deg > 18.0f))) return 0;
     if (c->white_seek_ms != 0U &&
         (c->white_seek_ms < 30U || c->white_seek_ms > 500U ||
-         !positive(c->white_seek_mm) || c->white_seek_mm > 20.0f ||
+         !positive(c->white_seek_mm) || c->white_seek_mm > 50.0f ||
          !positive(c->white_seek_deg) || c->white_seek_deg > 12.0f ||
          !positive(c->seek_mmps) || c->seek_mmps > 50.0f)) return 0;
     if (c->vertex_seek_ms != 0U &&

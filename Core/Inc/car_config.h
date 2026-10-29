@@ -105,9 +105,9 @@
 #define DPT_TASK2_C_ALIGN_SLOW_DEG 12.0f
 #define DPT_TASK2_C_ALIGN_MIN_DIFF 35.0f
 /* 任务二弧段巡线：直接沿用任务四 V19 的弧内逻辑。
- * 弧入口确认捕线后立即以 70 毫米/秒低速跟线；最外侧单探头固定 ±50（20/120），
- * 内侧双探头稳定 60 毫秒且已运行 200 毫秒后才交回 240 毫米/秒常规巡线。
- * 全白按任务四预算桥接（500 毫秒/20 毫米/12 度；DA 可信外侧 35 毫米/18 度），
+ * 弧入口确认捕线后立即以 80 毫米/秒低速跟线；最外侧单探头固定 ±60（20/140），
+ * 内侧双探头稳定 60 毫秒且已运行 200 毫秒后才交回 300 毫米/秒常规巡线。
+ * 全白按任务四预算桥接（500 毫秒/50 毫米/12 度；可信单探头交接 50 毫米/18 度），
  * 桥接时冻结最后差速并降到 50（跟随时）/40（常规巡线时）；非全白无效图样
  * 立即停输出，200 毫秒后判 LINE_BAD；跟随超时/超程/超角按任务四停车。 */
 #define DPT_TASK2_EDGE_FOLLOW 1U
@@ -123,9 +123,9 @@
 #define DPT_TASK2_EDGE_FOLLOW_MS 2500U
 #define DPT_TASK2_EDGE_FOLLOW_DEG 45.0f
 #define DPT_TASK2_EDGE_FOLLOW_WHITE_MS 500U
-#define DPT_TASK2_EDGE_FOLLOW_WHITE_MM 20.0f
+#define DPT_TASK2_EDGE_FOLLOW_WHITE_MM DPT_TASK4_WHITE_SEEK_MM
 #define DPT_TASK2_EDGE_FOLLOW_WHITE_DEG 12.0f
-#define DPT_TASK2_EDGE_FOLLOW_GAP_MM 35.0f
+#define DPT_TASK2_EDGE_FOLLOW_GAP_MM DPT_TASK4_DA_GAP_MM
 #define DPT_TASK2_EDGE_FOLLOW_GAP_DEG 18.0f
 #define DPT_TASK2_EDGE_FOLLOW_LOST_MS 200U
 #define DPT_TASK2_EDGE_FOLLOW_RECOVERY_MS 30U
@@ -156,7 +156,7 @@
 #define DPT_TASK3_CAPTURE_TIMEOUT_MS 2000U
 /* 任务三、四受限寻线初值；车身投影是否仍覆盖黑线必须实车确认。 */
 #define DPT_TASK3_WHITE_SEEK_MS 300U
-#define DPT_TASK3_WHITE_SEEK_MM 20.0f
+#define DPT_TASK3_WHITE_SEEK_MM 20.0f /* historical base; active Task2/3/4 override with50mm */
 #define DPT_TASK3_WHITE_SEEK_DEG 12.0f
 #define DPT_TASK3_SEEK_MMPS 40.0f
 #define DPT_TASK3_VERTEX_SEEK_MS 3000U
@@ -193,20 +193,21 @@
 #define DPT_TASK4_LAP_WATCHDOG_MS 80000U
 /* 任务四未授权寻线的无效读数保持零输出，最多等待 200 毫秒。
  * 已授权的全白桥接使用下方 500 毫秒预算；恢复需连续有效 30 毫秒。
- * 普通桥接受 20 毫米/12 度约束；DA 外侧交接使用下方独立边界。任务三保持 300 毫秒。
- * 下列数值为待实车验证的容错初值，不改变任务三和全局 PI 标定。 */
+ * V31共用全白距离50毫米；普通12度/单探头交接18度，时间500毫秒。
+ * 下列数值为待实车验证的容错初值，不改变全局 PI 标定。 */
 #define DPT_TASK4_LOST_MS 200U
 #define DPT_TASK4_WHITE_SEEK_MS 500U
+#define DPT_TASK4_WHITE_SEEK_MM 50.0f /* V31: shared Task2/3/4 all-white distance cap5cm */
 /* 外侧探头丢线时两轮正向小半径扫线；给内轮前进目标，避免零驱动下被动回滚。
  * 反转保护与原时间/位移/角度预算均保留，不能保证实物不回滚。 */
 #define DPT_TASK4_GAP_SWEEP_MMPS 80.0f
 #define DPT_TASK4_GAP_INNER_MMPS 20.0f
 /* LF04 中心间距 33/14.5/33mm，线宽19mm，探头前伸约45mm。
  * V6 DA外侧、V7 CB/DA可信内外单探头交接使用更紧的两轮前进扫线；
- * 仍限500ms，独立35mm/18度。保留DA前缀以对应既有参数记录。 */
+ * 仍限500ms，V31距离改50mm，角度18度保持。保留DA前缀以对应既有参数记录。 */
 #define DPT_TASK4_DA_GAP_OUTER_MMPS 140.0f
 #define DPT_TASK4_DA_GAP_INNER_MMPS 20.0f
-#define DPT_TASK4_DA_GAP_MM 35.0f
+#define DPT_TASK4_DA_GAP_MM 50.0f
 #define DPT_TASK4_DA_GAP_DEG 18.0f
 #define DPT_TASK4_RECOVERY_MS 30U
 #define DPT_TASK4_SHORT_GAP_MS 30U /* trusted normal line only; original loss budgets still apply */

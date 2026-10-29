@@ -114,14 +114,14 @@ def main():
     assert eof==1 and min(memory)==0x08000000 and max(memory)<0x08040000
     image=bytes(memory.get(a,255) for a in range(min(memory),max(memory)+1))
     assert b'TASK 1 V4 FAST' in image
-    assert b'TASK 4 V29 GAP' in image and b'TASK 3 V29 GAP' in image
-    assert b'TASK 2 V30 ALIGN' in image and b'FW=T2V30' in image
+    assert b'TASK 4 V31 GAP5' in image and b'TASK 3 V31 GAP5' in image
+    assert b'TASK 2 V31 GAP5' in image and b'FW=T2V31' in image
     assert 0x20000000 < int.from_bytes(image[:4], 'little') <= 0x2000C000
     reset=int.from_bytes(image[4:8], 'little')
     assert reset & 1 and 0x08000000 <= (reset & ~1) < 0x08040000
-    manifest={'base_branch':'codex/task2-c-align-v30',
-        'base_commit':'c240b1d7464eb4f0a9640503768825160110a61e',
-        'rollback_branch':'codex/task234-gap-v29',
+    manifest={'base_branch':'codex/task234-white50-v31',
+        'base_commit':'8172e19dfb610f2f1298b1f08086f162c6674850',
+        'rollback_branch':'codex/task2-c-align-v30',
         'earlier_field_rollback_branch':'codex/v28-99s-rollback',
         'line_control':'filtered PD + normal differential slew + rising-base ramp; wheel PI unchanged',
         'line_kp':48, 'line_kd':0.40, 'line_d_tau_s':0.050, 'line_d_limit':12,
@@ -139,11 +139,11 @@ def main():
         'task1_slow_mm':300, 'task1_max_cmd':3600, 'task1_timeout_ms':13500,
         'task1_settle_ms':200, 'task1_brake_timeout_ms':1500,
         'task1_min_mmps':40, 'task1_signal_ms':500,
-        'task3_title':'TASK 3 V29 GAP', 'task3_laps':1, 'task3_timeout_ms':40000,
+        'task3_title':'TASK 3 V31 GAP5', 'task3_laps':1, 'task3_timeout_ms':40000,
         'task3_profile':'V27 normal PD retained; V28 faster point turns and valid EDGE; independent40s', 'task3_max_cmd':3600,
-        'task4_title':'TASK 4 V29 GAP', 'units_compiled':len(SOURCES),
+        'task4_title':'TASK 4 V31 GAP5', 'units_compiled':len(SOURCES),
         'diagonal_mmps':400, 'arc_mmps':300, 'diagonal_accel_mmps2':250, 'approach_mm':180, 'entry_mmps':50, 'task4_max_cmd':3600,
-        'task2_title':'TASK 2 V30 ALIGN', 'task2_fw_tag':'T2V30',
+        'task2_title':'TASK 2 V31 GAP5', 'task2_fw_tag':'T2V31',
         'task2_straight_mmps':400, 'task2_arc_mmps':300, 'task2_accel_mmps2':250, 'task2_ab_approach':False, 'task2_approach_scope':'CD only', 'task2_approach_mm':160, 'task2_approach_min_mmps':160, 'task2_max_cmd':3600,
         'task2_arc_engine':'CarTask3_Update + CarTask3Port_Apply',
         'task2_cd_reference':'fixed nominal CD heading; bounded forward C alignment if residual exceeds3deg',
@@ -156,10 +156,11 @@ def main():
         'task2_edge_follow_entry':'capture-at-arc-entry', 'task2_edge_follow_exit_ms':60,
         'task2_edge_follow_min_ms':200, 'task2_edge_follow_capture_mmps':50,
         'task2_edge_follow_seek_mmps':40, 'task2_edge_follow_white_ms':500,
-        'task2_edge_follow_white_mm':20, 'task2_edge_follow_white_deg':12,
-        'task2_edge_follow_gap_mm':35, 'task2_edge_follow_gap_deg':18,
+        'task2_edge_follow_white_mm':50, 'task2_edge_follow_white_deg':12,
+        'task2_edge_follow_gap_mm':50, 'task2_edge_follow_gap_deg':18,
         'task2_edge_follow_recovery_ms':30, 'task2_edge_follow_accel_mmps2':100,
         'task2_edge_follow_bounds':'120mm/2500ms/45deg',
+        'white_seek_mm':50, 'history_gap_mm':50, 'white_seek_deg':12, 'history_gap_deg':18,
         'preview':'first valid C/D candidate inside original window; 30ms point confirmation',
         'edge_follow':True, 'edge_follow_mmps':80, 'edge_follow_diff_mmps':60,
         'edge_follow_mm':120, 'edge_follow_ms':2500, 'edge_follow_deg':45,

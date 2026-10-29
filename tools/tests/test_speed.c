@@ -31,8 +31,8 @@ static void preserved_budgets(void)
   assert(c->edge_follow_mm==120 && c->edge_follow_deg==45 && c->edge_follow_ms==2500);
   assert(c->arc_entry_min_ms==200 && c->arc_entry_confirm_ms==60);
   assert(c->turn_inner_mmps==20 && c->turn_mmps==120 && c->turn_travel_limit_mm==120);
-  assert(c->white_seek_ms==500 && c->white_seek_mm==20 && c->white_seek_deg==12);
-  assert(c->da_gap_mm==35 && c->da_gap_deg==18 && c->recovery_ms==30);
+  assert(c->white_seek_ms==500 && c->white_seek_mm==50 && c->white_seek_deg==12);
+  assert(c->da_gap_mm==50 && c->da_gap_deg==18 && c->recovery_ms==30);
   assert(c->arc_acceleration_mmps2==100 && CarTask3_ConfigValid(c));
  }
  /* Reject values beyond this experimental profile; recovery budgets stay fixed. */

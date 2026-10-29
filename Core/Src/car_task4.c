@@ -36,6 +36,7 @@ CarTask3Config CarTask4_Config(void)
     config.deadline_ms = DPT_TASK4_LAP_WATCHDOG_MS;
     config.lost_ms = DPT_TASK4_LOST_MS;
     config.white_seek_ms = DPT_TASK4_WHITE_SEEK_MS;
+    config.white_seek_mm = DPT_TASK4_WHITE_SEEK_MM;
     config.recovery_ms = DPT_TASK4_RECOVERY_MS;
     config.short_gap_ms = DPT_TASK4_SHORT_GAP_MS;
     /* 2026-10-18：BD 末段已有有效探头观测，满名义距离后却全白搜索超时。

@@ -98,7 +98,7 @@ static void bounds_regression(void)
   else if(bound==2)app()->heading.angle=CarMath_WrapDegrees(app()->route.task3.entry_yaw_deg+25.1f);
   else {
    line_inputs=15;enter_for(1);
-   if(bound==3)app()->route.task3.lost_start_mm-=35;
+   if(bound==3)app()->route.task3.lost_start_mm-=app()->route.task3.config.da_gap_mm;
    else {app()->route.task3.lost_yaw_deg=CarMath_WrapDegrees(app()->heading.angle-18.1f);}
   }
   step(10,0,0);

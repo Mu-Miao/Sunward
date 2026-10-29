@@ -72,7 +72,7 @@ static void original_guards_win(void)
  for(unsigned event=0;event<7;event++) {
   ready_normal(3,1);line_inputs=15;step_roll();assert(app()->route.task3.short_gap_active);
   TestState expected=LINE_LOST;
-  if(event==0){app()->route.task3.lost_start_mm=progress()+app()->route.task3.leg_start_mm-20;}
+  if(event==0){app()->route.task3.lost_start_mm=progress()+app()->route.task3.leg_start_mm-app()->route.task3.config.white_seek_mm;}
   if(event==1){app()->heading.angle+=12.1f;}
   if(event==2){app()->route.task3.lost_start_ms=ms-490;}
   if(event==3){off=1;expected=OFF;}

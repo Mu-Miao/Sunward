@@ -193,7 +193,7 @@ static void measured_da_gap_regression(void)
   assert(app()->route.start_ms==start && app()->route.task3.leg_start_mm==origin && app()->route.task4.ac_reference_deg==reference);
   /* Losing an inner probe afterwards gets the old 20mm/12deg budget. */
   line_inputs=15;step(10,0,0);assert(!app()->route.task3.gap_seek);
-  app()->route.task3.lost_start_mm-=20;step(10,0,0);
+  app()->route.task3.lost_start_mm-=app()->route.task3.config.white_seek_mm;step(10,0,0);
   assert(app()->runtime.state==LINE_LOST && app()->route.task3.loss_limits==T3_LOSS_DISTANCE);
  }
  for(unsigned limit=0;limit<5;limit++) {
@@ -201,7 +201,7 @@ static void measured_da_gap_regression(void)
   if(limit==0 || limit==4) {
    for(unsigned n=0;n<49;n++)step(10,100,100);
    if(limit==4)line_inputs=13; /* A valid sample cannot beat the exact deadline. */
-  } else if(limit==1)app()->route.task3.lost_start_mm-=35;
+  } else if(limit==1)app()->route.task3.lost_start_mm-=app()->route.task3.config.da_gap_mm;
   else if(limit==2)app()->heading.angle-=18.1f;
   else app()->route.task3.lost_start_mm+=6;
   step(10,0,0);
@@ -225,11 +225,11 @@ static void measured_da_gap_regression(void)
   }
   step(10,0,0);assert(app()->runtime.state!=RUNNING && a==0 && b==0);
  }
- CarTask3Config c=CarTask4_Config();assert(c.da_outer_gap && c.da_gap_mm==35 && c.da_gap_deg==18 && c.white_seek_ms==500);
- c.da_gap_mm=NAN;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();c.da_gap_mm=36;assert(!CarTask3_ConfigValid(&c));
+ CarTask3Config c=CarTask4_Config();assert(c.da_outer_gap && c.da_gap_mm==50 && c.da_gap_deg==18 && c.white_seek_ms==500);
+ c.da_gap_mm=NAN;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();c.da_gap_mm=51;assert(!CarTask3_ConfigValid(&c));
  c=CarTask4_Config();c.da_gap_deg=19;assert(!CarTask3_ConfigValid(&c));c=CarTask4_Config();c.da_outer_gap=2;assert(!CarTask3_ConfigValid(&c));
  assert(!CarRoute_FigureEightBaseConfig().da_outer_gap);
- puts("PASS: measured-spacing DA-only outer-probe bridge, mirrored 140/20 targets, synthetic recovery beyond old 20mm/12deg, trusted-direction retention, 30ms confirmation and ramp, fixed 500ms/35mm/18deg bounds, inner-probe scope, fault priority, no restart and GAP telemetry. Synthetic inputs, not physical coverage acceptance.");
+ puts("PASS: measured-spacing DA-only outer-probe bridge, mirrored 140/20 targets, synthetic recovery beyond old 20mm/12deg, trusted-direction retention, 30ms confirmation and ramp, fixed 500ms/50mm/18deg bounds, inner-probe scope, fault priority, no restart and GAP telemetry. Synthetic inputs, not physical coverage acceptance.");
 }
 static void gap_regression(void)
 {
@@ -258,7 +258,7 @@ static void gap_regression(void)
   gap_start(side);
   if(limit==0) {
    for(unsigned n=0;n<49;n++)step(10,side?0:30,side?30:0);
-  } else if(limit==1)app()->route.task3.lost_start_mm-=20;
+  } else if(limit==1)app()->route.task3.lost_start_mm-=app()->route.task3.config.white_seek_mm;
   else if(limit==2)app()->heading.angle+=side?13:-13;
   else app()->route.task3.lost_start_mm+=6;
   step(10,0,0);
@@ -316,7 +316,7 @@ int main(void)
  assert(c.white_seek_ms==300 && CarTask4_Config().white_seek_ms==500);
  c.white_seek_ms=500;assert(CarTask3_ConfigValid(&c));
  c.white_seek_ms=501;assert(!CarTask3_ConfigValid(&c));
- c=CarRoute_FigureEightBaseConfig();c.white_seek_mm=21;assert(!CarTask3_ConfigValid(&c));
+ c=CarRoute_FigureEightBaseConfig();c.white_seek_mm=51;assert(!CarTask3_ConfigValid(&c));
  c=CarRoute_FigureEightBaseConfig();c.white_seek_deg=13;assert(!CarTask3_ConfigValid(&c));
  c=CarRoute_FigureEightBaseConfig();c.vertex_seek_ms=3001;assert(!CarTask3_ConfigValid(&c));
  c=CarRoute_FigureEightBaseConfig();c.vertex_seek_mm=NAN;assert(!CarTask3_ConfigValid(&c));
@@ -389,10 +389,10 @@ int main(void)
       distance limit, so this isolates the timeout rather than STALL at 500ms. */
    for(unsigned n=0;n<(task==3?29U:49U);n++)step(10,task==4?30:0,task==4?30:0);
    if(limit==3)line_inputs=9;
-  } else if(limit==1)app()->route.task3.lost_start_mm-=20;
+  } else if(limit==1)app()->route.task3.lost_start_mm-=app()->route.task3.config.white_seek_mm;
   else if(limit==4)app()->route.task3.lost_start_mm+=6;
   else if(limit==5) {
-   app()->route.task3.lost_start_mm-=20;
+   app()->route.task3.lost_start_mm-=app()->route.task3.config.white_seek_mm;
    app()->heading.angle+=13;
   } else app()->heading.angle+=13;
   step(10,0,0);assert(app()->runtime.state==LINE_LOST && a==0 && b==0 && app()->route.task3.fault==T3_LOST);
@@ -401,7 +401,7 @@ int main(void)
    (limit==1 || limit==4?T3_LOSS_DISTANCE:(limit==5?T3_LOSS_DISTANCE|T3_LOSS_ANGLE:T3_LOSS_ANGLE));
   assert(t->loss_limits==expected);
   if(limit==0 || limit==3)assert(t->loss_duration_ms==(task==3?300U:500U));
-  if(limit==1 || limit==5)assert(fabsf(t->loss_distance_mm-20)<.001f);
+  if(limit==1 || limit==5)assert(fabsf(t->loss_distance_mm-t->config.white_seek_mm)<.001f);
   if(limit==4)assert(fabsf(t->loss_distance_mm+6)<.001f);
   if(limit==2 || limit==5) {
    /* The scheduler now integrates a learned bias in this frame as well.

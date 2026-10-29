@@ -118,7 +118,7 @@ static void recovery_regression(void)
     tick_core(&t,&in,&o,n%2?15:11);
     assert(t.lost_start_ms==lost && t.phase==T3_ARC);
    }
-  } else if(budget==1)in.distance_mm=t.lost_start_mm+35;
+  } else if(budget==1)in.distance_mm=t.lost_start_mm+t.config.da_gap_mm;
   else if(budget==2)in.yaw_deg=CarMath_WrapDegrees(t.lost_yaw_deg+18.1f);
   else in.distance_mm=t.lost_start_mm-5.1f;
   tick_core(&t,&in,&o,15);
