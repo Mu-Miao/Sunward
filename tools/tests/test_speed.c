@@ -27,10 +27,10 @@ static void preserved_budgets(void)
  for(unsigned n=0;n<2;n++) {
   CarTask3Config *c=n?&four:&three;
   assert(c->edge_follow && c->continuous_motion && c->rolling_entry);
-  assert(c->edge_follow_mmps==70 && c->edge_follow_diff_mmps==50);
+  assert(c->edge_follow_mmps==80 && c->edge_follow_diff_mmps==60);
   assert(c->edge_follow_mm==120 && c->edge_follow_deg==45 && c->edge_follow_ms==2500);
   assert(c->arc_entry_min_ms==200 && c->arc_entry_confirm_ms==60);
-  assert(c->turn_inner_mmps==20 && c->turn_mmps==100 && c->turn_travel_limit_mm==120);
+  assert(c->turn_inner_mmps==20 && c->turn_mmps==120 && c->turn_travel_limit_mm==120);
   assert(c->white_seek_ms==500 && c->white_seek_mm==20 && c->white_seek_deg==12);
   assert(c->da_gap_mm==35 && c->da_gap_deg==18 && c->recovery_ms==30);
   assert(c->arc_acceleration_mmps2==100 && CarTask3_ConfigValid(c));
@@ -38,7 +38,7 @@ static void preserved_budgets(void)
  /* Reject values beyond this experimental profile; recovery budgets stay fixed. */
  four.diagonal_mmps=401;assert(!CarTask3_ConfigValid(&four));
  four=CarTask4_Config();four.arc_mmps=301;assert(!CarTask3_ConfigValid(&four));
- assert(DPT_TASK2_EDGE_FOLLOW_MMPS==70 && DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS==50);
+ assert(DPT_TASK2_EDGE_FOLLOW_MMPS==80 && DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS==60);
  assert(DPT_ROUTE_CRUISE_MMPS==400 && DPT_ROUTE_SLOW_MM==300);
  assert(DPT_ROUTE_CRUISE_MMPS/DPT_ROUTE_SLOW_MM<1.5f);
  assert(DPT_ROUTE_MAX_CMD==3600 && DPT_TASK2_MAX_CMD==3600 && DPT_TASK3_MAX_CMD==3600 && DPT_TASK4_MAX_CMD==3600);
@@ -80,7 +80,7 @@ static void task2_approach(void)
   }
   line_inputs=9;for(unsigned n=0;n<4;n++)step(10,0,0);
   assert(app()->route.leg==leg+1 && signals==(int)before+1 && app()->route.edge_follow);
-  assert(app()->route.base==70 && app()->route.targets[0]>0 && app()->route.targets[1]>0);
+  assert(app()->route.base==80 && app()->route.targets[0]>0 && app()->route.targets[1]>0);
  }
 }
 int main(void)

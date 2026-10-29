@@ -88,7 +88,7 @@ static void edge_and_timeout(void)
  for(unsigned leg=1;leg<=3;leg+=2)for(unsigned side=0;side<2;side++) {
   scheduler_entry(leg,side?14:7);
   assert(app()->route.motion==MOVE_TASK3 && app()->route.run_duration==40000);
-  assert(app()->route.targets[side?0:1]==120 && app()->route.targets[side?1:0]==20);
+  assert(app()->route.targets[side?0:1]==140 && app()->route.targets[side?1:0]==20);
   line_inputs=15;step(10,100,100);
   assert(app()->route.targets[side?0:1]==80 && app()->route.targets[side?1:0]==20);
   line_inputs=side?13:11;
@@ -131,8 +131,8 @@ int main(void)
  assert(c.deadline_ms==40000 && four.deadline_ms==80000);
  assert(c.edge_follow && c.continuous_motion && c.rolling_entry && c.arc_entry_ms>0);
  assert(c.diagonal_mmps==four.diagonal_mmps && c.arc_mmps==four.arc_mmps);
- assert(c.turn_inner_mmps==20 && c.turn_mmps==100);
- assert(c.edge_follow_mmps==70 && c.edge_follow_diff_mmps==50);
+ assert(c.turn_inner_mmps==20 && c.turn_mmps==120);
+ assert(c.edge_follow_mmps==80 && c.edge_follow_diff_mmps==60);
  one_lap_regression();edge_and_timeout();task3_guards();
  puts("PASS: production Task3 EDGE, continuous one lap, five point signals, zero intermediate stops, 40s timeout and scheduler guards.");
  return 0;

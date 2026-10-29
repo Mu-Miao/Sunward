@@ -102,8 +102,8 @@
  * 桥接时冻结最后差速并降到 50（跟随时）/40（常规巡线时）；非全白无效图样
  * 立即停输出，200 毫秒后判 LINE_BAD；跟随超时/超程/超角按任务四停车。 */
 #define DPT_TASK2_EDGE_FOLLOW 1U
-#define DPT_TASK2_EDGE_FOLLOW_MMPS 70.0f
-#define DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS 50.0f
+#define DPT_TASK2_EDGE_FOLLOW_MMPS DPT_TASK4_EDGE_FOLLOW_MMPS
+#define DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS DPT_TASK4_EDGE_FOLLOW_DIFF_MMPS
 #define DPT_TASK2_EDGE_FOLLOW_CAPTURE_MMPS 50.0f
 #define DPT_TASK2_EDGE_FOLLOW_SEEK_MMPS 40.0f
 #define DPT_TASK2_EDGE_FOLLOW_GAP_OUTER_MMPS 140.0f
@@ -156,16 +156,16 @@
 #define DPT_TASK3_TURN_MIN_MMPS 35.0f
 /* 任务四沿用任务三几何；独立配置正常速度，以下时限用于故障保护。 */
 #define DPT_TASK4_MAX_CMD 3600 /* V21：半满幅值的PI输出余量，保护仍生效。 */
-/* V19：独立的低速边缘巡线预算；失线500ms/位移/角度预算不变。 */
+/* V28 valid EDGE80/60; original500ms/distance/angle loss budgets retained. */
 #define DPT_TASK4_EDGE_FOLLOW 1U
-#define DPT_TASK4_EDGE_FOLLOW_MMPS 70.0f
-#define DPT_TASK4_EDGE_FOLLOW_DIFF_MMPS 50.0f /* 最外单探头20/120；两轮仍前进。 */
+#define DPT_TASK4_EDGE_FOLLOW_MMPS 80.0f
+#define DPT_TASK4_EDGE_FOLLOW_DIFF_MMPS 60.0f /* V28: valid outer probe20/140; white seeking still20/80. */
 #define DPT_TASK4_EDGE_FOLLOW_MM 120.0f
 #define DPT_TASK4_EDGE_FOLLOW_MS 2500U
 #define DPT_TASK4_EDGE_FOLLOW_DEG 45.0f
 #define DPT_TASK4_ROLLING_ENTRY 1U /* V18：C/D原窗口见线即低速预转，连续确认后计点；对正后直接捕线。 */
 #define DPT_TASK4_CONTINUOUS 1U /* V18：A/B/C/D正常换段连续运动，第四圈终点或故障停车。 */
-#define DPT_TASK4_TURN_MMPS 100.0f /* 两轮前进时恢复足够差速；接近目标角仍降速。 */
+#define DPT_TASK4_TURN_MMPS 120.0f /* V28: point turns faster; inner20 and final-angle slowdown retained. */
 #define DPT_TASK4_TURN_INNER_MMPS 20.0f
 #define DPT_TASK4_TURN_LIMIT_MM 120.0f /* 双轮前进转向的位移预算；4秒转向时限保留。 */
 #define DPT_TASK4_DIAGONAL_MMPS 400.0f /* V21：正常斜线提速，基础/历史配置不变。 */
@@ -203,7 +203,7 @@
 #define DPT_TASK4_RESUME_MMPS 50.0f
 #define DPT_TASK4_RESUME_ACCEL_MMPS2 100.0f
 #define DPT_TASK4_EDGE_MMPS 120.0f
-#define DPT_TASK4_TURN_SLOW_DEG 15.0f
+#define DPT_TASK4_TURN_SLOW_DEG 12.0f /* V28 continuous Task2/3/4 only; legacy profile stays15. */
 #define DPT_TASK4_TURN_MIN_MMPS 35.0f
 #define DPT_TASK4_LAPS 4U
 #define DPT_TASK4_TIMEOUT_MS 160000U

@@ -279,7 +279,7 @@ static void bd_probe_window_regression(void)
   in.distance_mm=1196;
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
   assert(t.edge_seen && out.control==T3_TURN_FORWARD && !out.reset_controllers && out.signal_point==T3_NO_POINT);
-  assert(out.left_mmps==100 && out.right_mmps==20);
+  assert(out.left_mmps==120 && out.right_mmps==20);
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);
   in.line_valid=0;in.black_count=0;
   in.now_ms+=10;CarTask3_Update(&t,&in,&out);

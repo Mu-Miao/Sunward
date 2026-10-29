@@ -1,0 +1,29 @@
+{
+  "validation": "software only; not field timing",
+  "groups": 34,
+  "point_turn_38_66deg_ms": {
+    "v27": 1630,
+    "v28": 1280
+  },
+  "task2_ideal_one_lap_ms": {
+    "v27": 19350,
+    "v28": 19190
+  },
+  "task3_ideal_one_lap_ms": {
+    "v27": 28370,
+    "v28": 26830
+  },
+  "task4_ideal_four_laps_ms": {
+    "v27": 112850,
+    "v28": 106690
+  },
+  "normal_line_replay": {
+    "v27_diff_variation": 1542.4,
+    "v28_diff_variation": 1542.4,
+    "v27_max_diff_step_10ms": 16,
+    "v28_max_diff_step_10ms": 16
+  },
+  "task1_manual_trace_hash": "2dd39c4bf694273b",
+  "flashed": false,
+  "field_verified": false
+}

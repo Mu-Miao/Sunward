@@ -317,27 +317,26 @@ static void retarget_regression(void){
  for(int i=0;i<4;i++)step(10,0,0);
  assert(CarApp_TestContext()->route.leg==1&&CarApp_TestContext()->route.cruise==DPT_TASK2_ARC_MMPS);
  for(unsigned w=0;w<2;w++){
-  assert(fabsf(CarApp_TestContext()->wheel.items[w].integral-(3500.0f*DPT_TASK2_EDGE_FOLLOW_MMPS/DPT_TASK2_STRAIGHT_MMPS + 14.0f))<.01f);
+  assert(fabsf(CarApp_TestContext()->wheel.items[w].integral-(3500.0f*DPT_TASK2_EDGE_FOLLOW_MMPS/DPT_TASK2_STRAIGHT_MMPS + DPT_LEFT_KI*DPT_TASK2_EDGE_FOLLOW_MMPS*.01f))<.01f);
   assert(CarApp_TestContext()->wheel.items[w].command>0 && CarApp_TestContext()->wheel.items[w].command<DPT_TASK2_MAX_CMD);
  }
 }
-/* Task4 parity: capture at arc entry takes over at 70mm/s at once, the
-   outermost probe pins +-50, all-white freezes it at 50mm/s, and a stable
+/* Task4 parity: capture at arc entry takes over at 80mm/s at once, the
+   outermost probe pins +-60, all-white freezes it at 50mm/s, and a stable
    inner line promotes back to the arc cruise. */
 static void edge_follow_port(void){
  to_arc_entry();
- line_inputs=7; /* 最左单探头：固定 -50 差速，两轮仍前进。 */
+ line_inputs=7; /* 最左单探头：固定 -60 差速，两轮仍前进。 */
  step_roll();
  assert(CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->route.base==DPT_TASK2_EDGE_FOLLOW_MMPS);
  assert(CarApp_TestContext()->route.targets[0]==DPT_TASK2_EDGE_FOLLOW_MMPS-DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS);
  assert(CarApp_TestContext()->route.targets[1]==DPT_TASK2_EDGE_FOLLOW_MMPS+DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS);
- line_inputs=15; /* 全白冻结 -50，降到捕线速度 50 并夹到内轮 20。 */
+ line_inputs=15; /* 全白冻结 -60，降到捕线速度 50 并夹到内轮 20。 */
  step_roll();
  assert(CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->runtime.state==RUNNING);
  assert(CarApp_TestContext()->route.base==DPT_TASK2_EDGE_FOLLOW_CAPTURE_MMPS);
  assert(CarApp_TestContext()->route.targets[0]==DPT_TASK4_TURN_INNER_MMPS);
- assert(CarApp_TestContext()->route.targets[1]==DPT_TASK2_EDGE_FOLLOW_CAPTURE_MMPS+
-  DPT_TASK2_EDGE_FOLLOW_DIFF_MMPS-DPT_TASK4_TURN_INNER_MMPS);
+ assert(CarApp_TestContext()->route.targets[1]==2*DPT_TASK2_EDGE_FOLLOW_CAPTURE_MMPS-DPT_TASK4_TURN_INNER_MMPS);
  for(int i=0;i<9;i++)step_roll(); /* 100ms，未到 500ms/20mm 桥接预算。 */
  assert(CarApp_TestContext()->route.edge_follow&&CarApp_TestContext()->runtime.state==RUNNING);
  line_inputs=9; /* 回中稳定：30ms 恢复 + 60ms 退出 + 200ms 最短跟随。 */
@@ -398,12 +397,12 @@ int main(void){
  for(int i=0;i<50;i++)step(10,0,0);
  assert(CarApp_TestContext()->runtime.state==DONE&&!CarApp_TestContext()->signal.active&&signals==4);
  for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
- assert(strcmp(oled_lines[0],"TASK 2 V27 SMTH")==0&&strstr(oled_lines[2],"DONE DA T"));
+ assert(strcmp(oled_lines[0],"TASK 2 V28 TURN")==0&&strstr(oled_lines[2],"DONE DA T"));
  /* Competition PWM headroom; GO20 retains1800. */
  pwm_cap();
  /* Straight->arc handoff keeps PI state, scaled to the slower target. */
  retarget_regression();
- /* Arc entry capture takes over at 70mm/s; Task4 bridge/promotion/bounds. */
+ /* Arc entry capture takes over at 80mm/s; Task4 bridge/promotion/bounds. */
  edge_follow_port();
  edge_follow_limit();
  /* Continuous legs at Task4-class speeds must finish one lap well under 30s. */
@@ -508,7 +507,7 @@ int main(void){
  cmd("STOP!");assert(CarApp_TestContext()->route.elapsed_ms==300);
  assert(sizeof CarCommand_Banner-1<=160);
  (void)head;
- puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; Task2 400/300mm/s continuous legs with Task4-parity arc handling (70mm/s takeover at capture, fixed +-50 outermost, 500ms/20mm/12deg white and 35mm/18deg gap bridges, 30ms recovery, 60ms/200ms promotion, ramp resume, 120mm/2.5s/45deg fault bounds), Task4 PI retarget and 3600 PWM cap; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
+ puts("PASS: calibrated1256mm BC endpoint regression; Task2 GPIO-only AB->BC->CD->DA->A four-point signals and final settled stop; white straight/black arc switching gated by distance, debounce and end heading; Task2 400/300mm/s continuous legs with Task4-parity arc handling (80mm/s takeover at capture, fixed +-60 outermost, 500ms/20mm/12deg white and 35mm/18deg gap bridges, 30ms recovery, 60ms/200ms promotion, ramp resume, 120mm/2.5s/45deg fault bounds), Task4 PI retarget and 3600 PWM cap; preserved half-circle settings and task1 regressions; four-mode keys, no BLE required, no premature entry/false arc loss endpoint; bounded missing edges, STOP/OFF/RX/IMU/FAST/GAP/LOW/ADC/STALL/REV/timeout protections, restart/held-key suppression, OLED limits and time wrap. Simulation is not field acceptance.");
  printf("TRACE hash=%016llx events=%llu\n",(unsigned long long)trace_hash,(unsigned long long)trace_events);
  return 0;
 }

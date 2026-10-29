@@ -46,7 +46,7 @@ static void replay(const EntryFrame *frames,unsigned count,int historical,CarTas
    assert(out->signal_point==T3_NO_POINT);
    if(!historical && t->phase!=T3_FAULT) {
     assert(t->phase==T3_ARC && t->edge_follow_active && out->control==T3_EDGE_FOLLOW);
-    assert(out->base_mmps<=70 && out->left_mmps>=20 && out->right_mmps<=120);
+    assert(out->base_mmps<=80 && out->left_mmps>=20 && out->right_mmps<=140);
    }
   }
  }
@@ -57,18 +57,18 @@ static void recorded_regression(void)
  replay(v18_distance_onset,sizeof v18_distance_onset/sizeof *v18_distance_onset,1,&t,&in,&o);
  assert(t.phase==T3_FAULT && t.fault==T3_EDGE && in.distance_mm>60);
  replay(v18_distance_onset,sizeof v18_distance_onset/sizeof *v18_distance_onset,0,&t,&in,&o);
- assert(t.phase==T3_ARC && t.edge_follow_active && in.distance_mm>60 && o.base_mmps==70);
- assert(o.left_mmps==20 && o.right_mmps==120);
+ assert(t.phase==T3_ARC && t.edge_follow_active && in.distance_mm>60 && o.base_mmps==80);
+ assert(o.left_mmps==20 && o.right_mmps==140);
  float origin=t.leg_start_mm;
  for(unsigned n=0;n<7;n++){in.distance_mm+=.7f;tick_core(&t,&in,&o,11);}
  assert(t.phase==T3_ARC && !t.edge_follow_active && o.control==T3_FOLLOW_LINE);
- assert(o.base_mmps==70 && t.leg_start_mm==origin);
+ assert(o.base_mmps==80 && t.leg_start_mm==origin);
  /* Same recorded sustained-white input must still stop. A new controller
     cannot be credited with changing a previously recorded physical path. */
  replay(v18_white_onset,sizeof v18_white_onset/sizeof *v18_white_onset,0,&t,&in,&o);
  assert(t.phase==T3_FAULT && t.fault==T3_LOST && t.loss_limits==T3_LOSS_TIME);
  assert(t.loss_duration_ms==500 && o.control==T3_HALT);
- puts("Recorded V18 onset: old60mm F6 reproduced; V19 tracks at20/120 past60mm and accepts stable inner probe; recorded500ms white still F7, no false B.");
+ puts("Recorded V18 onset: old60mm F6 reproduced; V28 tracks at20/140 past60mm and accepts stable inner probe; recorded500ms white still F7, no false B.");
 }
 static void promotion_regression(void)
 {
@@ -79,23 +79,23 @@ static void promotion_regression(void)
   float origin=t.leg_start_mm;
   for(unsigned n=0;n<70;n++) {
    in.distance_mm+=.7f;tick_core(&t,&in,&o,outer);
-   assert(t.phase==T3_ARC && t.edge_follow_active && o.base_mmps==70);
-   assert(side?o.left_mmps==120:o.right_mmps==120);
+   assert(t.phase==T3_ARC && t.edge_follow_active && o.base_mmps==80);
+   assert(side?o.left_mmps==140:o.right_mmps==140);
   }
   for(unsigned n=0;n<5;n++)tick_core(&t,&in,&o,inner);
   assert(t.edge_follow_active);
   tick_core(&t,&in,&o,outer);assert(t.edge_follow_active && !t.edge_seen);
   for(unsigned n=0;n<6;n++){tick_core(&t,&in,&o,inner);assert(t.edge_follow_active);}
   tick_core(&t,&in,&o,inner);
-  assert(!t.edge_follow_active && o.control==T3_FOLLOW_LINE && o.base_mmps==70);
+  assert(!t.edge_follow_active && o.control==T3_FOLLOW_LINE && o.base_mmps==80);
   assert(t.leg_start_mm==origin && o.signal_point==T3_NO_POINT);
-  tick_core(&t,&in,&o,inner);assert(o.base_mmps>70 && o.base_mmps<=71.01f);
+  tick_core(&t,&in,&o,inner);assert(o.base_mmps>80 && o.base_mmps<=81.01f);
  }
  /* Inner capture cannot release full speed before200ms. */
  CarTask3 t;CarTask3Input in;CarTask3Output o;
  core_entry(&t,&in,&o,1,9,0,1000);
- for(unsigned n=0;n<19;n++){tick_core(&t,&in,&o,9);assert(t.edge_follow_active && o.base_mmps==70);}
- tick_core(&t,&in,&o,9);assert(!t.edge_follow_active && o.base_mmps==70);
+ for(unsigned n=0;n<19;n++){tick_core(&t,&in,&o,9);assert(t.edge_follow_active && o.base_mmps==80);}
+ tick_core(&t,&in,&o,9);assert(!t.edge_follow_active && o.base_mmps==80);
 }
 static void recovery_regression(void)
 {
@@ -180,8 +180,8 @@ static void scheduler_regression(void)
   scheduler_entry(leg,side?14:7);
   float ref=app()->route.task4.ac_reference_deg;unsigned arcs=app()->route.task4.arc_number;
   assert(arcs==(leg==1?1:2));
-  assert(app()->route.targets[side?0:1]==120 && app()->route.targets[side?1:0]==20);
-  assert(a>=0 && b<=0 && app()->route.base==70);
+  assert(app()->route.targets[side?0:1]==140 && app()->route.targets[side?1:0]==20);
+  assert(a>=0 && b<=0 && app()->route.base==80);
   for(unsigned n=0;n<100;n++) {
    step(10,100,100);assert(app()->runtime.state==RUNNING && app()->route.task3.edge_follow_active);
   }
@@ -228,7 +228,7 @@ static void scheduler_regression(void)
  /* A forged edge control cannot bypass phase/line/fault authorization. */
  scheduler_entry(1,7);
  CarTask3Output o={.control=T3_EDGE_FOLLOW,.base_mmps=500,.left_mmps=-500,.right_mmps=900};
- CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==20 && app()->route.targets[1]==120);
+ CarTask3Port_Apply(app(),&o,ms);assert(app()->route.targets[0]==20 && app()->route.targets[1]==140);
  app()->route.task3.edge_follow_active=0;CarTask3Port_Apply(app(),&o,ms);assert(a==0 && b==0);
 }
 int main(void)

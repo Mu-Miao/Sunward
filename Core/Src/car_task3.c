@@ -72,7 +72,7 @@ static int config_valid(const CarTask3Config *c)
         c->entry_window_mm < diagonal * 0.5f && c->exit_window_mm < c->arc_mm * 0.5f &&
         c->approach_mm < diagonal && c->diagonal_mmps <= 400.0f && c->arc_mmps <= 300.0f &&
         c->start_mmps <= c->diagonal_mmps && c->start_mmps <= c->arc_mmps &&
-        c->minimum_mmps <= c->diagonal_mmps && c->minimum_mmps <= c->arc_mmps && c->turn_mmps <= 100.0f && c->capture_mmps <= 100.0f &&
+        c->minimum_mmps <= c->diagonal_mmps && c->minimum_mmps <= c->arc_mmps && c->turn_mmps <= 120.0f && c->capture_mmps <= 100.0f &&
         c->diagonal_tolerance_deg <= 20.0f && c->arc_tolerance_deg <= 20.0f &&
         c->align_tolerance_deg <= 5.0f && bounded_time(c->deadline_ms) &&
         bounded_time(c->settle_ms) && bounded_time(c->brake_timeout_ms) &&
@@ -152,8 +152,15 @@ static float speed(const CarTask3 *r, const CarTask3Input *i, float cruise, floa
         v *= fmaxf(remaining, 0.0f) / r->config.approach_mm;
         v = fmaxf(v, r->config.minimum_mmps);
     }
-    float ramp = r->config.start_mmps + acceleration *
-        (float)(uint32_t)(i->now_ms - r->phase_ms) / 1000.0f;
+    float ramp_start = r->config.start_mmps;
+    uint32_t ramp_ms = r->phase_ms;
+    if (r->phase == T3_ARC && r->resume_active) {
+        /* V28: resume from the confirmed takeover speed, not an older phase ramp. */
+        ramp_start = fmaxf(ramp_start, r->resume_start_mmps);
+        ramp_ms = r->resume_ms;
+    }
+    float ramp = ramp_start + acceleration *
+        (float)(uint32_t)(i->now_ms - ramp_ms) / 1000.0f;
     return fminf(v, ramp);
 }
 

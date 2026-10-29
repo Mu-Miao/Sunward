@@ -58,7 +58,7 @@ void CarTask3Port_Apply(CarAppContext *app, const CarTask3Output *o, uint32_t no
         /* 任务三、四接近目标角时降低外轮速度，减少不同车架惯性导致的过冲。
            仍按陀螺仪确认角度；任务三、四连续模式保留正内轮与最小差速。 */
         if (arc_mode) {
-            float slow = app->route.motion == MOVE_TASK4 ? DPT_TASK4_TURN_SLOW_DEG : DPT_TASK3_TURN_SLOW_DEG;
+            float slow = app->route.task3.config.continuous_motion ? DPT_TASK4_TURN_SLOW_DEG : DPT_TASK3_TURN_SLOW_DEG;
             float floor = app->route.motion == MOVE_TASK4 ? DPT_TASK4_TURN_MIN_MMPS : DPT_TASK3_TURN_MIN_MMPS;
             float scale = fminf(1.0f, fabsf(app->heading.error) / slow);
             if (arc_mode && app->route.task3.config.continuous_motion) {
