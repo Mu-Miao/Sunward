@@ -35,3 +35,5 @@ VS Code手动查看航向时可用 `instance.heading.angle`、`instance.heading.
 V27新增line.smooth，包含active、ms、previous_error、derivative、p_term、d_term、base、diff。V27 instance为1092字节；V26为1060。必须使用匹配ELF并通过Flash核验；新固件未烧录时使用原V26 ELF。
 
 V29 instance=1112字节，新增task3.normal_trusted、short_gap_active、short_gap_count及short_gap_left/right_mmps。短窗口最多30ms白区、原30ms恢复确认；计数是尝试次数。V28=1092字节。烧录和采集都应选择同版本HEX/ELF，不要用V29 ELF读取仍运行V28的板子。
+
+V30任务二新增task2_c_align，instance1144字节（V29为1112）。task2_straight.entry_ms是CD正常加速的起点；若执行补转，会晚于C点事件。该左右里程包含补转，分析直线漂移需从task2_c_align.active变0之后开始。

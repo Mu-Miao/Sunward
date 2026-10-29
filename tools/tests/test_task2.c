@@ -387,7 +387,7 @@ int main(void){
  endpoint(0);assert(signals==1&&beep_on&&led_on);
  assert(CarRoute_UsesLine(CarApp_TestContext())&&!CarRoute_UsesHeading(CarApp_TestContext()));
  endpoint(1);assert(signals==2&&CarApp_TestContext()->route.leg==2&&CarRoute_UsesHeading(CarApp_TestContext())&&!CarRoute_UsesLine(CarApp_TestContext()));
- assert(CarApp_TestContext()->route.task2_straight.seen && fabsf(CarMath_WrapDegrees(CarApp_TestContext()->heading.reference-CarApp_TestContext()->route.task2_straight.entry_yaw))<.001f);
+ assert(CarApp_TestContext()->route.task2_straight.seen && fabsf(CarMath_WrapDegrees(CarApp_TestContext()->heading.reference-CarApp_TestContext()->route.task2_straight.nominal_heading))<.001f);
  endpoint(2);assert(signals==3&&CarApp_TestContext()->route.leg==3&&CarRoute_UsesLine(CarApp_TestContext()));
  endpoint(3);assert(signals==3&&!beep_on&&a==0&&b==0);
  for(int i=0;i<21;i++)step(10,0,0);
@@ -397,7 +397,7 @@ int main(void){
  for(int i=0;i<50;i++)step(10,0,0);
  assert(CarApp_TestContext()->runtime.state==DONE&&!CarApp_TestContext()->signal.active&&signals==4);
  for(unsigned i=0;i<4;i++)assert(strlen(oled_lines[i])<=21);
- assert(strcmp(oled_lines[0],"TASK 2 V29 GAP")==0&&strstr(oled_lines[2],"DONE DA T"));
+ assert(strcmp(oled_lines[0],"TASK 2 V30 ALIGN")==0&&strstr(oled_lines[2],"DONE DA T"));
  /* Competition PWM headroom; GO20 retains1800. */
  pwm_cap();
  /* Straight->arc handoff keeps PI state, scaled to the slower target. */

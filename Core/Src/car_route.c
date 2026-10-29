@@ -68,6 +68,7 @@ void CarRoute_Select(CarAppContext *app, Motion selected, uint32_t now)
     app->route.elapsed_ms = 0U;
     task2_edge_reset(&app->route);
     memset(&app->route.task2_straight, 0, sizeof app->route.task2_straight);
+    memset(&app->route.task2_c_align, 0, sizeof app->route.task2_c_align);
     app->route.motion = MOVE_NONE;    app->route.tracking = 0U;
     app->route.distance_mm[LEFT] = app->route.distance_mm[RIGHT] = 0.0f;
     app->route.goal = app->button.selected_motion == MOVE_LINE ? DPT_LINE_MM :
@@ -125,6 +126,7 @@ void CarRoute_Request(CarAppContext *app, Motion requested, uint32_t now)
             }
             if (requested == MOVE_TASK2) {
                 memset(&app->route.task2_straight, 0, sizeof app->route.task2_straight);
+                memset(&app->route.task2_c_align, 0, sizeof app->route.task2_c_align);
                 memset(&app->route.task3, 0, sizeof app->route.task3);
                 app->route.leg = app->route.edge_seen = 0U;
                 app->route.leg_start = 0.0f;
@@ -191,13 +193,19 @@ static void task2_next_leg(CarAppContext *app, uint32_t now, float travelled)
         CarMath_WrapDegrees(app->route.start_heading + 180.0f) : app->route.start_heading;
     if (CarRoute_IsArc(app)) app->route.task2_arc_exit_heading = app->heading.reference;
     if (app->route.leg == 2U) {
-        /* C点已确认出线：保存当前陀螺坐标，不再追回名义180度。 */
+        /* C point retains its physical distance origin; finish any residual yaw
+           before the normal CD acceleration. The target remains the CD heading. */
         app->route.task2_straight.seen = 1U;
         app->route.task2_straight.entry_ms = now;
         app->route.task2_straight.nominal_heading = app->heading.reference;
-        app->route.task2_straight.reference_heading = app->heading.angle;
+        app->route.task2_straight.reference_heading = app->heading.reference;
         app->route.task2_straight.entry_yaw = app->heading.angle;
-        app->heading.reference = app->heading.angle;
+        memset(&app->route.task2_c_align, 0, sizeof app->route.task2_c_align);
+        app->route.task2_c_align.start_ms = now;
+        app->route.task2_c_align.start_mm = travelled;
+        app->route.task2_c_align.start_yaw = app->route.task2_c_align.end_yaw = app->heading.angle;
+        app->route.task2_c_align.active =
+            fabsf(CarMath_WrapDegrees(app->heading.reference-app->heading.angle)) > DPT_TASK2_C_ALIGN_TOL_DEG;
         for (unsigned w=0;w<2;w++) {
             app->route.task2_straight.entry_targets[w] = app->route.targets[w];
             app->route.task2_straight.entry_velocity[w] = app->wheel.items[w].velocity;
@@ -243,7 +251,8 @@ int CarRoute_UsesLine(CarAppContext *app)
 
 int CarRoute_UsesHeading(CarAppContext *app)
 {
- return !CarMotion_IsFigureEight(app->route.motion) && app->route.motion != MOVE_LINE && !CarRoute_IsArc(app);
+ return !CarMotion_IsFigureEight(app->route.motion) && app->route.motion != MOVE_LINE && !CarRoute_IsArc(app) &&
+    !(app->route.motion==MOVE_TASK2 && app->route.task2_c_align.active);
 }
 
 /* Thin adapter: Task2 BC/DA both turn right, using the actual Task3/4 arc core. */
@@ -272,6 +281,44 @@ static void task2_line_history(CarAppContext *app, const CarTask3Input *i, int b
         app->route.task3_trace.valid_error=i->line_error;
         app->route.task3_trace.valid_diff=app->line.diff;
         app->route.task3_trace.valid_seen=1U;
+    }
+}
+
+static void task2_align_cd(CarAppContext *app, uint32_t now)
+{
+    CarRouteState *r = &app->route;
+    float mean = (r->distance_mm[LEFT] + r->distance_mm[RIGHT]) * 0.5f;
+    float error = CarMath_WrapDegrees(r->task2_straight.nominal_heading-app->heading.angle);
+    r->task2_c_align.elapsed_ms = (uint32_t)(now-r->task2_c_align.start_ms);
+    r->task2_c_align.travel_mm = mean-r->task2_c_align.start_mm;
+    r->task2_c_align.end_yaw = app->heading.angle;
+    if (app->heading.phase != Y_READY || !isfinite(error) || fabsf(error)>DPT_TASK2_END_ANGLE_DEG+0.01f ||
+        r->task2_c_align.elapsed_ms>=DPT_TASK2_C_ALIGN_TIMEOUT_MS ||
+        r->task2_c_align.travel_mm>=DPT_TASK2_C_ALIGN_LIMIT_MM || r->task2_c_align.travel_mm < -5.0f) {
+        CarApp_Stop(app,YAW_BAD,'-'); return;
+    }
+    app->heading.reference = r->task2_straight.nominal_heading;
+    app->heading.error = error;
+    app->heading.diff = fmaxf(-DPT_HEADING_MAX_DIFF,fminf(DPT_HEADING_MAX_DIFF,DPT_HEADING_GAIN*error));
+    if (fabsf(error)<=DPT_TASK2_C_ALIGN_TOL_DEG) {
+        if (!r->task2_c_align.stable_seen) {
+            r->task2_c_align.stable_seen=1U; r->task2_c_align.stable_ms=now;
+        }
+        r->base=DPT_TASK2_START_MMPS;
+        r->targets[LEFT]=r->base-app->heading.diff;
+        r->targets[RIGHT]=r->base+app->heading.diff;
+        if ((uint32_t)(now-r->task2_c_align.stable_ms)>=DPT_TASK2_C_ALIGN_CONFIRM_MS) {
+            r->task2_c_align.active=0U;
+            r->task2_straight.entry_ms=now; /* Ramp begins after alignment, not at C. */
+        }
+    } else {
+        r->task2_c_align.stable_seen=0U;
+        float outer=fminf(DPT_TASK2_C_ALIGN_OUTER_MMPS,
+            fmaxf(DPT_TASK2_C_ALIGN_INNER_MMPS+DPT_TASK2_C_ALIGN_MIN_DIFF,
+                  DPT_TASK2_C_ALIGN_OUTER_MMPS*fminf(1.0f,fabsf(error)/DPT_TASK2_C_ALIGN_SLOW_DEG)));
+        r->targets[LEFT]=error<0?outer:DPT_TASK2_C_ALIGN_INNER_MMPS;
+        r->targets[RIGHT]=error>0?outer:DPT_TASK2_C_ALIGN_INNER_MMPS;
+        r->base=(outer+DPT_TASK2_C_ALIGN_INNER_MMPS)*0.5f;
     }
 }
 
@@ -305,7 +352,9 @@ static int task2_arc_line(CarAppContext *app, uint32_t now, float *base, const f
         task2_next_leg(app,now,input.distance_mm);
         if (app->runtime.state==RUNNING) {
             r->base=*base=DPT_TASK2_START_MMPS;
-            r->targets[LEFT]=r->targets[RIGHT]=r->base;
+            r->targets[LEFT]=r->base-app->heading.diff;
+            r->targets[RIGHT]=r->base+app->heading.diff;
+            if (r->task2_c_align.active) { task2_align_cd(app,now); *base=r->base; }
         }
         return 1;
     }
@@ -474,6 +523,11 @@ void CarRoute_Update(CarAppContext *app, uint32_t now, const uint16_t count[2])
                             } else app->route.settle_seen = 0;
                         }
                     }
+                }
+                if (app->runtime.state==RUNNING && app->route.motion==MOVE_TASK2 && app->route.task2_c_align.active) {
+                    task2_align_cd(app,now);
+                    if (app->runtime.state==RUNNING) CarWheel_Retarget(app,previous_targets);
+                    return;
                 }
                 if (app->runtime.state == RUNNING && (app->route.motion == MOVE_HEADING || CarRoute_IsDistance(app->route.motion))) {
                     if (app->heading.phase != Y_READY || (CarRoute_UsesHeading(app) && (app->heading.error > DPT_HEADING_MAX_ERROR || app->heading.error < -DPT_HEADING_MAX_ERROR)))

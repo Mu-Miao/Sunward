@@ -1,0 +1,46 @@
+{
+  "validation": "software only; ideal target-following wheels/160mm track, not real vehicle dynamics",
+  "regression_groups": 38,
+  "c_residual_cases": [
+    {
+      "initial_error_deg": -19.5,
+      "correction_ms": 860,
+      "correction_mm": 41.31,
+      "final_error_deg": -2.84
+    },
+    {
+      "initial_error_deg": -12,
+      "correction_ms": 600,
+      "correction_mm": 25.67,
+      "final_error_deg": -2.81
+    },
+    {
+      "initial_error_deg": -5,
+      "correction_ms": 190,
+      "correction_mm": 7.51,
+      "final_error_deg": -2.93
+    },
+    {
+      "initial_error_deg": 5,
+      "correction_ms": 190,
+      "correction_mm": 7.51,
+      "final_error_deg": 2.93
+    },
+    {
+      "initial_error_deg": 12,
+      "correction_ms": 600,
+      "correction_mm": 25.67,
+      "final_error_deg": 2.81
+    },
+    {
+      "initial_error_deg": 19.5,
+      "correction_ms": 860,
+      "correction_mm": 41.33,
+      "final_error_deg": 2.84
+    }
+  ],
+  "alignment_counts_in_cd_distance": true,
+  "cd_distance_origin_changed": false,
+  "new_physical_test": false,
+  "flashed": false
+}

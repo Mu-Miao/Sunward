@@ -144,6 +144,11 @@ typedef struct {
         float entry_targets[2], entry_velocity[2], entry_integral[2];
         float left_mm, right_mm, wheel_yaw_deg, gyro_delta_deg;
     } task2_straight;
+    struct {
+        uint8_t active, stable_seen;
+        uint32_t start_ms, stable_ms, elapsed_ms;
+        float start_mm, travel_mm, start_yaw, end_yaw;
+    } task2_c_align;
     CarTask3 task3;
     CarTask4 task4;
     struct {

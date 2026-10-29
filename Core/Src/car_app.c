@@ -49,6 +49,7 @@ void CarApp_Stop(CarAppContext *app, TestState why, char faulty)
         if (why==BRAKING || why==DONE) app->route.task3.phase=T3_IDLE;
         else if (app->route.task3.phase!=T3_FAULT) CarTask3_Cancel(&app->route.task3);
     }
+    app->route.task2_c_align.active=0U;
     app->runtime.state = why;
     app->runtime.fault_wheel = faulty;
     if (completed_route) {
@@ -101,6 +102,13 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
         DPT_TASK2_EXIT_WINDOW_MM < 50.0f || DPT_TASK2_EXIT_WINDOW_MM > 250.0f ||
         DPT_TASK2_EDGE_MS < 30U || DPT_TASK2_EDGE_MS > 100U ||
         DPT_TASK2_END_ANGLE_DEG <= 0.0f || DPT_TASK2_END_ANGLE_DEG > 20.0f ||
+        DPT_TASK2_C_ALIGN_TOL_DEG <= 0.0f || DPT_TASK2_C_ALIGN_TOL_DEG > 3.0f ||
+        DPT_TASK2_C_ALIGN_CONFIRM_MS < 30U || DPT_TASK2_C_ALIGN_CONFIRM_MS > 100U ||
+        DPT_TASK2_C_ALIGN_TIMEOUT_MS < 500U || DPT_TASK2_C_ALIGN_TIMEOUT_MS > 1500U ||
+        DPT_TASK2_C_ALIGN_LIMIT_MM <= 0.0f || DPT_TASK2_C_ALIGN_LIMIT_MM > 60.0f ||
+        DPT_TASK2_C_ALIGN_OUTER_MMPS > 100.0f || DPT_TASK2_C_ALIGN_INNER_MMPS < 20.0f ||
+        DPT_TASK2_C_ALIGN_OUTER_MMPS < DPT_TASK2_C_ALIGN_INNER_MMPS+DPT_TASK2_C_ALIGN_MIN_DIFF ||
+        DPT_TASK2_C_ALIGN_SLOW_DEG <= DPT_TASK2_C_ALIGN_TOL_DEG || DPT_TASK2_C_ALIGN_MIN_DIFF < 35.0f ||
         DPT_LINE_CENTER_MS < 100U || DPT_LINE_INVALID_MS < 50U || DPT_LINE_INVALID_MS > 100U ||
         DPT_CIRC_M <= 0.0f || DPT_DISTANCE_MM <= 0.0f ||
         DPT_DISTANCE_SLOW_MM <= 0.0f || DPT_DISTANCE_SLOW_MM >= DPT_DISTANCE_MM ||
@@ -179,6 +187,7 @@ HAL_StatusTypeDef CarApp_Begin(UART_HandleTypeDef *u,
     app->route.leg = app->route.edge_seen = 0U;
     app->route.leg_start = app->route.start_heading = 0.0f;
     app->route.elapsed_ms = 0U;
+    memset(&app->route.task2_c_align,0,sizeof app->route.task2_c_align);
     app->button.selected_motion = MOVE_ROUTE; /* 上电默认选择独立的一米直行任务。 */
     app->line.valid = app->line.count = app->line.center_seen = app->line.center_ready = app->line.invalid_seen = 0U;
     app->line.center_ms = app->line.sample_ms = app->line.invalid_ms = now;

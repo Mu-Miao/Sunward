@@ -112,6 +112,7 @@ def summarize(d):
                 ({'smooth': d['line']['smooth']} if 'smooth' in d['line'] else {}),
         'route': select(r, 'motion leg leg_start distance_mm targets base elapsed_ms start_ms'),
         'task2_straight': r.get('task2_straight'),
+        'task2_c_align': r.get('task2_c_align'),
         'gyro_rate_dps': d['heading'].get('previous_gyro_rate'),
         'task3': select(t, 'phase fault leg start_heading_deg leg_start_mm phase_start_mm phase_ms lost_seen loss_seek gap_seek loss_limits loss_duration_ms loss_distance_mm loss_turn_deg') |
                  {k: t[k] for k in ('entry_yaw_deg', 'entry_diff_mmps', 'edge_follow_active', 'resume_start_mmps',

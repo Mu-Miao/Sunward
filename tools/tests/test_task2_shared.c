@@ -28,20 +28,23 @@ static void cd_reference_and_ramp(void)
 {
  for(unsigned side=0;side<2;side++) {
   near_arc_end();float nominal=app()->route.task2_arc_exit_heading;
-  float actual=CarMath_WrapDegrees(nominal+(side?12:-12));
+  float actual=CarMath_WrapDegrees(nominal+(side?2:-2));
   app()->heading.angle=actual;line_inputs=15;
   for(unsigned n=0;n<4;n++)step(10,0,0);
   assert(app()->route.leg==2 && app()->runtime.state==RUNNING && app()->route.task2_straight.seen);
-  assert(fabsf(CarMath_WrapDegrees(app()->heading.reference-actual))<.001f);
+  assert(fabsf(CarMath_WrapDegrees(app()->heading.reference-nominal))<.001f);
   assert(fabsf(CarMath_WrapDegrees(app()->route.task2_straight.nominal_heading-nominal))<.001f);
-  assert(fabsf(app()->heading.error)<.001f && app()->route.targets[0]==50 && app()->route.targets[1]==50);
+  assert(!app()->route.task2_c_align.active && fabsf(app()->heading.error)<=3.0f);
+  assert(app()->route.targets[0]>0 && app()->route.targets[1]>0);
+  app()->heading.angle=nominal;
   for(unsigned n=0;n<50;n++)step_roll();
   assert(app()->route.base>=174 && app()->route.base<=176);
   assert(fabsf(app()->route.targets[0]-app()->route.targets[1])<.001f);
   /* A measured encoder asymmetry is recorded, not silently treated as gyro drift. */
+  float gyro_before=app()->route.task2_straight.gyro_delta_deg;
   for(unsigned n=0;n<50;n++)step(10,400,600);
   assert(app()->route.task2_straight.wheel_yaw_deg>10);
-  assert(fabsf(app()->route.task2_straight.gyro_delta_deg)<.001f);
+  assert(fabsf(app()->route.task2_straight.gyro_delta_deg-gyro_before)<.001f);
   assert(app()->route.task2_straight.right_mm>app()->route.task2_straight.left_mm);
   cmd("STOP!");assert(a==0 && b==0);
  }
@@ -61,6 +64,6 @@ static void moving_arc_guards(void)
 int main(void)
 {
  shared_arc_parity();cd_reference_and_ramp();moving_arc_guards();
- puts("PASS: Task2 calls shared Task3/4 arc core/port, mirrored loss/recovery output parity; +/-12deg CD handoff without nominal kick, smooth ramp, encoder/gyro discrepancy evidence; moving-entry safety and subsequent Task3 restart.");
+ puts("PASS: Task2 calls shared Task3/4 arc core/port, mirrored loss/recovery output parity; fixed CD reference with small-angle direct handoff, smooth ramp, encoder/gyro discrepancy evidence; moving-entry safety and subsequent Task3 restart.");
  return 0;
 }

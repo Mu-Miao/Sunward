@@ -95,6 +95,15 @@
 #define DPT_TASK2_EXIT_WINDOW_MM 200.0f
 #define DPT_TASK2_EDGE_MS 30U
 #define DPT_TASK2_END_ANGLE_DEG 20.0f
+/* V30: C exit is a point event, not permission to cruise along its residual yaw. */
+#define DPT_TASK2_C_ALIGN_TOL_DEG 3.0f
+#define DPT_TASK2_C_ALIGN_CONFIRM_MS 30U
+#define DPT_TASK2_C_ALIGN_TIMEOUT_MS 1500U
+#define DPT_TASK2_C_ALIGN_LIMIT_MM 60.0f
+#define DPT_TASK2_C_ALIGN_OUTER_MMPS 100.0f
+#define DPT_TASK2_C_ALIGN_INNER_MMPS 20.0f
+#define DPT_TASK2_C_ALIGN_SLOW_DEG 12.0f
+#define DPT_TASK2_C_ALIGN_MIN_DIFF 35.0f
 /* 任务二弧段巡线：直接沿用任务四 V19 的弧内逻辑。
  * 弧入口确认捕线后立即以 70 毫米/秒低速跟线；最外侧单探头固定 ±50（20/120），
  * 内侧双探头稳定 60 毫秒且已运行 200 毫秒后才交回 240 毫米/秒常规巡线。
